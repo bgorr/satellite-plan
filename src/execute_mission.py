@@ -1,8 +1,11 @@
 import json
 from orbitpy.mission import Mission
+import datetime
 
-def main(scenario_dir):
-    data_dir = scenario_dir + 'orbit_data/'
+def execute_mission(settings):
+    print("Executing mission")
+    scenario_dir = settings["directory"]
+    data_dir = settings["directory"] + 'orbit_data/'
     with open(scenario_dir +'MissionSpecs.json', 'r') as scenario_specs:
         # load json file as dictionary
         mission_dict = json.load(scenario_specs)
@@ -24,4 +27,10 @@ def main(scenario_dir):
         print("Mission executed!")
 
 if __name__ == "__main__":
-    main('./missions/test_mission/')
+    settings = {
+        "directory": "./missions/test_mission_2/",
+        "step_size": 100,
+        "duration": 0.2,
+        "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
+    }
+    execute_mission(settings)

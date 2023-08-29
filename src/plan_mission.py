@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import csv
+import datetime
 
 def greedy_lemaitre_planner(obs_list):
     """
@@ -75,88 +76,99 @@ def check_maneuver_feasibility(curr_angle,obs_angle,curr_time,obs_end_time):
     moved = True
     return slew_rate < max_slew_rate, transition_end_time
 
-directory = "./missions/test_mission/orbit_data/"
+def plan_mission(settings):
+    #directory = "./missions/test_mission/orbit_data/"
+    directory = settings["directory"] + "orbit_data/"
 
-satellites = []
+    satellites = []
 
-for subdir in os.listdir(directory):
-    if "comm" in subdir:
-        continue
-    if ".json" in subdir:
-        continue
-    satellite = {}
-    for f in os.listdir(directory+subdir):
-        if "datametrics" in f:
-            with open(directory+subdir+"/"+f,newline='') as csv_file:
-                spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
-                visibilities = []
-                i = 0
-                for row in spamreader:
-                    if i < 5:
-                        i=i+1
-                        continue
-                    row[2] = "0.0"
-                    row = [float(i) for i in row]
-                    visibilities.append(row)
-            satellite["visibilities"] = visibilities
-            satellite["orbitpy_id"] = subdir
+    for subdir in os.listdir(directory):
+        if "comm" in subdir:
+            continue
+        if ".json" in subdir:
+            continue
+        satellite = {}
+        for f in os.listdir(directory+subdir):
+            if "datametrics" in f:
+                with open(directory+subdir+"/"+f,newline='') as csv_file:
+                    spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
+                    visibilities = []
+                    i = 0
+                    for row in spamreader:
+                        if i < 5:
+                            i=i+1
+                            continue
+                        row[2] = "0.0"
+                        row = [float(i) for i in row]
+                        visibilities.append(row)
+                satellite["visibilities"] = visibilities
+                satellite["orbitpy_id"] = subdir
 
-    satellites.append(satellite)
+        satellites.append(satellite)
 
-for satellite in satellites:
-    obs_list = []
-    i = 0
-    visibilities = satellite["visibilities"]
-    while i < len(visibilities):
-        continuous_visibilities = []
-        visibility = visibilities[i]
-        continuous_visibilities.append(visibility)
-        start = visibility[0]
-        end = visibility[0]
-        while(i < len(visibilities)-1 and visibilities[i+1][0] == start):
-            i += 1
-        vis_done = False
-        if i == len(visibilities)-1:
-            break
-        while not vis_done:
-            vis_done = True
-            num_steps = len(continuous_visibilities)
-            while visibilities[i+1][0] == start+num_steps:
-                if visibilities[i+1][1] == visibility[1]:
-                    continuous_visibilities.append(visibilities[i+1])
-                    end = visibilities[i+1][0]
-                    vis_done = False
-                if i == len(visibilities)-2:
-                    break
-                else:
-                    i += 1
-            num_steps = len(continuous_visibilities)
+    for satellite in satellites:
+        obs_list = []
+        i = 0
+        visibilities = satellite["visibilities"]
+        while i < len(visibilities):
+            continuous_visibilities = []
+            visibility = visibilities[i]
+            continuous_visibilities.append(visibility)
+            start = visibility[0]
+            end = visibility[0]
+            while(i < len(visibilities)-1 and visibilities[i+1][0] == start):
+                i += 1
+            vis_done = False
             if i == len(visibilities)-1:
                 break
+            while not vis_done:
+                vis_done = True
+                num_steps = len(continuous_visibilities)
+                while visibilities[i+1][0] == start+num_steps:
+                    if visibilities[i+1][1] == visibility[1]:
+                        continuous_visibilities.append(visibilities[i+1])
+                        end = visibilities[i+1][0]
+                        vis_done = False
+                    if i == len(visibilities)-2:
+                        break
+                    else:
+                        i += 1
+                num_steps = len(continuous_visibilities)
+                if i == len(visibilities)-1:
+                    break
 
-        time_window = {
-            "location": {
-                "lat": visibility[3],
-                "lon": visibility[4]
-            },
-            "times": [x[0] for x in continuous_visibilities],
-            "angles": [x[6] for x in continuous_visibilities],
-            "start": start,
-            "end": end,
-            "angle": visibility[6],
-            "reward": 1
-        }
-        if(time_window["location"]) is None:
-            print(time_window)
-        obs_list.append(time_window)
-        for cont_vis in continuous_visibilities:
-            visibilities.remove(cont_vis)
-        i = 0
-    plan = greedy_lemaitre_planner(obs_list)
-    satellite["plan"] = plan
-    with open('./missions/test_mission/orbit_data/'+satellite["orbitpy_id"]+'/plan.csv','w') as csvfile:
-        csvwriter = csv.writer(csvfile, delimiter=',',
-                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        for obs in plan:
-            row = [obs["start"],obs["end"],obs["location"]["lat"],obs["location"]["lon"]]
-            csvwriter.writerow(row)
+            time_window = {
+                "location": {
+                    "lat": visibility[3],
+                    "lon": visibility[4]
+                },
+                "times": [x[0] for x in continuous_visibilities],
+                "angles": [x[6] for x in continuous_visibilities],
+                "start": start,
+                "end": end,
+                "angle": visibility[6],
+                "reward": 1
+            }
+            if(time_window["location"]) is None:
+                print(time_window)
+            obs_list.append(time_window)
+            for cont_vis in continuous_visibilities:
+                visibilities.remove(cont_vis)
+            i = 0
+        plan = greedy_lemaitre_planner(obs_list)
+        satellite["plan"] = plan
+        with open(directory+satellite["orbitpy_id"]+'/plan.csv','w') as csvfile:
+            csvwriter = csv.writer(csvfile, delimiter=',',
+                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            for obs in plan:
+                row = [obs["start"],obs["end"],obs["location"]["lat"],obs["location"]["lon"]]
+                csvwriter.writerow(row)
+
+if __name__ == "__main__":
+    settings = {
+        "directory": "./missions/test_mission_2/",
+        "step_size": 100,
+        "duration": 0.2,
+        "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
+    }
+    plan_mission(settings)

@@ -1,2 +1,5 @@
 .venv/
-missions/test_mission/*
+src/__pycache__/
+missions/test_mission*
+rain_data/
+plotting_data/

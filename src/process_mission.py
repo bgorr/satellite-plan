@@ -7,10 +7,10 @@ import os
 def precess(ttt):
     ttt2 = ttt*ttt
     ttt3 = ttt*ttt2
-    psia = np.deg2rad(5038.7784*ttt - 1.07259*ttt2 - 0.001147*ttt3)
-    wa   = np.deg2rad(84381.448                 + 0.05127*ttt2 - 0.007726*ttt3)
-    ea   = np.deg2rad(84381.448 -   46.8150*ttt - 0.00059*ttt2 + 0.001813*ttt3)
-    xa   = np.deg2rad(              10.5526*ttt - 2.38064*ttt2 - 0.001125*ttt3)
+    # psia = np.deg2rad(5038.7784*ttt - 1.07259*ttt2 - 0.001147*ttt3)
+    # wa   = np.deg2rad(84381.448                 + 0.05127*ttt2 - 0.007726*ttt3)
+    # ea   = np.deg2rad(84381.448 -   46.8150*ttt - 0.00059*ttt2 + 0.001813*ttt3)
+    # xa   = np.deg2rad(              10.5526*ttt - 2.38064*ttt2 - 0.001125*ttt3)
     zeta = np.deg2rad(            2306.2181*ttt + 0.30188*ttt2 + 0.017998*ttt3)/3600
     theta= np.deg2rad(            2004.3109*ttt - 0.42665*ttt2 - 0.041833*ttt3)/3600
     z    = np.deg2rad(            2306.2181*ttt + 1.09468*ttt2 + 0.018203*ttt3)/3600
@@ -313,241 +313,253 @@ def pitchroll2ecisurface(r_eci,v_eci, pitch, roll):
 
     
 
+def process_mission(settings):
+    print("Processing mission")
+    time = settings["initial_datetime"]
+    base_directory = settings["directory"]
+    #time = datetime.datetime(2020,1,1,0,0,0)
+    base_jd = date_to_jd(time.year,time.month,time.day) + (3600*time.hour + 60*time.minute + time.second)/86400
+    conv = np.pi / (180.0*3600.0)
+    xp   = -0.140682 * conv
+    yp   =  0.333309 * conv
+    lod  =  0.0015563
+    ddpsi = -0.052195 * conv
+    ddeps = -0.003875 * conv
 
-time = datetime.datetime(2020,1,1,0,0,0)
-base_jd = date_to_jd(time.year,time.month,time.day) + (3600*time.hour + 60*time.minute + time.second)/86400
-conv = np.pi / (180.0*3600.0)
-xp   = -0.140682 * conv
-yp   =  0.333309 * conv
-lod  =  0.0015563
-ddpsi = -0.052195 * conv
-ddeps = -0.003875 * conv
+    directory = base_directory+"orbit_data/"
 
-directory = "./missions/test_mission/orbit_data/"
+    satellites = []
 
-satellites = []
-
-for subdir in os.listdir(directory):
-    satellite = {}
-    if "comm" in subdir:
-        continue
-    if ".json" in subdir:
-        continue
-    for f in os.listdir(directory+subdir):
-        
-        if "state_cartesian" in f:
-            with open(directory+subdir+"/"+f,newline='') as csv_file:
-                spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
-                states = []
-                i = 0
-                for row in spamreader:
-                    if i < 5:
-                        i=i+1
-                        continue
-                    row = [float(i) for i in row]
-                    states.append(row)
-            satellite["orbitpy_id"] = subdir
-            satellite["states"] = states
+    for subdir in os.listdir(directory):
+        satellite = {}
+        if "comm" in subdir:
+            continue
+        if ".json" in subdir:
+            continue
+        for f in os.listdir(directory+subdir):
             
-        if "access" in f:
-            with open(directory+subdir+"/"+f,newline='') as csv_file:
-                spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
-                visibilities = []
-                i = 0
-                for row in spamreader:
-                    if i < 5:
-                        i=i+1
-                        continue
-                    row = [float(i) for i in row]
-                    visibilities.append(row)
-            satellite["visibilities"] = visibilities
+            if "state_cartesian" in f:
+                with open(directory+subdir+"/"+f,newline='') as csv_file:
+                    spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
+                    states = []
+                    i = 0
+                    for row in spamreader:
+                        if i < 5:
+                            i=i+1
+                            continue
+                        row = [float(i) for i in row]
+                        states.append(row)
+                satellite["orbitpy_id"] = subdir
+                satellite["states"] = states
+                
+            if "access" in f:
+                with open(directory+subdir+"/"+f,newline='') as csv_file:
+                    spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
+                    visibilities = []
+                    i = 0
+                    for row in spamreader:
+                        if i < 5:
+                            i=i+1
+                            continue
+                        row = [float(i) for i in row]
+                        visibilities.append(row)
+                satellite["visibilities"] = visibilities
 
-        if "plan" in f:
-            with open(directory+subdir+"/"+f,newline='') as csv_file:
-                spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
-                observations = []
-                i = 0
-                for row in spamreader:
-                    if i < 5:
-                        i=i+1
-                        continue
-                    row = [float(i) for i in row]
-                    observations.append(row)
-            satellite["observations"] = observations
-        
+            if "plan" in f:
+                with open(directory+subdir+"/"+f,newline='') as csv_file:
+                    spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
+                    observations = []
+                    i = 0
+                    for row in spamreader:
+                        if i < 5:
+                            i=i+1
+                            continue
+                        row = [float(i) for i in row]
+                        observations.append(row)
+                satellite["observations"] = observations
+            
 
-    if "orbitpy_id" in satellite:
-        satellites.append(satellite)
+        if "orbitpy_id" in satellite:
+            satellites.append(satellite)
 
-timestep = 10
-duration = 0.1*86400
-steps = np.arange(0,duration,timestep,dtype=int)
-if not os.path.exists('./missions/test_mission/sat_positions'):
-    os.mkdir('./missions/test_mission/sat_positions')
-for i in range(len(steps)):
-    sat_positions = []
-    for sat in satellites:
-        name = sat["orbitpy_id"]
-        states = sat["states"]
-        curr_state = states[i]
-        r_eci = [curr_state[1]*1e3,curr_state[2]*1e3,curr_state[3]*1e3]
-        v_eci = [curr_state[4]*1e3,curr_state[5]*1e3,curr_state[6]*1e3]
-        jd = base_jd + timestep*i/86400
-        centuries = (jd-2451545)/36525
-        r_ecef, v_ecef = eci2ecef(r_eci,v_eci,centuries,jd,lod,xp,yp,ddpsi,ddeps)
-        lat,lon,alt = ecef2lla(r_ecef[0],r_ecef[1],r_ecef[2])
-        sat_position = [name,lat[0][0],lon[0][0]]
-        sat_positions.append(sat_position)
-    with open('./missions/test_mission/sat_positions/step'+str(i)+'.csv','w') as csvfile:
-        csvwriter = csv.writer(csvfile, delimiter=',',
-                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        for pos in sat_positions:
-            csvwriter.writerow(pos)
+    timestep = settings["step_size"]
+    duration = settings["duration"]*86400
+    steps = np.arange(0,duration,timestep,dtype=int)
+    if not os.path.exists(base_directory+'sat_positions'):
+        os.mkdir(base_directory+'sat_positions')
+    for i in range(len(steps)):
+        sat_positions = []
+        for sat in satellites:
+            name = sat["orbitpy_id"]
+            states = sat["states"]
+            curr_state = states[i]
+            r_eci = [curr_state[1]*1e3,curr_state[2]*1e3,curr_state[3]*1e3]
+            v_eci = [curr_state[4]*1e3,curr_state[5]*1e3,curr_state[6]*1e3]
+            jd = base_jd + timestep*i/86400
+            centuries = (jd-2451545)/36525
+            r_ecef, v_ecef = eci2ecef(r_eci,v_eci,centuries,jd,lod,xp,yp,ddpsi,ddeps)
+            lat,lon,alt = ecef2lla(r_ecef[0],r_ecef[1],r_ecef[2])
+            sat_position = [name,lat[0][0],lon[0][0]]
+            sat_positions.append(sat_position)
+        with open(base_directory+'sat_positions/step'+str(i)+'.csv','w') as csvfile:
+            csvwriter = csv.writer(csvfile, delimiter=',',
+                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            for pos in sat_positions:
+                csvwriter.writerow(pos)
 
-if not os.path.exists('./missions/test_mission/sat_visibilities'):
-    os.mkdir('./missions/test_mission/sat_visibilities')
-for i in range(len(steps)):
-    sat_visibilities = []
-    for sat in satellites:
-        name = sat["orbitpy_id"]
-        states = sat["states"]
-        curr_state = states[i]
-        r_eci = [curr_state[1]*1e3,curr_state[2]*1e3,curr_state[3]*1e3]
-        v_eci = [curr_state[4]*1e3,curr_state[5]*1e3,curr_state[6]*1e3]
-        jd = base_jd + timestep*i/86400
-        centuries = (jd-2451545)/36525
-        r_ecef, v_ecef = eci2ecef(r_eci,v_eci,centuries,jd,lod,xp,yp,ddpsi,ddeps)
-        lat,lon,alt = ecef2lla(r_ecef[0],r_ecef[1],r_ecef[2])
-        
-        for visibility in sat["visibilities"]:
-            if visibility[0] == i:
-                sat_pos_and_visibility = [name,lat[0][0],lon[0][0],visibility[2],visibility[3]]
-                sat_visibilities.append(sat_pos_and_visibility)
-    with open('./missions/test_mission/sat_visibilities/step'+str(i)+'.csv','w') as csvfile:
-        csvwriter = csv.writer(csvfile, delimiter=',',
-                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        for vis in sat_visibilities:
-            csvwriter.writerow(vis)
+    if not os.path.exists(base_directory+'sat_visibilities'):
+        os.mkdir(base_directory+'sat_visibilities')
+    for i in range(len(steps)):
+        sat_visibilities = []
+        for sat in satellites:
+            name = sat["orbitpy_id"]
+            states = sat["states"]
+            curr_state = states[i]
+            r_eci = [curr_state[1]*1e3,curr_state[2]*1e3,curr_state[3]*1e3]
+            v_eci = [curr_state[4]*1e3,curr_state[5]*1e3,curr_state[6]*1e3]
+            jd = base_jd + timestep*i/86400
+            centuries = (jd-2451545)/36525
+            r_ecef, v_ecef = eci2ecef(r_eci,v_eci,centuries,jd,lod,xp,yp,ddpsi,ddeps)
+            lat,lon,alt = ecef2lla(r_ecef[0],r_ecef[1],r_ecef[2])
+            
+            for visibility in sat["visibilities"]:
+                if visibility[0] == i:
+                    sat_pos_and_visibility = [name,lat[0][0],lon[0][0],visibility[2],visibility[3]]
+                    sat_visibilities.append(sat_pos_and_visibility)
+        with open(base_directory+'sat_visibilities/step'+str(i)+'.csv','w') as csvfile:
+            csvwriter = csv.writer(csvfile, delimiter=',',
+                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            for vis in sat_visibilities:
+                csvwriter.writerow(vis)
 
-if not os.path.exists('./missions/test_mission/sat_observations'):
-    os.mkdir('./missions/test_mission/sat_observations')
-for i in range(len(steps)):
-    sat_observations = []
-    for sat in satellites:
-        name = sat["orbitpy_id"]
-        states = sat["states"]
-        curr_state = states[i]
-        r_eci = [curr_state[1]*1e3,curr_state[2]*1e3,curr_state[3]*1e3]
-        v_eci = [curr_state[4]*1e3,curr_state[5]*1e3,curr_state[6]*1e3]
-        jd = base_jd + timestep*i/86400
-        centuries = (jd-2451545)/36525
-        r_ecef, v_ecef = eci2ecef(r_eci,v_eci,centuries,jd,lod,xp,yp,ddpsi,ddeps)
-        lat,lon,alt = ecef2lla(r_ecef[0],r_ecef[1],r_ecef[2])
-        
-        for observation in sat["observations"]:
-            if observation[0] <= i and i <= observation[1]:
-                sat_pos_and_observation = [name,lat[0][0],lon[0][0],observation[2],observation[3]]
-                sat_observations.append(sat_pos_and_observation)
-    with open('./missions/test_mission/sat_observations/step'+str(i)+'.csv','w') as csvfile:
-        csvwriter = csv.writer(csvfile, delimiter=',',
-                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        for obs in sat_observations:
-            csvwriter.writerow(obs)
+    if not os.path.exists(base_directory+'sat_observations'):
+        os.mkdir(base_directory+'sat_observations')
+    for i in range(len(steps)):
+        sat_observations = []
+        for sat in satellites:
+            name = sat["orbitpy_id"]
+            states = sat["states"]
+            curr_state = states[i]
+            r_eci = [curr_state[1]*1e3,curr_state[2]*1e3,curr_state[3]*1e3]
+            v_eci = [curr_state[4]*1e3,curr_state[5]*1e3,curr_state[6]*1e3]
+            jd = base_jd + timestep*i/86400
+            centuries = (jd-2451545)/36525
+            r_ecef, _ = eci2ecef(r_eci,v_eci,centuries,jd,lod,xp,yp,ddpsi,ddeps)
+            lat, lon, _ = ecef2lla(r_ecef[0],r_ecef[1],r_ecef[2])
+            
+            for observation in sat["observations"]:
+                if observation[0] <= i and i <= observation[1]:
+                    sat_pos_and_observation = [name,lat[0][0],lon[0][0],observation[2],observation[3]]
+                    sat_observations.append(sat_pos_and_observation)
+        with open(base_directory+'sat_observations/step'+str(i)+'.csv','w') as csvfile:
+            csvwriter = csv.writer(csvfile, delimiter=',',
+                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            for obs in sat_observations:
+                csvwriter.writerow(obs)
 
-if not os.path.exists('./missions/test_mission/constellation_past_observations'):
-    os.mkdir('./missions/test_mission/constellation_past_observations')
+    if not os.path.exists(base_directory+'constellation_past_observations'):
+        os.mkdir(base_directory+'constellation_past_observations')
 
-past_observations = []
-for i in range(len(steps)):
-    for sat in satellites:
-        name = sat["orbitpy_id"]        
-        for observation in sat["observations"]:
-            if observation[0] == i:
-                prev_obs = None
-                for past_obs in past_observations:
-                    if past_obs[1] == observation[2]:
-                        prev_obs = past_obs
-                if prev_obs is not None:
-                    new_observation = [prev_obs[0]+1,observation[2],observation[3]]
-                    past_observations.remove(prev_obs)
-                else:
-                    new_observation = [1,observation[2],observation[3]]
-                past_observations.append(new_observation)
-    with open('./missions/test_mission/constellation_past_observations/step'+str(i)+'.csv','w') as csvfile:
-        csvwriter = csv.writer(csvfile, delimiter=',',
-                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        for obs in past_observations:
-            csvwriter.writerow(obs)
+    past_observations = []
+    for i in range(len(steps)):
+        for sat in satellites:
+            name = sat["orbitpy_id"]        
+            for observation in sat["observations"]:
+                if observation[0] == i:
+                    prev_obs = None
+                    for past_obs in past_observations:
+                        if past_obs[1] == observation[2]:
+                            prev_obs = past_obs
+                    if prev_obs is not None:
+                        new_observation = [prev_obs[0]+1,observation[2],observation[3]]
+                        past_observations.remove(prev_obs)
+                    else:
+                        new_observation = [1,observation[2],observation[3]]
+                    past_observations.append(new_observation)
+        with open(base_directory+'constellation_past_observations/step'+str(i)+'.csv','w') as csvfile:
+            csvwriter = csv.writer(csvfile, delimiter=',',
+                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            for obs in past_observations:
+                csvwriter.writerow(obs)
 
-if not os.path.exists('./missions/test_mission/ground_swaths'):
-    os.mkdir('./missions/test_mission/ground_swaths')
+    if not os.path.exists(base_directory+'ground_swaths'):
+        os.mkdir(base_directory+'ground_swaths')
 
-for i in range(len(steps)):
-    ground_swath_points = []
-    for sat in satellites:
-        name = sat["orbitpy_id"]
-        states = sat["states"]
-        curr_state = states[i]
-        r_eci = [curr_state[1]*1e3,curr_state[2]*1e3,curr_state[3]*1e3]
-        v_eci = [curr_state[4]*1e3,curr_state[5]*1e3,curr_state[6]*1e3]
-        jd = base_jd + timestep*i/86400
-        centuries = (jd-2451545)/36525
-        fov_points = [[-30,-30],[-30,30],[30,30],[30,-30]]
-        for fov_point in fov_points:
-            ground_point_eci = pitchroll2ecisurface(r_eci,v_eci,fov_point[0],fov_point[1])
-            gp_ecef, _ = eci2ecef(ground_point_eci,[0,0,0],centuries,jd,lod,xp,yp,ddpsi,ddeps)
-            gp_lat,gp_lon,gp_alt = ecef2lla(gp_ecef[0],gp_ecef[1],gp_ecef[2])
-            ground_swath_point = [name,gp_lat[0][0],gp_lon[0][0]]
-            ground_swath_points.append(ground_swath_point)
-    with open('./missions/test_mission/ground_swaths/step'+str(i)+'.csv','w') as csvfile:
-        csvwriter = csv.writer(csvfile, delimiter=',',
-                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        for obs in ground_swath_points:
-            csvwriter.writerow(obs)
+    for i in range(len(steps)):
+        ground_swath_points = []
+        for sat in satellites:
+            name = sat["orbitpy_id"]
+            states = sat["states"]
+            curr_state = states[i]
+            r_eci = [curr_state[1]*1e3,curr_state[2]*1e3,curr_state[3]*1e3]
+            v_eci = [curr_state[4]*1e3,curr_state[5]*1e3,curr_state[6]*1e3]
+            jd = base_jd + timestep*i/86400
+            centuries = (jd-2451545)/36525
+            fov_points = [[-30,-30],[-30,30],[30,30],[30,-30]]
+            for fov_point in fov_points:
+                ground_point_eci = pitchroll2ecisurface(r_eci,v_eci,fov_point[0],fov_point[1])
+                gp_ecef, _ = eci2ecef(ground_point_eci,[0,0,0],centuries,jd,lod,xp,yp,ddpsi,ddeps)
+                gp_lat,gp_lon,gp_alt = ecef2lla(gp_ecef[0],gp_ecef[1],gp_ecef[2])
+                ground_swath_point = [name,gp_lat[0][0],gp_lon[0][0]]
+                ground_swath_points.append(ground_swath_point)
+        with open(base_directory+'ground_swaths/step'+str(i)+'.csv','w') as csvfile:
+            csvwriter = csv.writer(csvfile, delimiter=',',
+                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            for obs in ground_swath_points:
+                csvwriter.writerow(obs)
 
-if not os.path.exists('./missions/test_mission/crosslinks'):
-    os.mkdir('./missions/test_mission/crosslinks')
+    if not os.path.exists(base_directory+'crosslinks'):
+        os.mkdir(base_directory+'crosslinks')
 
-crosslinks = []
-for f in os.listdir(directory+"comm/"):
-    csv_tokens = f.split("_")
-    first_sat = csv_tokens[0]
-    second_sat = csv_tokens[2][:-4]
-    with open(directory+"comm/"+f,newline='') as csv_file:
-        spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
-        visibilities = []
-        i = 0
-        for row in spamreader:
-            if i < 4:
-                i=i+1
-                continue
-            row = [float(i) for i in row]
-            crosslink = [float(row[0]),float(row[1]),first_sat,second_sat]
-            crosslinks.append(crosslink)
+    crosslinks = []
+    for f in os.listdir(directory+"comm/"):
+        csv_tokens = f.split("_")
+        first_sat = csv_tokens[0]
+        second_sat = csv_tokens[2][:-4]
+        with open(directory+"comm/"+f,newline='') as csv_file:
+            spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
+            visibilities = []
+            i = 0
+            for row in spamreader:
+                if i < 4:
+                    i=i+1
+                    continue
+                row = [float(i) for i in row]
+                crosslink = [float(row[0]),float(row[1]),first_sat,second_sat]
+                crosslinks.append(crosslink)
 
-for i in range(len(steps)):
-    crosslink_locations = []     
-    for crosslink in crosslinks:
-        lats = []
-        lons = []
-        if crosslink[0] <= i and i <= crosslink[1]:
-            for sat in satellites:
-                if sat["orbitpy_id"] == crosslink[2] or sat["orbitpy_id"] == crosslink[3]:
-                    states = sat["states"]
-                    curr_state = states[i]
-                    r_eci = [curr_state[1]*1e3,curr_state[2]*1e3,curr_state[3]*1e3]
-                    v_eci = [curr_state[4]*1e3,curr_state[5]*1e3,curr_state[6]*1e3]
-                    jd = base_jd + timestep*i/86400
-                    centuries = (jd-2451545)/36525
-                    r_ecef, v_ecef = eci2ecef(r_eci,v_eci,centuries,jd,lod,xp,yp,ddpsi,ddeps)
-                    lat,lon,alt = ecef2lla(r_ecef[0],r_ecef[1],r_ecef[2])
-                    lats.append(lat)
-                    lons.append(lon)
-            crosslink_location = [crosslink[2],crosslink[3],lats[0][0][0],lons[0][0][0],lats[1][0][0],lons[1][0][0]]
-            crosslink_locations.append(crosslink_location)
-    with open('./missions/test_mission/crosslinks/step'+str(i)+'.csv','w') as csvfile:
-        csvwriter = csv.writer(csvfile, delimiter=',',
-                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        for obs in crosslink_locations:
-            csvwriter.writerow(obs)
+    for i in range(len(steps)):
+        crosslink_locations = []     
+        for crosslink in crosslinks:
+            lats = []
+            lons = []
+            if crosslink[0] <= i and i <= crosslink[1]:
+                for sat in satellites:
+                    if sat["orbitpy_id"] == crosslink[2] or sat["orbitpy_id"] == crosslink[3]:
+                        states = sat["states"]
+                        curr_state = states[i]
+                        r_eci = [curr_state[1]*1e3,curr_state[2]*1e3,curr_state[3]*1e3]
+                        v_eci = [curr_state[4]*1e3,curr_state[5]*1e3,curr_state[6]*1e3]
+                        jd = base_jd + timestep*i/86400
+                        centuries = (jd-2451545)/36525
+                        r_ecef, v_ecef = eci2ecef(r_eci,v_eci,centuries,jd,lod,xp,yp,ddpsi,ddeps)
+                        lat,lon,alt = ecef2lla(r_ecef[0],r_ecef[1],r_ecef[2])
+                        lats.append(lat)
+                        lons.append(lon)
+                crosslink_location = [crosslink[2],crosslink[3],lats[0][0][0],lons[0][0][0],lats[1][0][0],lons[1][0][0]]
+                crosslink_locations.append(crosslink_location)
+        with open(base_directory+'crosslinks/step'+str(i)+'.csv','w') as csvfile:
+            csvwriter = csv.writer(csvfile, delimiter=',',
+                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            for obs in crosslink_locations:
+                csvwriter.writerow(obs)
+    print("Processed mission!")
 
+if __name__ == "__main__":
+    settings = {
+        "directory": "./missions/test_mission_2/",
+        "step_size": 100,
+        "duration": 0.2,
+        "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
+    }
+    process_mission(settings)
