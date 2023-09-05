@@ -1,11 +1,16 @@
 import json
 from orbitpy.mission import Mission
 import datetime
+import os
 
 def execute_mission(settings):
     print("Executing mission")
+    
     scenario_dir = settings["directory"]
     data_dir = settings["directory"] + 'orbit_data/'
+    if os.path.exists(data_dir+'comm/'):
+        print("Skipping mission execution")
+        return
     with open(scenario_dir +'MissionSpecs.json', 'r') as scenario_specs:
         # load json file as dictionary
         mission_dict = json.load(scenario_specs)

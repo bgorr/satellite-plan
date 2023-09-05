@@ -3,14 +3,16 @@ import datetime
 import numpy as np
 
 initial_time = datetime.datetime(2020,1,1,0,0,0)
-steps = np.arange(0,864,1)
+sim_time_step = 20
+plot_step = 10
+steps = np.arange(0,86400*0.5,sim_time_step*plot_step)
 filenames = []
 years = []
 days = []
 for step_num in steps:
-    time = initial_time + datetime.timedelta(seconds=float(10*step_num))
+    time = initial_time + datetime.timedelta(seconds=float(step_num))
     base_filename = "3B-HHR-L.MS.MRG.3IMERG.20200101-S000000-E002959.0000.V06B.HDF5"
-    seconds_elapsed = 10*step_num
+    seconds_elapsed = step_num
     half_hours_from_midnight = np.floor(seconds_elapsed / 1800)
     half_hours_in_minutes = int(30*half_hours_from_midnight)
     if (half_hours_from_midnight % 2) == 1:

@@ -43,7 +43,19 @@ def greedy_lemaitre_planner(obs_list):
     return rule_based_plan
 
 def greedy_fifo_planner(obs_list):
-    return []
+    fifo_plan = []
+    curr_time = 0.0
+    curr_angle = 0.0
+    last_obs = None
+    while True:
+        actions = get_action_space(curr_time,curr_angle,obs_list,last_obs)
+        if len(actions) == 0:
+            break
+        next_obs = actions[0]
+        fifo_plan.append(next_obs)
+        curr_time = next_obs["soonest"]
+        curr_angle = next_obs["angle"]
+    return fifo_plan
 
 def get_action_space(curr_time,curr_angle,obs_list,last_obs):
     feasible_actions = []
@@ -77,6 +89,7 @@ def check_maneuver_feasibility(curr_angle,obs_angle,curr_time,obs_end_time):
     return slew_rate < max_slew_rate, transition_end_time
 
 def plan_mission(settings):
+    print("Planning mission")
     #directory = "./missions/test_mission/orbit_data/"
     directory = settings["directory"] + "orbit_data/"
 
@@ -163,6 +176,7 @@ def plan_mission(settings):
             for obs in plan:
                 row = [obs["start"],obs["end"],obs["location"]["lat"],obs["location"]["lon"]]
                 csvwriter.writerow(row)
+    print("Planned mission!")
 
 if __name__ == "__main__":
     settings = {

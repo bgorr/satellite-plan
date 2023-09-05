@@ -12,13 +12,13 @@ def create_mission(settings):
 
     ### SETTINGS ### TODO: move to a config json?
 
-    new_instrument["fieldOfViewGeometry"]["angleHeight"] = 60
+    new_instrument["fieldOfViewGeometry"]["angleHeight"] = 2
     new_instrument["fieldOfViewGeometry"]["angleWidth"] = 60
-    r = 4; # number of planes
-    s = 4; # number of satellites per plane
-    altitude = 700
-    ecc = 0.01
-    inc = 67
+    r = 1; # number of planes
+    s = 5; # number of satellites per plane
+    altitude = 500
+    ecc = 0.0001
+    inc = 90
     argper = 0.0
     f = 1
     #initial_datetime = datetime.datetime(2020,1,1,0,0,0)
@@ -64,7 +64,12 @@ def create_mission(settings):
     with open('./missions/base_mission.json', 'r') as scenario_specs:
         # load json file as dictionary
         mission_dict = json.load(scenario_specs)
-        grid_array = [{"@type": "customGrid", "covGridFilePath": "./coverage_grids/riverATLAS.csv"}]
+        if settings["grid_type"] == "static":
+            grid_array = [{"@type": "customGrid", "covGridFilePath": "./coverage_grids/xgrants_points.csv"}]
+        elif settings["grid_type"] == "event":
+            grid_array = [{"@type": "customGrid", "covGridFilePath": "./events/floods/flood_event_points.csv"}]
+        else:
+            print("Invalid grid type")
         mission_dict["grid"] = grid_array
         mission_dict["spacecraft"] = satellites
         mission_dict["scenario"]["duration"] = duration
@@ -92,6 +97,8 @@ if __name__ == "__main__":
         "directory": "./missions/test_mission_2/",
         "step_size": 100,
         "duration": 0.2,
-        "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
+        "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
+        "grid_type": "event", # can be "event" or "static"
+        "event_csvs": ['flow_events_50.csv','one_year_floods.csv']
     }
     create_mission(settings)

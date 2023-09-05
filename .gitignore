@@ -3,3 +3,4 @@ src/__pycache__/
 missions/test_mission*
 rain_data/
 plotting_data/
+clouds/
