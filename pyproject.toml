@@ -1,0 +1,10 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "satplan"
+authors = [{name = "Ben Gorr", email = "bgorr@tamu.edu"},
+            {name = "Alan Aguilar", email = "aguilaraj15@tamu.edu"}
+            ]
+dynamic = ["version", "description"]
