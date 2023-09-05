@@ -30,19 +30,11 @@ class TestVisualizer(unittest.TestCase):
                                         self.duration
                                     )
 
-    def test_init(self) -> None:
-        """ Tests constructor """
-        self.assertEqual(self.data_dir, self.visualizer.data_dir)
-        self.assertEqual(self.output_dir, self.visualizer.output_dir)
-        self.assertEqual(self.initial_datetime, self.visualizer.initial_datetime)
-        self.assertEqual(self.timestep, self.visualizer.timestep)
-        self.assertEqual(self.duration, self.visualizer.duration)
-        
-    def test_processing(self) -> None:
-        """ Processes test data and checks if outputs """
-
         # clear processed data folder (if it already exists)
-        if self.clear:
+        self.clear_results(self.clear)
+
+    def clear_results(self, clear : bool = True) -> None:
+         if clear:
             if os.path.exists(self.output_dir):
                 # for f in os.listdir(self.output_dir):
                 for f in tqdm(
@@ -64,6 +56,19 @@ class TestVisualizer(unittest.TestCase):
                         os.remove(os.path.join(self.output_dir, f)) 
             else:
                 os.mkdir(self.output_dir)
+
+    def test_init(self) -> None:
+        """ Tests constructor """
+        self.assertEqual(self.data_dir, self.visualizer.data_dir)
+        self.assertEqual(self.output_dir, self.visualizer.output_dir)
+        self.assertEqual(self.initial_datetime, self.visualizer.initial_datetime)
+        self.assertEqual(self.timestep, self.visualizer.timestep)
+        self.assertEqual(self.duration, self.visualizer.duration)
+        
+    def test_processing(self) -> None:
+        """ Processes test data and checks if outputs """
+
+        
 
         # process data
         self.visualizer.process_mission_data()
@@ -98,10 +103,19 @@ class TestVisualizer(unittest.TestCase):
             # Check contents
             self.assertEqual(len(os.listdir(dir_path)), len(steps))
 
+        # cleanup 
+        self.clear_results()
+
     def test_plot(self) -> None:
         """ Processes test data and checks if outputs """
 
         self.visualizer.animate()
+
+    def tearDown(self) -> None:
+        super().tearDown()
+        
+        # clear processed data folder
+        self.clear_results()
 
 if __name__ == '__main__':
     unittest.main()
