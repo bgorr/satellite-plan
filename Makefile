@@ -1,9 +1,11 @@
-PROJECT := DMAS
+PROJECT := satplan
 
 .DEFAULT_GOAL := all
 
 TEST = tests
 DOC = docs
+
+.PHONY: docs docs_clean
 
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
@@ -16,11 +18,7 @@ help:
 	@echo "  bare       	to uninstall the package and remove *egg*"
 
 
-all: bare install docs
-
-install:
-	-X=`pwd`; \
-	cd $$X; pip install -e .
+all: bare install
 
 docs: docs_clean #Build the documentation
 	-X=`pwd`; \
@@ -30,10 +28,18 @@ docs_clean:
 	-X=`pwd`; \
 	echo '<<<' $$DOC '>>>'; cd $$X; cd $(DOC); make clean;
 
-bare: clean
-	pip uninstall -y $(PROJECT) 
-	rm -rf $(PROJECT).egg-info .eggs
+install:
+	pip install -e .
 
 runtest:
 	-X=`pwd`; \
 	cd $$X; cd $(TEST); python -m unittest discover
+
+clean: 
+	@echo "Cleaning up..."
+	@find . -name "*.pyc" -delete
+	@find . -type d -name __pycache__ -print0 | xargs -0 rm -rf
+
+bare: clean
+	pip uninstall -y $(PROJECT) 
+	rm -rf $(PROJECT).egg-info .eggs
