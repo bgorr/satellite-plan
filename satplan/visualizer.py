@@ -24,7 +24,8 @@ class Visualizer:
                     output_dir : str,
                     initial_datetime : datetime.datetime,
                     timestep : float,
-                    duration : float
+                    duration : float,
+                    coverage_grid_path : str = None
                 ) -> None:
         """
         Creates an instance of a Visualizer object
@@ -39,6 +40,7 @@ class Visualizer:
 
         self.data_dir : str  = data_dir
         self.orbit_data_dir : str = data_dir + '/orbit_data/'
+        self.coverage_grid_path : str = coverage_grid_path if coverage_grid_path else f'{data_dir}/coverage_grids/riverATLAS.csv'
         self.output_dir : str = output_dir
         self.initial_datetime : datetime.datetime = initial_datetime 
         self.timestep : float = timestep
@@ -115,6 +117,10 @@ class Visualizer:
             if ".json" in subdir:
                 continue
             
+            if ".csv" in subdir:
+                continue
+
+            x = 1 
             for f in tqdm(
                         os.listdir(self.orbit_data_dir+subdir), 
                         desc=f"Loading {subdir} data", 
@@ -181,7 +187,7 @@ class Visualizer:
         reprocess_data = False
         if not os.path.exists(self.output_dir+'/sat_positions'):
             # Create directory in ouput directory if needed
-            os.mkdir(self.output_dir+'sat_positions')
+            os.mkdir(self.output_dir+'/sat_positions')
             reprocess_data = True
         else:
             # Check if pre-processed data is complete
@@ -252,7 +258,7 @@ class Visualizer:
                                 ddeps : float) -> None:
         reprocess_data = False
         if not os.path.exists(self.output_dir+'sat_visibilities'):
-            os.mkdir(self.output_dir+'sat_visibilities')
+            os.mkdir(self.output_dir+'/sat_visibilities')
             reprocess_data = True
         else:
             # Check if pre-processed data is complete
@@ -658,7 +664,7 @@ class Visualizer:
         D = self.__dms_to_dec(297,51,1.307) + (1236*180/np.pi+self.__dms_to_dec(307,6,41.328))*T - self.__dms_to_dec(0,0,6.891)*T**2 + self.__dms_to_dec(0,0,0.019)*T**3
         Omega = self.__dms_to_dec(135,2,40.28) - (5*180/np.pi+self.__dms_to_dec(134,8,10.539))*T + self.__dms_to_dec(0,0,7.455)*T**2 + self.__dms_to_dec(0,0,0.008)*T**3
 
-        with open(f'{self.data_dir}/iau80.csv',newline='') as csv_file:
+        with open(f'{self.orbit_data_dir}/iau80.csv',newline='') as csv_file:
             spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
             rows = []
             for row in spamreader:
@@ -978,9 +984,10 @@ class Visualizer:
                 past_lons.append(float(row[2]))
                 past_rows.append(row)
 
+        # print grid
         grid_lats = []
         grid_lons = []
-        with open(f'{self.data_dir}/coverage_grids/riverATLAS.csv','r') as csvfile:
+        with open(self.coverage_grid_path,'r') as csvfile:
             csvreader = csv.reader(csvfile,delimiter=',')
             next(csvfile)
             for row in csvreader:
@@ -1077,11 +1084,15 @@ class Visualizer:
         plt.savefig(filename,dpi=300)
         plt.close()
 
-    def plot_mission(self):
+    def plot_mission(self, plot_duration : float = 0.75):
         """ Creates an animated gif of the mission """
 
+        # Check plot duration value
+        if plot_duration < 0 or plot_duration > 1.0:
+            raise ValueError('`plot_duration` can only be a value between [0,1]')
+
         # Set animation time
-        steps = np.arange(int(np.floor(self.duration*0.75*86400/self.timestep)),int(np.floor(self.duration*86400/self.timestep)),1)
+        steps = np.arange(int(np.floor(self.duration*plot_duration*86400/self.timestep)),int(np.floor(self.duration*86400/self.timestep)),1)
         filenames = [f'{self.output_dir}/plots/frame_{step}.png' for step in steps]
 
         # Generate Frames
