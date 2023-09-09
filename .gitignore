@@ -1,6 +1,8 @@
 .venv/
 src/__pycache__/
 missions/test_mission*
+missions/chrissi_results/
+missions/experiment*
 rain_data/
 plotting_data/
 clouds/

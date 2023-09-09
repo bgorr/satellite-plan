@@ -23,6 +23,7 @@ for f in os.listdir(plan_directory):
         "plot_obs": True,
         "process_obs_only": True
     }
-    os.mkdir("./missions/chrissi_results/"+f[:-4])
-    process_mission(settings)
-    plot_mission(settings)
+    if not os.path.exists("./missions/chrissi_results/"+f[:-4]):
+        os.mkdir("./missions/chrissi_results/"+f[:-4])
+        process_mission(settings)
+        plot_mission(settings)

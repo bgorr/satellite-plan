@@ -100,6 +100,12 @@ def plot_step(step_num,b):
         csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
         for row in csvreader:
             event_rows.append(row)
+    
+    coobs_rows = []
+    with open(b["directory"]+'coobs/step'+str(step_num)+'.csv','r') as csvfile:
+        csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        for row in csvreader:
+            coobs_rows.append(row)
 
 
     #ax.drawmapboundary(fill_color='#99ffff')
@@ -227,6 +233,14 @@ def plot_step(step_num,b):
         if float(row[3]) == 2:
             plt.scatter(float(row[1]),float(row[0]),int(np.min([4*float(row[2]),10])),marker='*',color='cyan',transform=data_crs)
          
+    for row in coobs_rows:
+        if float(row[3]) == 0:
+            plt.scatter(float(row[2]),float(row[1]),10,marker='s',color='green',transform=data_crs)
+        if float(row[3]) == 1:
+            plt.scatter(float(row[2]),float(row[1]),10,marker='s',color='magenta',transform=data_crs)
+        if float(row[3]) == 2:
+            plt.scatter(float(row[2]),float(row[1]),10,marker='s',color='cyan',transform=data_crs)
+         
     #x, y = m(past_lons,past_lats)
     if b["plot_obs"]:
         ax.scatter(past_lons,past_lats,1,marker='o',color='yellow',transform=data_crs)
@@ -315,6 +329,9 @@ def plot_step(step_num,b):
     plt.scatter([], [], c='green',marker='*', label='Lake bloom event')
     plt.scatter([], [], c='magenta',marker='*', label='Lake temperature event')
     plt.scatter([], [], c='cyan',marker='*', label='Lake level event')
+    plt.scatter([], [], c='green',marker='s', label='Lake bloom co-obs')
+    plt.scatter([], [], c='magenta',marker='s', label='Lake temperature co-obs')
+    plt.scatter([], [], c='cyan',marker='s', label='Lake level co-obs')
     plt.plot([],[], c='black', linestyle='dashed', label='Crosslink')
 
 
@@ -341,7 +358,7 @@ def plot_mission(settings):
     # PLOTS THE LAST 1/4th OF THE SIMULATION
     # imageio gif creation kills itself if there are too many images, is there a fix or is it just a WSL issue?
     start_frac = 0.75
-    num_skip = 10
+    num_skip = 20
     steps = np.arange(int(np.floor(settings["duration"]*start_frac*86400/settings["step_size"])),int(np.floor(settings["duration"]*86400/settings["step_size"])),num_skip)
     print(steps)
     pool.map(partial(plot_step, b=settings), steps)
@@ -369,6 +386,6 @@ if __name__ == "__main__":
         "event_csvs": ['bloom_events.csv','level_events.csv','temperature_events.csv'],
         "plot_clouds": False,
         "plot_rain": False,
-        "plot_obs": False
+        "plot_obs": True
     }
     plot_mission(settings)

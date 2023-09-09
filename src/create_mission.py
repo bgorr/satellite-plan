@@ -12,10 +12,10 @@ def create_mission(settings):
 
     ### SETTINGS ### TODO: move to a config json?
 
-    new_instrument["fieldOfViewGeometry"]["angleHeight"] = 2
-    new_instrument["fieldOfViewGeometry"]["angleWidth"] = 60
-    r = 1; # number of planes
-    s = 5; # number of satellites per plane
+    new_instrument["fieldOfViewGeometry"]["angleHeight"] = settings["along_track_ffor"]
+    new_instrument["fieldOfViewGeometry"]["angleWidth"] = settings["cross_track_ffor"]
+    r = settings["num_planes"]; # number of planes
+    s = settings["num_sats_per_plane"]; # number of satellites per plane
     altitude = 500
     ecc = 0.0001
     inc = 90
@@ -67,7 +67,7 @@ def create_mission(settings):
         if settings["grid_type"] == "static":
             grid_array = [{"@type": "customGrid", "covGridFilePath": "./coverage_grids/xgrants_points.csv"}]
         elif settings["grid_type"] == "event":
-            grid_array = [{"@type": "customGrid", "covGridFilePath": "./events/floods/flood_event_points.csv"}]
+            grid_array = [{"@type": "customGrid", "covGridFilePath": settings["point_grid"]}]
         else:
             print("Invalid grid type")
         mission_dict["grid"] = grid_array

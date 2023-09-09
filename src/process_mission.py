@@ -573,13 +573,12 @@ def process_mission(settings):
         os.mkdir(base_directory+'events')
     if len(settings["event_csvs"]) > 0:
         events = []
-        event_path = './events/lakes/'
         for filename in settings["event_csvs"]:
-            with open(event_path+filename,newline='') as csv_file:
+            with open(filename,newline='') as csv_file:
                 csvreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                 i = 0
                 for row in csvreader:
-                    if i < 5:
+                    if i < 1:
                         i=i+1
                         continue
                     row = [float(i) for i in row]
@@ -589,7 +588,7 @@ def process_mission(settings):
             step_time = i*settings["step_size"] 
             for event in events:
                 if event[2] <= step_time and step_time <= (event[2]+event[3]):
-                    event_per_step = [event[0],event[1],event[4],event[5]] # lat, lon, start, duration, severity, type
+                    event_per_step = [event[0],event[1],event[4]] # lat, lon, start, duration, severity
                     events_per_step.append(event_per_step)
             with open(base_directory+'events/step'+str(i)+'.csv','w') as csvfile:
                 csvwriter = csv.writer(csvfile, delimiter=',',
