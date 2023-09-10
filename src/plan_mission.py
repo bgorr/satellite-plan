@@ -26,10 +26,10 @@ def repair_plan(plan):
     return plan
 
 def within_fov(loc_array,loc_dict,angle,orbit_height_km):
-    lat1 = loc_array[0]
-    lon1 = loc_array[1]
-    lat2 = loc_dict["lat"]
-    lon2 = loc_dict["lon"]
+    lat1 = np.deg2rad(loc_array[0])
+    lon1 = np.deg2rad(loc_array[1])
+    lat2 = np.deg2rad(loc_dict["lat"])
+    lon2 = np.deg2rad(loc_dict["lon"])
     h = 0 # height above in m
     a = 6378e3 # m
     e = 0
@@ -758,17 +758,43 @@ def plan_mission_with_replanning_intervals(settings):
     print("Planned mission with replans at interval!")
 
 if __name__ == "__main__":
+    mission_name = "experiment0"
+    cross_track_ffor = 60 # deg
+    along_track_ffor = 60 # deg
+    cross_track_ffov = 10 # deg
+    along_track_ffov = 10 # deg
+    agility = 1 # deg/s
+    num_planes = 5 # deg/s
+    num_sats_per_plane = 10 # deg/s
+    var = 1 # deg lat/lon
+    num_points_per_cell = 10
+    simulation_step_size = 10 # seconds
+    simulation_duration = 1 # days
+    event_frequency = 1e-5 # events per second
+    event_duration = 3600 # seconds
     settings = {
-        "directory": "./missions/test_mission_5/",
-        "step_size": 10,
-        "duration": 1,
+        "directory": "./missions/"+mission_name+"/",
+        "step_size": simulation_step_size,
+        "duration": simulation_duration,
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
         "grid_type": "event", # can be "event" or "static"
-        "event_csvs": ['bloom_events.csv','level_events.csv','temperature_events.csv'],
+        "point_grid": "./coverage_grids/"+mission_name+"/event_locations.csv",
+        "preplanned_observations": None,
+        "event_csvs": ["./events/"+mission_name+"/events.csv"],
         "plot_clouds": False,
         "plot_rain": False,
-        "plot_obs": False,
-        "process_obs_only": True
+        "plot_obs": True,
+        "plot_duration": 2/24,
+        "plot_interval": 10,
+        "plot_location": "./missions/"+mission_name+"/plots/",
+        "cross_track_ffor": cross_track_ffor,
+        "along_track_ffor": along_track_ffor,
+        "cross_track_ffov": cross_track_ffov,
+        "along_track_ffov": along_track_ffov,
+        "num_planes": num_planes,
+        "num_sats_per_plane": num_sats_per_plane,
+        "agility": agility,
+        "process_obs_only": False
     }
-    #plan_mission(settings)
-    plan_mission_with_replanning_intervals(settings)
+    plan_mission(settings)
+    #plan_mission_with_replanning_intervals(settings)

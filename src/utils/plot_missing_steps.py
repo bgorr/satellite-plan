@@ -30,28 +30,35 @@ def plot_missing(settings):
             plot_step(step,settings)
 
 if __name__ == "__main__":
+    mission_name = "experiment1"
     cross_track_ffor = 60 # deg
-    along_track_ffor = 2 # deg
-    cross_track_ffov = 0 # deg
-    along_track_ffov = 0 # deg
+    along_track_ffor = 60 # deg
+    cross_track_ffov = 10 # deg
+    along_track_ffov = 10 # deg
     agility = 1 # deg/s
-    num_planes = 1
+    num_planes = 5 
     num_sats_per_plane = 5
-    f = 'accesses_12h_rew_5sat_sol_5degs'
+    var = 10 # deg lat/lon
+    num_points_per_cell = 20
+    simulation_step_size = 10 # seconds
+    simulation_duration = 1 # days
+    event_frequency = 1e-4 # events per second
+    event_duration = 7200 # seconds
     settings = {
-        "directory": "./missions/test_mission_6/",
-        "step_size": 1,
-        "duration": 1,
-        "plot_interval": 5,
-        "plot_duration": 2/24,
-        "plot_location": "./missions/chrissi_results/"+f,
+        "directory": "./missions/"+mission_name+"/",
+        "step_size": simulation_step_size,
+        "duration": simulation_duration,
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
-        "grid_type": "static", # can be "event" or "static"
-        "preplanned_observations": "./missions/test_mission_6/planner_outputs/accesses_2h_rew_5sat_sol_2degs.csv",
-        "event_csvs": [],
+        "grid_type": "event", # can be "event" or "static"
+        "point_grid": "./coverage_grids/"+mission_name+"/event_locations.csv",
+        "preplanned_observations": None,
+        "event_csvs": ["./events/"+mission_name+"/events.csv"],
         "plot_clouds": False,
         "plot_rain": False,
         "plot_obs": True,
+        "plot_duration": 1,
+        "plot_interval": 20,
+        "plot_location": "./missions/"+mission_name+"/plots/",
         "cross_track_ffor": cross_track_ffor,
         "along_track_ffor": along_track_ffor,
         "cross_track_ffov": cross_track_ffov,
