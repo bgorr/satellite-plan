@@ -324,7 +324,7 @@ def plot_mission(settings):
     pool.map(partial(plot_step, b=settings), steps)
     filenames = []
     for step in steps:
-        filenames.append(f'{settings["directory"]}plots/frame_{step}.png')
+        filenames.append(f'{settings["plot_location"]}/frame_{step}.png')
     # print('Charts saved\n')
     gif_name = settings["plot_location"]+'animation'
     # Build GIF

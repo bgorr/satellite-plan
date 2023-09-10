@@ -511,7 +511,10 @@ def process_mission(settings):
                 v_eci = [curr_state[4]*1e3,curr_state[5]*1e3,curr_state[6]*1e3]
                 jd = base_jd + timestep*i/86400
                 centuries = (jd-2451545)/36525
-                fov_points = [[-30,-30],[-30,30],[30,30],[30,-30]]
+                fov_points = [[-settings["along_track_ffor"]/2,-settings["cross_track_ffor"]/2],
+                                [-settings["along_track_ffor"]/2,settings["cross_track_ffor"]/2],
+                                [settings["along_track_ffor"]/2,settings["cross_track_ffor"]/2],
+                                [settings["along_track_ffor"]/2,-settings["cross_track_ffor"]/2]]
                 for fov_point in fov_points:
                     ground_point_eci = pitchroll2ecisurface(r_eci,v_eci,fov_point[0],fov_point[1])
                     gp_ecef, _ = eci2ecef(ground_point_eci,[0,0,0],centuries,jd,lod,xp,yp,ddpsi,ddeps)
