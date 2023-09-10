@@ -10,20 +10,20 @@ from plan_mission import plan_mission
 from plot_mission_cartopy import plot_mission
 
 def main():
-    mission_name = "experiment0"
+    mission_name = "experiment1"
     cross_track_ffor = 60 # deg
     along_track_ffor = 60 # deg
     cross_track_ffov = 10 # deg
     along_track_ffov = 10 # deg
     agility = 1 # deg/s
-    num_planes = 5 # deg/s
-    num_sats_per_plane = 10 # deg/s
-    var = 1 # deg lat/lon
-    num_points_per_cell = 10
+    num_planes = 5 
+    num_sats_per_plane = 5
+    var = 10 # deg lat/lon
+    num_points_per_cell = 20
     simulation_step_size = 10 # seconds
     simulation_duration = 1 # days
-    event_frequency = 1e-5 # events per second
-    event_duration = 3600 # seconds
+    event_frequency = 1e-4 # events per second
+    event_duration = 7200 # seconds
     steps = np.arange(0,simulation_duration*86400,simulation_step_size)
 
     event_locations = []
@@ -74,6 +74,9 @@ def main():
         "plot_clouds": False,
         "plot_rain": False,
         "plot_obs": True,
+        "plot_duration": 1,
+        "plot_interval": 20,
+        "plot_location": "./missions/"+mission_name+"/plots/",
         "cross_track_ffor": cross_track_ffor,
         "along_track_ffor": along_track_ffor,
         "cross_track_ffov": cross_track_ffov,

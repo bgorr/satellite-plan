@@ -74,25 +74,15 @@ def plot_step(step_num,b):
             past_lats.append(float(row[1]))
             past_lons.append(float(row[2]))
             past_rows.append(row)
-    if b["grid_type"] == "static":
-        grid_lats = []
-        grid_lons = []
-        with open('./coverage_grids/xgrants_points.csv','r') as csvfile:
-            csvreader = csv.reader(csvfile,delimiter=',')
-            next(csvfile)
-            for row in csvreader:
-                grid_lats.append(float(row[0]))
-                grid_lons.append(float(row[1]))
-    elif b["grid_type"] == "event":
-        grid_lats = []
-        grid_lons = []
-        with open('./events/lakes/lake_event_points.csv','r') as csvfile:
-            csvreader = csv.reader(csvfile,delimiter=',')
-            next(csvfile)
-            for row in csvreader:
-                grid_lats.append(float(row[0]))
-                grid_lons.append(float(row[1]))
-
+    grid_lats = []
+    grid_lons = []
+    with open(b["point_grid"]) as csvfile:
+        csvreader = csv.reader(csvfile,delimiter=',')
+        next(csvfile)
+        for row in csvreader:
+            grid_lats.append(float(row[0]))
+            grid_lons.append(float(row[1]))
+    if b["grid_type"] == "event":
         event_rows = []
         with open(b["directory"]+'events/step'+str(step_num)+'.csv','r') as csvfile:
             csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
@@ -337,16 +327,42 @@ def plot_mission(settings):
 
 if __name__ == "__main__":
     set_start_method("spawn")
+    mission_name = "experiment0"
+    cross_track_ffor = 60 # deg
+    along_track_ffor = 60 # deg
+    cross_track_ffov = 10 # deg
+    along_track_ffov = 10 # deg
+    agility = 1 # deg/s
+    num_planes = 5 # deg/s
+    num_sats_per_plane = 10 # deg/s
+    var = 1 # deg lat/lon
+    num_points_per_cell = 10
+    simulation_step_size = 10 # seconds
+    simulation_duration = 1 # days
+    event_frequency = 1e-5 # events per second
+    event_duration = 3600 # seconds
     settings = {
-        "directory": "./missions/test_mission_6/",
-        "step_size": 1,
-        "duration": 2/24,
+        "directory": "./missions/"+mission_name+"/",
+        "step_size": simulation_step_size,
+        "duration": simulation_duration,
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
-        "grid_type": "static", # can be "event" or "static"
-        "preplanned_observations": "./missions/test_mission_6/planner_outputs/accesses_2h_rew_5sat_sol_2degs.csv",
-        "event_csvs": [],
+        "grid_type": "event", # can be "event" or "static"
+        "point_grid": "./coverage_grids/"+mission_name+"/event_locations.csv",
+        "preplanned_observations": None,
+        "event_csvs": ["./events/"+mission_name+"/events.csv"],
         "plot_clouds": False,
         "plot_rain": False,
-        "plot_obs": True
+        "plot_obs": True,
+        "plot_duration": 2/24,
+        "plot_interval": 10,
+        "plot_location": "./missions/"+mission_name+"/plots/",
+        "cross_track_ffor": cross_track_ffor,
+        "along_track_ffor": along_track_ffor,
+        "cross_track_ffov": cross_track_ffov,
+        "along_track_ffov": along_track_ffov,
+        "num_planes": num_planes,
+        "num_sats_per_plane": num_sats_per_plane,
+        "agility": agility,
+        "process_obs_only": False
     }
     plot_mission(settings)
