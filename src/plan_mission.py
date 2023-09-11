@@ -5,6 +5,7 @@ import datetime
 import multiprocessing
 from functools import partial
 from tqdm import tqdm
+from mcts_planner import monte_carlo_tree_search
 
 def close_enough(lat0,lon0,lat1,lon1):
     if np.sqrt((lat0-lat1)**2+(lon0-lon1)**2) < 0.01:
@@ -341,6 +342,76 @@ def plan_satellite(satellite,settings):
                     csvwriter.writerow(row)
             row = [obs["start"],obs["end"],obs["location"]["lat"],obs["location"]["lon"]]
             csvwriter.writerow(row)
+
+def plan_satellite_mcts(satellite,settings):
+    obs_list = []
+    i = 0
+    visibilities = satellite["visibilities"]
+    while i < len(visibilities):
+        continuous_visibilities = []
+        visibility = visibilities[i]
+        continuous_visibilities.append(visibility)
+        start = visibility[0]
+        end = visibility[0]
+        while(i < len(visibilities)-1 and visibilities[i+1][0] == start):
+            i += 1
+        vis_done = False
+        if i == len(visibilities)-1:
+            break
+        while not vis_done:
+            vis_done = True
+            num_steps = len(continuous_visibilities)
+            while visibilities[i+1][0] == start+num_steps:
+                if visibilities[i+1][1] == visibility[1]:
+                    continuous_visibilities.append(visibilities[i+1])
+                    end = visibilities[i+1][0]
+                    vis_done = False
+                if i == len(visibilities)-2:
+                    break
+                else:
+                    i += 1
+            num_steps = len(continuous_visibilities)
+            if i == len(visibilities)-1:
+                break
+
+        time_window = {
+            "location": {
+                "lat": visibility[3],
+                "lon": visibility[4]
+            },
+            "times": [x[0] for x in continuous_visibilities],
+            "angles": [x[6] for x in continuous_visibilities],
+            "start": start,
+            "end": end,
+            "angle": visibility[6],
+            "reward": 1
+        }
+        if(time_window["location"]) is None:
+            print(time_window)
+        obs_list.append(time_window)
+        for cont_vis in continuous_visibilities:
+            visibilities.remove(cont_vis)
+        i = 0
+    plan = monte_carlo_tree_search(obs_list)
+    #print(len(plan))
+    satellite["plan"] = plan
+    grid_locations = []
+    with open(settings["point_grid"],'r') as csvfile:
+        csvreader = csv.reader(csvfile,delimiter=',')
+        next(csvfile)
+        for row in csvreader:
+            grid_locations.append([float(row[0]),float(row[1])])
+    with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan.csv','w') as csvfile:
+        csvwriter = csv.writer(csvfile, delimiter=',',
+                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        for obs in tqdm(plan):
+            for loc in grid_locations:
+                if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
+                    row = [obs["start"],obs["end"],loc[0],loc[1]]
+                    csvwriter.writerow(row)
+            row = [obs["start"],obs["end"],obs["location"]["lat"],obs["location"]["lon"]]
+            csvwriter.writerow(row)
+
 def plan_mission(settings):
     print("Planning mission")
     #directory = "./missions/test_mission/orbit_data/"
@@ -375,6 +446,43 @@ def plan_mission(settings):
     pool.map(partial(plan_satellite, settings=settings), satellites)
     # for satellite in satellites:
     #     plan_satellite(satellite,settings)
+        
+    print("Planned mission!")
+
+def plan_mission_mcts(settings):
+    print("Planning mission")
+    #directory = "./missions/test_mission/orbit_data/"
+    directory = settings["directory"] + "orbit_data/"
+
+    satellites = []
+
+    for subdir in os.listdir(directory):
+        if "comm" in subdir:
+            continue
+        if ".json" in subdir:
+            continue
+        satellite = {}
+        for f in os.listdir(directory+subdir):
+            if "datametrics" in f:
+                with open(directory+subdir+"/"+f,newline='') as csv_file:
+                    spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
+                    visibilities = []
+                    i = 0
+                    for row in spamreader:
+                        if i < 5:
+                            i=i+1
+                            continue
+                        row[2] = "0.0"
+                        row = [float(i) for i in row]
+                        visibilities.append(row)
+                satellite["visibilities"] = visibilities
+                satellite["orbitpy_id"] = subdir
+
+        satellites.append(satellite)
+    pool = multiprocessing.Pool()
+    #pool.map(partial(plan_satellite_mcts, settings=settings), satellites)
+    for satellite in satellites:
+        plan_satellite_mcts(satellite,settings)
         
     print("Planned mission!")
 
@@ -761,11 +869,11 @@ if __name__ == "__main__":
     mission_name = "experiment0"
     cross_track_ffor = 60 # deg
     along_track_ffor = 60 # deg
-    cross_track_ffov = 10 # deg
-    along_track_ffov = 10 # deg
+    cross_track_ffov = 0 # deg
+    along_track_ffov = 0 # deg
     agility = 1 # deg/s
-    num_planes = 5 # deg/s
-    num_sats_per_plane = 10 # deg/s
+    num_planes = 4 # deg/s
+    num_sats_per_plane = 4 # deg/s
     var = 1 # deg lat/lon
     num_points_per_cell = 10
     simulation_step_size = 10 # seconds
@@ -773,14 +881,24 @@ if __name__ == "__main__":
     event_frequency = 1e-5 # events per second
     event_duration = 3600 # seconds
     settings = {
-        "directory": "./missions/"+mission_name+"/",
-        "step_size": simulation_step_size,
-        "duration": simulation_duration,
+        "directory": "./missions/test_mission_3/",
+        "step_size": 100,
+        "duration": 0.2,
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
-        "grid_type": "event", # can be "event" or "static"
-        "point_grid": "./coverage_grids/"+mission_name+"/event_locations.csv",
+        "grid_type": "static", # can be "event" or "static"
+        "event_csvs": ['flow_events_50.csv','one_year_floods.csv'],
+        "plot_clouds": True,
+        "plot_rain": True
+    }
+    settings = {
+        "directory": "./missions/test_mission_3/",
+        "step_size": 100,
+        "duration": 0.2,
+        "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
+        "grid_type": "static", # can be "event" or "static"
+        "point_grid": "./coverage_grids/riverATLAS.csv",
         "preplanned_observations": None,
-        "event_csvs": ["./events/"+mission_name+"/events.csv"],
+        "event_csvs": [],
         "plot_clouds": False,
         "plot_rain": False,
         "plot_obs": True,
@@ -796,5 +914,5 @@ if __name__ == "__main__":
         "agility": agility,
         "process_obs_only": False
     }
-    plan_mission(settings)
+    plan_mission_mcts(settings)
     #plan_mission_with_replanning_intervals(settings)

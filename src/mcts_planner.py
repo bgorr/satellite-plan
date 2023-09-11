@@ -24,11 +24,14 @@ def check_maneuver_feasibility(curr_angle,obs_angle,curr_time,obs_end_time):
 def get_action_space(settings,state,obs_list):
     action_list = []
     i = 0
-    while action_list < settings["action_space_size"]:
-        feasible, transition_end_time = check_maneuver_feasibility(state["angle"],obs_list[i]["angle"],state["time"],obs_list[i]["end"])
+    while len(action_list) < settings["action_space_size"] and i < len(obs_list):
+        feasible = False
+        if obs_list[i]["start"] > state["time"]:
+            feasible, transition_end_time = check_maneuver_feasibility(state["angle"],obs_list[i]["angle"],state["time"],obs_list[i]["end"])
         if feasible:
             action_list.append(obs_list[i])
         i = i+1
+    return action_list
 
 def transition_function(state,action):
     new_state = {
@@ -38,7 +41,7 @@ def transition_function(state,action):
     return new_state
 
 
-def rollout(settings,state,action_space,d):
+def rollout(settings,state,action_space,obs_list,d):
     if d == 0:
         return 0
     if len(action_space) == 0:
@@ -47,13 +50,19 @@ def rollout(settings,state,action_space,d):
         selected_action = action_space[np.random.randint(len(action_space))]
         reward = selected_action["reward"]
         new_state = transition_function(state,selected_action)
-        return (reward + rollout(settings,state,action_space,(d-1)) * np.power(settings["gamma"],selected_action["start"]-state["time"]))
+        return (reward + rollout(settings,new_state,get_action_space(settings,new_state,obs_list),obs_list,(d-1)) * np.power(settings["gamma"],selected_action["start"]-state["time"]))
 
 def simulate(settings,state,d,obs_list):
     if d == 0:
         return 0
-    if not state in V:
+    state_in_v = False
+    for v in V:
+        if state == v["state"]:
+            state_in_v = True
+    if not state_in_v:
         action_space = get_action_space(settings,state,obs_list)
+        if action_space is None:
+            return 0
         for action in action_space:
             state_action_pair = {
                 "state": state,
@@ -66,7 +75,7 @@ def simulate(settings,state,d,obs_list):
             }
             NQ.append(NQ_dict)
             V.append(state_action_pair)
-        return rollout(settings,state,action_space,settings["solve_depth_init"])
+        return rollout(settings,state,action_space,obs_list,settings["solve_depth_init"])
     max = 0.0
     best_action = None
     n_sum = 0
@@ -81,7 +90,7 @@ def simulate(settings,state,d,obs_list):
         return 0
     new_state = transition_function(state,best_action)
     r = best_action["reward"]
-    q = r + simulate(new_state,d-1) * np.power(settings["gamma"],best_action["start"]-state["time"])
+    q = r + simulate(settings,new_state,d-1,obs_list) * np.power(settings["gamma"],best_action["start"]-state["time"])
     best_sap = {
         "state": state,
         "action": best_action
@@ -101,7 +110,7 @@ def monte_carlo_tree_search(obs_list):
     }
     settings = {
         "n_max_sim": 50,
-        "solve_depth_init": 20,
+        "solve_depth_init": 50,
         "c": 3,
         "action_space_size": 4, 
         "gamma": 0.995
@@ -110,7 +119,7 @@ def monte_carlo_tree_search(obs_list):
     state = initial_state
     while more_actions:
         for n in range(settings["n_max_sim"]):
-            simulate(initial_state,settings["solve_depth_init"],settings["solve_depth_init"],obs_list)
+            simulate(settings,state,settings["solve_depth_init"],obs_list)
         max = 0
         best_action = None
         for nq in NQ:
@@ -126,6 +135,14 @@ def monte_carlo_tree_search(obs_list):
             "action": best_action
         }
         result_list.append(best_sap)
-        new_state = transition_function(state,best_action)
-        more_actions = len(get_action_space(settings,new_state,obs_list)) != 0
-    return result_list
+        state = transition_function(state,best_action)
+        print(state["time"])
+        more_actions = len(get_action_space(settings,state,obs_list)) != 0
+    #print(V)
+    #print(NQ)
+    print(obs_list)
+    planned_obs_list = []
+    for result in result_list:
+        planned_obs_list.append(result["action"])
+    print(len(planned_obs_list))
+    return planned_obs_list

@@ -27,7 +27,7 @@ def compute_statistics_pieces(input):
     num_event_obs = 0
     obs_per_event_list = []
     step_size = 10
-    event_duration = 3600
+    event_duration = 7200
 
     for event in events:
         obs_per_event = 0
@@ -55,7 +55,7 @@ def compute_statistics_pieces(input):
 def compute_statistics(events,obs):
     obs.sort(key=lambda obs: obs[0])
     print(len(obs))
-    event_chunks = list(chunks(events,10))
+    event_chunks = list(chunks(events,1))
     pool = multiprocessing.Pool()
     input_list = []
     for i in range(len(event_chunks)):
@@ -64,7 +64,8 @@ def compute_statistics(events,obs):
         input["observations"] = obs
         input_list.append(input)
     print(len(input_list))
-    output_list = pool.map(compute_statistics_pieces, input_list)
+    #output_list = pool.map(compute_statistics_pieces, input_list)
+    output_list = list(tqdm(pool.imap(compute_statistics_pieces, input_list)))
     all_events_count = 0
     event_obs_pairs = []
     obs_per_event_list = []
@@ -80,20 +81,20 @@ def compute_statistics(events,obs):
     print("Percent of events observed at least once: "+str(np.count_nonzero(obs_per_event_list)/len(events)*100)+"%")
     print("Average obs per event: "+str(np.average(obs_per_event_list)))
 
-mission_name = "experiment0"
+mission_name = "experiment1"
 cross_track_ffor = 60 # deg
 along_track_ffor = 60 # deg
 cross_track_ffov = 10 # deg
 along_track_ffov = 10 # deg
 agility = 1 # deg/s
 num_planes = 5 
-num_sats_per_plane = 10
-var = 1 # deg lat/lon
-num_points_per_cell = 10
+num_sats_per_plane = 5
+var = 10 # deg lat/lon
+num_points_per_cell = 20
 simulation_step_size = 10 # seconds
 simulation_duration = 1 # days
-event_frequency = 1e-5 # events per second
-event_duration = 3600 # second
+event_frequency = 1e-4 # events per second
+event_duration = 7200 # second
 settings = {
     "directory": "./missions/"+mission_name+"/",
     "step_size": simulation_step_size,
@@ -237,7 +238,7 @@ for satellite in satellites:
 print(len(all_visibilities))
 
 events = []
-event_filename = './events/experiment0/events.csv'
+event_filename = './events/experiment1/events.csv'
 with open(event_filename,newline='') as csv_file:
     csvreader = csv.reader(csv_file, delimiter=',', quotechar='|')
     i = 0
