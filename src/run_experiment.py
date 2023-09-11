@@ -10,20 +10,20 @@ from plan_mission import plan_mission
 from plot_mission_cartopy import plot_mission
 
 def main():
-    mission_name = "experiment1"
+    mission_name = "experiment0"
     cross_track_ffor = 60 # deg
     along_track_ffor = 60 # deg
     cross_track_ffov = 10 # deg
     along_track_ffov = 10 # deg
     agility = 1 # deg/s
     num_planes = 5 
-    num_sats_per_plane = 5
-    var = 10 # deg lat/lon
-    num_points_per_cell = 20
+    num_sats_per_plane = 10
+    var = 1 # deg lat/lon
+    num_points_per_cell = 10
     simulation_step_size = 10 # seconds
     simulation_duration = 1 # days
-    event_frequency = 1e-4 # events per second
-    event_duration = 7200 # seconds
+    event_frequency = 1e-5 # events per second
+    event_duration = 3600 # second
     steps = np.arange(0,simulation_duration*86400,simulation_step_size)
 
     event_locations = []
