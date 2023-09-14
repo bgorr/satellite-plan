@@ -6,6 +6,7 @@ import multiprocessing
 from functools import partial
 from tqdm import tqdm
 from mcts_planner import monte_carlo_tree_search
+from dp_planner import graph_search, graph_search_events, graph_search_events_interval
 
 def close_enough(lat0,lon0,lat1,lon1):
     if np.sqrt((lat0-lat1)**2+(lon0-lon1)**2) < 0.01:
@@ -47,6 +48,14 @@ def within_fov(loc_array,loc_dict,angle,orbit_height_km):
         return True
     else:
         return False
+    
+def chop_obs_list(obs_list,start,end):
+    chopped_list = []
+    for obs in obs_list:
+        if obs["start"] > start and obs["end"] < end:
+            chopped_list.append(obs)
+    return chopped_list
+
 
 def greedy_lemaitre_planner(obs_list,settings):
     """
@@ -95,6 +104,7 @@ def greedy_lemaitre_planner_events(planner_inputs):
     plan_start = planner_inputs["plan_start"]
     plan_end = planner_inputs["plan_end"]
     events = planner_inputs["events"]
+    settings = planner_inputs["settings"]
     estimated_reward = 100000
     rule_based_plan = []
     i = 0
@@ -109,7 +119,7 @@ def greedy_lemaitre_planner_events(planner_inputs):
         while more_actions:
             best_obs = None
             maximum = 0.0
-            actions = get_action_space(curr_time,curr_angle,obs_list,last_obs)
+            actions = get_action_space(curr_time,curr_angle,obs_list,last_obs,settings)
             if(len(actions) == 0):
                 break
             for action in actions:
@@ -128,12 +138,9 @@ def greedy_lemaitre_planner_events(planner_inputs):
             rule_based_plan.append(best_obs)
             for event in events:
                 if close_enough(best_obs["location"]["lat"],best_obs["location"]["lon"],event["location"]["lat"],event["location"]["lon"]):
-                    # print("close enough!")
-                    # print(event)
-                    # print(best_obs)
                     if (event["start"] <= best_obs["start"] <= event["end"]) or (event["start"] <= best_obs["end"] <= event["end"]):
                         updated_reward = { 
-                            "reward": best_obs["reward"],
+                            "reward": event["severity"]*10,
                             "location": best_obs["location"],
                             "last_updated": curr_time 
                         }
@@ -164,6 +171,7 @@ def greedy_lemaitre_planner_events_interval(planner_inputs):
     plan_start = planner_inputs["plan_start"]
     plan_end = planner_inputs["plan_end"]
     events = planner_inputs["events"]
+    settings = planner_inputs["settings"]
     estimated_reward = 100000
     rule_based_plan = []
     i = 0
@@ -180,13 +188,16 @@ def greedy_lemaitre_planner_events_interval(planner_inputs):
         while more_actions:
             best_obs = None
             maximum = 0.0
-            actions = get_action_space(curr_time,curr_angle,obs_list,last_obs)
+            actions = get_action_space(curr_time,curr_angle,obs_list,last_obs,settings)
             if(len(actions) == 0):
                 break
             for action in actions:
                 if action["location"] in location_list:
-                    continue
-                duration = 86400 # TODO FIX
+                    if settings["planner_options"]["reobserve"] == "encouraged" and action["reward"] == 1:
+                        action["reward"] = settings["planner_options"]["reobserve_reward"]
+                    elif settings["planner_options"]["reobserve"] == "discouraged":
+                        action["reward"] = 0
+                duration = 86400/settings["step_size"] # TODO FIX
                 rho = (duration - action["end"])/duration
                 e = rho * estimated_reward
                 adjusted_reward = np.abs(action["reward"]) + e
@@ -202,9 +213,6 @@ def greedy_lemaitre_planner_events_interval(planner_inputs):
             rule_based_plan.append(best_obs)
             for event in events:
                 if close_enough(best_obs["location"]["lat"],best_obs["location"]["lon"],event["location"]["lat"],event["location"]["lon"]):
-                    # print("close enough!")
-                    # print(event)
-                    # print(best_obs)
                     if (event["start"] <= best_obs["start"] <= event["end"]) or (event["start"] <= best_obs["end"] <= event["end"]):
                         updated_reward = { 
                             "reward": event["severity"]*10,
@@ -225,14 +233,13 @@ def greedy_lemaitre_planner_events_interval(planner_inputs):
                     }
     return planner_outputs
 
-
-def greedy_fifo_planner(obs_list):
+def fifo_planner(obs_list,settings):
     fifo_plan = []
     curr_time = 0.0
     curr_angle = 0.0
     last_obs = None
     while True:
-        actions = get_action_space(curr_time,curr_angle,obs_list,last_obs)
+        actions = get_action_space(curr_time,curr_angle,obs_list,last_obs,settings)
         if len(actions) == 0:
             break
         next_obs = actions[0]
@@ -240,6 +247,84 @@ def greedy_fifo_planner(obs_list):
         curr_time = next_obs["soonest"]
         curr_angle = next_obs["angle"]
     return fifo_plan
+
+def fifo_planner_events(planner_inputs):
+    events = planner_inputs["events"]
+    obs_list = planner_inputs["obs_list"]
+    plan_start = planner_inputs["plan_start"]
+    plan_end = planner_inputs["plan_end"]
+    settings = planner_inputs["settings"]
+    fifo_plan = []
+    curr_time = plan_start
+    curr_angle = 0.0
+    last_obs = None
+    while True:
+        actions = get_action_space(curr_time,curr_angle,obs_list,last_obs,settings)
+        if len(actions) == 0:
+            break
+        next_obs = actions[0]
+        curr_time = next_obs["soonest"]
+        curr_angle = next_obs["angle"]
+        fifo_plan.append(next_obs)
+        for event in events:
+            if close_enough(next_obs["location"]["lat"],next_obs["location"]["lon"],event["location"]["lat"],event["location"]["lon"]):
+                if (event["start"] <= next_obs["start"] <= event["end"]) or (event["start"] <= next_obs["end"] <= event["end"]):
+                    updated_reward = { 
+                        "reward": next_obs["reward"],
+                        "location": next_obs["location"],
+                        "last_updated": curr_time 
+                    }
+                    planner_outputs = {
+                        "plan": fifo_plan,
+                        "end_time": curr_time,
+                        "updated_reward": updated_reward
+                    }
+                    return planner_outputs
+    planner_outputs = {
+        "plan": fifo_plan,
+        "end_time": plan_end,
+        "updated_reward": None
+    }  
+    return planner_outputs
+
+def fifo_planner_events_interval(planner_inputs):
+    events = planner_inputs["events"]
+    obs_list = planner_inputs["obs_list"].copy()
+    plan_start = planner_inputs["plan_start"]
+    plan_end = planner_inputs["plan_end"]
+    settings = planner_inputs["settings"]
+    fifo_plan = []
+    curr_time = plan_start
+    curr_angle = 0.0
+    last_obs = None
+    updated_rewards = []
+    while True:
+        actions = get_action_space(curr_time,curr_angle,obs_list,last_obs,settings)
+        if len(actions) == 0:
+            break
+        next_obs = actions[0]
+        obs_list.remove(next_obs)
+        curr_time = next_obs["soonest"]
+        curr_angle = next_obs["angle"]
+        fifo_plan.append(next_obs)
+        for event in events:
+            if close_enough(next_obs["location"]["lat"],next_obs["location"]["lon"],event["location"]["lat"],event["location"]["lon"]):
+                if (event["start"] <= next_obs["start"] <= event["end"]) or (event["start"] <= next_obs["end"] <= event["end"]):
+                    updated_reward = { 
+                            "reward": event["severity"]*10,
+                            "location": next_obs["location"],
+                            "last_updated": curr_time 
+                        }
+                    updated_rewards.append(updated_reward)
+        if curr_time > plan_end:
+            break
+    planner_outputs = {
+        "plan": fifo_plan,
+        "end_time": plan_end,
+        "updated_rewards": updated_rewards
+    }  
+    return planner_outputs
+
 
 def get_action_space(curr_time,curr_angle,obs_list,last_obs,settings):
     feasible_actions = []
@@ -323,7 +408,63 @@ def plan_satellite(satellite,settings):
         for cont_vis in continuous_visibilities:
             visibilities.remove(cont_vis)
         i = 0
-    plan = greedy_lemaitre_planner(obs_list,settings)
+    if settings["planner"] == "heuristic":
+        plan = greedy_lemaitre_planner(obs_list,settings)
+    elif settings["planner"] == "fifo":
+        plan = fifo_planner(obs_list,settings)
+    elif settings["planner"] == "dp":
+        plan = graph_search(obs_list)
+    elif settings["planner"] == "mcts":
+        mcts = monte_carlo_tree_search(obs_list)
+        plan = mcts.do_search()
+    elif settings["planner"] == "all":
+        heuristic_plan = greedy_lemaitre_planner(obs_list,settings)
+        fifo_plan = fifo_planner(obs_list,settings)
+        dp_plan = graph_search(obs_list)
+        mcts = monte_carlo_tree_search(obs_list)
+        mcts_plan = mcts.do_search()
+        satellite["plan"] = heuristic_plan
+        grid_locations = []
+        with open(settings["point_grid"],'r') as csvfile:
+            csvreader = csv.reader(csvfile,delimiter=',')
+            next(csvfile)
+            for row in csvreader:
+                grid_locations.append([float(row[0]),float(row[1])])
+        with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_heuristic.csv','w') as csvfile:
+            csvwriter = csv.writer(csvfile, delimiter=',',
+                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            for obs in tqdm(heuristic_plan):
+                for loc in grid_locations:
+                    if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
+                        row = [obs["start"],obs["end"],loc[0],loc[1]]
+                        csvwriter.writerow(row)
+        with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_dp.csv','w') as csvfile:
+            csvwriter = csv.writer(csvfile, delimiter=',',
+                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            for obs in tqdm(dp_plan):
+                for loc in grid_locations:
+                    if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
+                        row = [obs["start"],obs["end"],loc[0],loc[1]]
+                        csvwriter.writerow(row)
+        with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_fifo.csv','w') as csvfile:
+            csvwriter = csv.writer(csvfile, delimiter=',',
+                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            for obs in tqdm(fifo_plan):
+                for loc in grid_locations:
+                    if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
+                        row = [obs["start"],obs["end"],loc[0],loc[1]]
+                        csvwriter.writerow(row)
+        with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_mcts.csv','w') as csvfile:
+            csvwriter = csv.writer(csvfile, delimiter=',',
+                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            for obs in tqdm(mcts_plan):
+                for loc in grid_locations:
+                    if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
+                        row = [obs["start"],obs["end"],loc[0],loc[1]]
+                        csvwriter.writerow(row)
+        return
+    else:
+        print("unsupported planner")
     print(len(plan))
     satellite["plan"] = plan
     grid_locations = []
@@ -332,7 +473,7 @@ def plan_satellite(satellite,settings):
         next(csvfile)
         for row in csvreader:
             grid_locations.append([float(row[0]),float(row[1])])
-    with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan.csv','w') as csvfile:
+    with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_'+settings["planner"]+'.csv','w') as csvfile:
         csvwriter = csv.writer(csvfile, delimiter=',',
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
         for obs in tqdm(plan):
@@ -340,77 +481,6 @@ def plan_satellite(satellite,settings):
                 if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
                     row = [obs["start"],obs["end"],loc[0],loc[1]]
                     csvwriter.writerow(row)
-            row = [obs["start"],obs["end"],obs["location"]["lat"],obs["location"]["lon"]]
-            csvwriter.writerow(row)
-
-def plan_satellite_mcts(satellite,settings):
-    obs_list = []
-    i = 0
-    visibilities = satellite["visibilities"]
-    while i < len(visibilities):
-        continuous_visibilities = []
-        visibility = visibilities[i]
-        continuous_visibilities.append(visibility)
-        start = visibility[0]
-        end = visibility[0]
-        while(i < len(visibilities)-1 and visibilities[i+1][0] == start):
-            i += 1
-        vis_done = False
-        if i == len(visibilities)-1:
-            break
-        while not vis_done:
-            vis_done = True
-            num_steps = len(continuous_visibilities)
-            while visibilities[i+1][0] == start+num_steps:
-                if visibilities[i+1][1] == visibility[1]:
-                    continuous_visibilities.append(visibilities[i+1])
-                    end = visibilities[i+1][0]
-                    vis_done = False
-                if i == len(visibilities)-2:
-                    break
-                else:
-                    i += 1
-            num_steps = len(continuous_visibilities)
-            if i == len(visibilities)-1:
-                break
-
-        time_window = {
-            "location": {
-                "lat": visibility[3],
-                "lon": visibility[4]
-            },
-            "times": [x[0] for x in continuous_visibilities],
-            "angles": [x[6] for x in continuous_visibilities],
-            "start": start,
-            "end": end,
-            "angle": visibility[6],
-            "reward": 1
-        }
-        if(time_window["location"]) is None:
-            print(time_window)
-        obs_list.append(time_window)
-        for cont_vis in continuous_visibilities:
-            visibilities.remove(cont_vis)
-        i = 0
-    plan = monte_carlo_tree_search(obs_list)
-    #print(len(plan))
-    satellite["plan"] = plan
-    grid_locations = []
-    with open(settings["point_grid"],'r') as csvfile:
-        csvreader = csv.reader(csvfile,delimiter=',')
-        next(csvfile)
-        for row in csvreader:
-            grid_locations.append([float(row[0]),float(row[1])])
-    with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan.csv','w') as csvfile:
-        csvwriter = csv.writer(csvfile, delimiter=',',
-                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        for obs in tqdm(plan):
-            for loc in grid_locations:
-                if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
-                    row = [obs["start"],obs["end"],loc[0],loc[1]]
-                    csvwriter.writerow(row)
-            row = [obs["start"],obs["end"],obs["location"]["lat"],obs["location"]["lon"]]
-            csvwriter.writerow(row)
 
 def plan_mission(settings):
     print("Planning mission")
@@ -449,44 +519,7 @@ def plan_mission(settings):
         
     print("Planned mission!")
 
-def plan_mission_mcts(settings):
-    print("Planning mission")
-    #directory = "./missions/test_mission/orbit_data/"
-    directory = settings["directory"] + "orbit_data/"
-
-    satellites = []
-
-    for subdir in os.listdir(directory):
-        if "comm" in subdir:
-            continue
-        if ".json" in subdir:
-            continue
-        satellite = {}
-        for f in os.listdir(directory+subdir):
-            if "datametrics" in f:
-                with open(directory+subdir+"/"+f,newline='') as csv_file:
-                    spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
-                    visibilities = []
-                    i = 0
-                    for row in spamreader:
-                        if i < 5:
-                            i=i+1
-                            continue
-                        row[2] = "0.0"
-                        row = [float(i) for i in row]
-                        visibilities.append(row)
-                satellite["visibilities"] = visibilities
-                satellite["orbitpy_id"] = subdir
-
-        satellites.append(satellite)
-    pool = multiprocessing.Pool()
-    #pool.map(partial(plan_satellite_mcts, settings=settings), satellites)
-    for satellite in satellites:
-        plan_satellite_mcts(satellite,settings)
-        
-    print("Planned mission!")
-
-def plan_mission_with_replanning(settings):
+def plan_mission_replan(settings):
     print("Planning mission with replanning")
     #directory = "./missions/test_mission/orbit_data/"
     directory = settings["directory"] + "orbit_data/"
@@ -530,8 +563,8 @@ def plan_mission_with_replanning(settings):
                     "lat": float(row[0]),
                     "lon": float(row[1]),
                 },
-                "start": float(row[2]),
-                "end": float(row[2])+float(row[3]),
+                "start": float(row[2])/settings["step_size"],
+                "end": (float(row[2])+float(row[3]))/settings["step_size"],
                 "severity": float(row[4])
             }
             events.append(event)
@@ -561,8 +594,8 @@ def plan_mission_with_replanning(settings):
                 continuous_visibilities = []
                 visibility = visibilities[i]
                 continuous_visibilities.append(visibility)
-                start = float(visibility[0])*settings["step_size"]
-                end = float(visibility[0])*settings["step_size"]
+                start = visibility[0]
+                end = visibility[0]
                 while(i < len(visibilities)-1 and visibilities[i+1][0] == start):
                     i += 1
                 vis_done = False
@@ -588,7 +621,7 @@ def plan_mission_with_replanning(settings):
                         "lat": visibility[3],
                         "lon": visibility[4]
                     },
-                    "times": [float(x[0])*settings["step_size"] for x in continuous_visibilities],
+                    "times": [x[0] for x in continuous_visibilities],
                     "angles": [x[6] for x in continuous_visibilities],
                     "start": start,
                     "end": end,
@@ -625,7 +658,8 @@ def plan_mission_with_replanning(settings):
                 "obs_list": new_obs_list.copy(),
                 "plan_start": plan_start,
                 "plan_end": plan_end,
-                "events": events
+                "events": events,
+                "settings": settings
             }
             satellite["obs_list"] = new_obs_list.copy()
             planner_input_list.append(planner_inputs)
@@ -637,7 +671,16 @@ def plan_mission_with_replanning(settings):
             # if updated_reward is not None:
             #     updated_reward_list.append(updated_reward)
         pool = multiprocessing.Pool()
-        planner_output_list = pool.map(greedy_lemaitre_planner_events, planner_input_list)
+        if settings["planner"] == "heuristic":
+            planner_output_list = pool.map(greedy_lemaitre_planner_events, planner_input_list)
+        elif settings["planner"] == "fifo":
+            planner_output_list = pool.map(fifo_planner_events, planner_input_list)
+        elif settings["planner"] == "dp":
+            planner_output_list = pool.map(graph_search_events, planner_input_list)
+        elif settings["planner"] == "mcts":
+            mcts = monte_carlo_tree_search()
+            planner_output_list = pool.map(mcts.do_search_events, planner_input_list)
+        
         for po in planner_output_list:
             end_times.append(po["end_time"])
             if po["updated_reward"] is not None:
@@ -662,7 +705,15 @@ def plan_mission_with_replanning(settings):
                 "events": events
             }
             planner_input_list.append(planner_inputs)
-        planner_output_list = pool.map(greedy_lemaitre_planner_events, planner_input_list)
+        if settings["planner"] == "heuristic":
+            planner_output_list = pool.map(greedy_lemaitre_planner_events, planner_input_list)
+        elif settings["planner"] == "fifo":
+            planner_output_list = pool.map(fifo_planner_events, planner_input_list)
+        elif settings["planner"] == "dp":
+            planner_output_list = pool.map(graph_search_events, planner_input_list)
+        elif settings["planner"] == "mcts":
+            mcts = monte_carlo_tree_search()
+            planner_output_list = pool.map(mcts.do_search_events, planner_input_list)
         for i in range(len(satellites)):
             if "plan" in satellites[i]:
                 satellites[i]["plan"].extend(planner_output_list[i]["plan"])
@@ -671,7 +722,7 @@ def plan_mission_with_replanning(settings):
         elapsed_plan_time = soonest_end_time
         print("Elapsed planning time: "+str(elapsed_plan_time))
     for satellite in satellites:
-        with open(directory+satellite["orbitpy_id"]+'/plan_w_replan.csv','w') as csvfile:
+        with open(directory+satellite["orbitpy_id"]+'/replan_'+settings["planner"]+'.csv','w') as csvfile:
             csvwriter = csv.writer(csvfile, delimiter=',',
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
             plan = satellite["plan"]
@@ -684,7 +735,7 @@ def plan_mission_with_replanning(settings):
                 csvwriter.writerow(row)
     print("Planned mission with replans!")
 
-def plan_mission_with_replanning_intervals(settings):
+def plan_mission_replan_interval(settings):
     print("Planning mission with replanning")
     #directory = "./missions/test_mission/orbit_data/"
     directory = settings["directory"] + "orbit_data/"
@@ -715,7 +766,7 @@ def plan_mission_with_replanning_intervals(settings):
 
         satellites.append(satellite)
     events = []
-    event_filename = './events/lakes/all_events.csv'
+    event_filename = settings["event_csvs"][0]
     with open(event_filename,newline='') as csv_file:
         csvreader = csv.reader(csv_file, delimiter=',', quotechar='|')
         i = 0
@@ -728,13 +779,13 @@ def plan_mission_with_replanning_intervals(settings):
                     "lat": float(row[0]),
                     "lon": float(row[1]),
                 },
-                "start": float(row[2]),
-                "end": float(row[2])+float(row[3]),
+                "start": float(row[2])/settings["step_size"],
+                "end": (float(row[2])+float(row[3]))/settings["step_size"],
                 "severity": float(row[4])
             }
             events.append(event)
     rewards = []
-    reward_filename = './events/lakes/lake_event_points.csv'
+    reward_filename = settings["point_grid"]
     with open(reward_filename,newline='') as csv_file:
         csvreader = csv.reader(csv_file, delimiter=',', quotechar='|')
         i = 0
@@ -759,8 +810,8 @@ def plan_mission_with_replanning_intervals(settings):
                 continuous_visibilities = []
                 visibility = visibilities[i]
                 continuous_visibilities.append(visibility)
-                start = float(visibility[0])*settings["step_size"]
-                end = float(visibility[0])*settings["step_size"]
+                start = visibility[0]
+                end = visibility[0]
                 while(i < len(visibilities)-1 and visibilities[i+1][0] == start):
                     i += 1
                 vis_done = False
@@ -786,7 +837,7 @@ def plan_mission_with_replanning_intervals(settings):
                         "lat": visibility[3],
                         "lon": visibility[4]
                     },
-                    "times": [float(x[0])*settings["step_size"] for x in continuous_visibilities],
+                    "times": [x[0] for x in continuous_visibilities],
                     "angles": [x[6] for x in continuous_visibilities],
                     "start": start,
                     "end": end,
@@ -803,7 +854,7 @@ def plan_mission_with_replanning_intervals(settings):
             satellite["obs_list"] = obs_list
     elapsed_plan_time = 0
     reward_update_locations = []
-    while elapsed_plan_time < float(settings["duration"])*86400:
+    while elapsed_plan_time < float(settings["duration"])*86400/settings["step_size"]:
         updated_reward_list = []
         planner_input_list = []
         for satellite in satellites:
@@ -814,24 +865,34 @@ def plan_mission_with_replanning_intervals(settings):
                     if obs["location"] == rul["location"]:
                         obs["reward"] = rul["reward"]
                         obs["last_updated"] = elapsed_plan_time
-                if (obs["last_updated"] + 2000) < elapsed_plan_time:
+                if (obs["last_updated"] + settings["experiment_settings"]["event_duration"]) < elapsed_plan_time:
                     obs["last_updated"] = elapsed_plan_time
                     obs["reward"] = 1
                 if obs["start"] < elapsed_plan_time:
                     continue
                 new_obs_list.append(obs)
             plan_start = elapsed_plan_time
-            interval = 500
+            interval = 1000/settings["step_size"] # 500 seconds
             plan_end = plan_start+interval
+            new_obs_list = chop_obs_list(new_obs_list,plan_start,plan_end)
             planner_inputs = {
                 "obs_list": new_obs_list.copy(),
                 "plan_start": plan_start,
                 "plan_end": plan_end,
-                "events": events
+                "events": events,
+                "settings": settings
             }
             planner_input_list.append(planner_inputs)
         pool = multiprocessing.Pool()
-        planner_output_list = pool.map(greedy_lemaitre_planner_events_interval, planner_input_list)
+        if settings["planner"] == "heuristic":
+            planner_output_list = pool.map(greedy_lemaitre_planner_events_interval, planner_input_list)
+        elif settings["planner"] == "fifo":
+            planner_output_list = pool.map(fifo_planner_events_interval, planner_input_list)
+        elif settings["planner"] == "dp":
+            planner_output_list = pool.map(graph_search_events_interval, planner_input_list)
+        elif settings["planner"] == "mcts":
+            mcts = monte_carlo_tree_search()
+            planner_output_list = pool.map(mcts.do_search_events_interval, planner_input_list)
         for po in planner_output_list:
             if po["updated_rewards"] is not None:
                 updated_reward_list.extend(po["updated_rewards"])
@@ -851,15 +912,22 @@ def plan_mission_with_replanning_intervals(settings):
         elapsed_plan_time += interval
         print("Elapsed planning time: "+str(elapsed_plan_time))
     for satellite in satellites:
-        with open(directory+satellite["orbitpy_id"]+'/plan_w_replan_interval.csv','w') as csvfile:
+        with open(directory+satellite["orbitpy_id"]+'/replan_interval'+settings["planner"]+'.csv','w') as csvfile:
             csvwriter = csv.writer(csvfile, delimiter=',',
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
             plan = satellite["plan"]
             rows = []
-            for obs in plan:
-                row = [obs["start"],obs["end"],obs["location"]["lat"],obs["location"]["lon"]]
-                rows.append(row)
-            #plan = repair_plan(rows)
+            grid_locations = []
+            with open(settings["point_grid"],'r') as csvfile:
+                csvreader = csv.reader(csvfile,delimiter=',')
+                next(csvfile)
+                for row in csvreader:
+                    grid_locations.append([float(row[0]),float(row[1])])
+            for obs in tqdm(plan):
+                for loc in grid_locations:
+                    if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
+                        row = [obs["start"],obs["end"],loc[0],loc[1]]
+                        rows.append(row)
             plan = unique(rows)
             for row in plan:
                 csvwriter.writerow(row)
@@ -891,14 +959,14 @@ if __name__ == "__main__":
         "plot_rain": True
     }
     settings = {
-        "directory": "./missions/test_mission_3/",
-        "step_size": 100,
-        "duration": 0.2,
+        "directory": "./missions/test_mission_5/",
+        "step_size": 10,
+        "duration": 1,
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
-        "grid_type": "static", # can be "event" or "static"
+        "grid_type": "event", # can be "event" or "static"
         "point_grid": "./coverage_grids/riverATLAS.csv",
         "preplanned_observations": None,
-        "event_csvs": [],
+        "event_csvs": ['bloom_events.csv','level_events.csv','temperature_events.csv'],
         "plot_clouds": False,
         "plot_rain": False,
         "plot_obs": True,
@@ -912,7 +980,16 @@ if __name__ == "__main__":
         "num_planes": num_planes,
         "num_sats_per_plane": num_sats_per_plane,
         "agility": agility,
-        "process_obs_only": False
+        "process_obs_only": False,
+        "planner": "heuristic",
+        "planner_options": {
+            "reobserve": "encouraged",
+            "reobserve_reward": 2
+        }
     }
-    plan_mission_mcts(settings)
+    #plan_mission(settings)
+    plan_mission_replan_interval(settings)
+    #plan_mission_mcts(settings)
+    #plan_mission_dp(settings)
+    #plan_mission_fifo(settings)
     #plan_mission_with_replanning_intervals(settings)
