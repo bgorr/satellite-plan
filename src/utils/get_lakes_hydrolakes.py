@@ -23,7 +23,7 @@ with open(filename,newline='') as csv_file:
 
 
 lake_locations_sorted = sub_sort(lake_locations)
-with open('./events/lakes/lake_event_points.csv','w') as csvfile:
+with open('./events/lakes/lake_event_points_reduced.csv','w') as csvfile:
     csvwriter = csv.writer(csvfile, delimiter=',',
                         quotechar='|', quoting=csv.QUOTE_MINIMAL)
     csvwriter.writerow(['lat [deg]','lon [deg]'])
@@ -32,5 +32,5 @@ with open('./events/lakes/lake_event_points.csv','w') as csvfile:
         location = [loc[1],loc[2]]
         csvwriter.writerow(location)
         i = i+1
-        if i > 5000:
+        if i > 100:
             break

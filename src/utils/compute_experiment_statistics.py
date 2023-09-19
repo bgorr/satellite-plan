@@ -228,3 +228,50 @@ def compute_experiment_statistics(settings):
     compute_statistics(events,all_replan_observations,settings)
     print("Potential observations (visibilities)")
     compute_statistics(events,all_visibilities,settings)
+
+def __main__():
+    cross_track_ffor = 60 # deg
+    along_track_ffor = 60 # deg
+    cross_track_ffov = 0 # deg
+    along_track_ffov = 0 # deg
+    agility = 1 # deg/s
+    num_planes = 4 # deg/s
+    num_sats_per_plane = 4 # deg/s
+    var = 1 # deg lat/lon
+    num_points_per_cell = 10
+    simulation_step_size = 10 # seconds
+    simulation_duration = 1 # days
+    event_frequency = 1e-5 # events per second
+    event_duration = 3600 # seconds
+    settings = {
+        "directory": "./missions/test_mission_5_reduced/",
+        "step_size": 10,
+        "duration": 1,
+        "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
+        "grid_type": "event", # can be "event" or "static"
+        "point_grid": "./events/lakes/lake_event_points_reduced.csv",
+        "preplanned_observations": None,
+        "event_csvs": ['./events/lakes/bloom_events_reduced.csv','./events/lakes/level_events_reduced.csv','./events/lakes/temperature_events_reduced.csv'],
+        "plot_clouds": False,
+        "plot_rain": False,
+        "plot_obs": True,
+        "plot_duration": 2/24,
+        "plot_interval": 10,
+        "plot_location": "./missions/test_mission_5_reduced/plots/",
+        "cross_track_ffor": cross_track_ffor,
+        "along_track_ffor": along_track_ffor,
+        "cross_track_ffov": cross_track_ffov,
+        "along_track_ffov": along_track_ffov,
+        "num_planes": num_planes,
+        "num_sats_per_plane": num_sats_per_plane,
+        "agility": agility,
+        "process_obs_only": False,
+        "planner": "heuristic",
+        "planner_options": {
+            "reobserve": "encouraged",
+            "reobserve_reward": 2
+        },
+        "experiment_settings":
+        {"event_duration": 7200}
+    }
+    compute_experiment_statistics(settings)

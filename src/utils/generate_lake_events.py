@@ -1,7 +1,7 @@
 import csv
 import numpy as np
 
-filename = './events/lakes/lake_event_points.csv'
+filename = './events/lakes/lake_event_points_reduced.csv'
 
 lake_locations = []
 with open(filename,newline='') as csv_file:
@@ -41,21 +41,21 @@ for step in steps:
                     event = [lake[0],lake[1],step,event_durations[i],np.random.rand()*10,2]
                     level_events.append(event)
 
-with open('./events/lakes/bloom_events.csv','w') as csvfile:
+with open('./events/lakes/bloom_events_reduced.csv','w') as csvfile:
     csvwriter = csv.writer(csvfile, delimiter=',',
                         quotechar='|', quoting=csv.QUOTE_MINIMAL)
     csvwriter.writerow(['lat [deg]','lon [deg]','start time [s]','duration [s]','severity'])
     for event in bloom_events:
         csvwriter.writerow(event)
 
-with open('./events/lakes/temperature_events.csv','w') as csvfile:
+with open('./events/lakes/temperature_events_reduced.csv','w') as csvfile:
     csvwriter = csv.writer(csvfile, delimiter=',',
                         quotechar='|', quoting=csv.QUOTE_MINIMAL)
     csvwriter.writerow(['lat [deg]','lon [deg]','start time [s]','duration [s]','severity'])
     for event in temperature_events:
         csvwriter.writerow(event)
 
-with open('./events/lakes/level_events.csv','w') as csvfile:
+with open('./events/lakes/level_events_reduced.csv','w') as csvfile:
     csvwriter = csv.writer(csvfile, delimiter=',',
                         quotechar='|', quoting=csv.QUOTE_MINIMAL)
     csvwriter.writerow(['lat [deg]','lon [deg]','start time [s]','duration [s]','severity'])

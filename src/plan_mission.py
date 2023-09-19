@@ -481,6 +481,9 @@ def plan_satellite(satellite,settings):
                 if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
                     row = [obs["start"],obs["end"],loc[0],loc[1]]
                     csvwriter.writerow(row)
+            if settings["cross_track_ffov"] == 0:
+                row = [obs["start"],obs["end"],obs["location"]["lat"],obs["location"]["lon"]]
+                csvwriter.writerow(row)
 
 def plan_mission(settings):
     print("Planning mission")
@@ -509,6 +512,7 @@ def plan_mission(settings):
                         row = [float(i) for i in row]
                         visibilities.append(row)
                 satellite["visibilities"] = visibilities
+                print(visibilities)
                 satellite["orbitpy_id"] = subdir
 
         satellites.append(satellite)
@@ -569,7 +573,7 @@ def plan_mission_replan(settings):
             }
             events.append(event)
     rewards = []
-    reward_filename = './events/lakes/lake_event_points.csv'
+    reward_filename = './events/lakes/lake_event_points_reduced.csv'
     with open(reward_filename,newline='') as csv_file:
         csvreader = csv.reader(csv_file, delimiter=',', quotechar='|')
         i = 0
@@ -766,24 +770,24 @@ def plan_mission_replan_interval(settings):
 
         satellites.append(satellite)
     events = []
-    event_filename = settings["event_csvs"][0]
-    with open(event_filename,newline='') as csv_file:
-        csvreader = csv.reader(csv_file, delimiter=',', quotechar='|')
-        i = 0
-        for row in csvreader:
-            if i < 1:
-                i=i+1
-                continue
-            event = {
-                "location": {
-                    "lat": float(row[0]),
-                    "lon": float(row[1]),
-                },
-                "start": float(row[2])/settings["step_size"],
-                "end": (float(row[2])+float(row[3]))/settings["step_size"],
-                "severity": float(row[4])
-            }
-            events.append(event)
+    for event_filename in settings["event_csvs"]:
+        with open(event_filename,newline='') as csv_file:
+            csvreader = csv.reader(csv_file, delimiter=',', quotechar='|')
+            i = 0
+            for row in csvreader:
+                if i < 1:
+                    i=i+1
+                    continue
+                event = {
+                    "location": {
+                        "lat": float(row[0]),
+                        "lon": float(row[1]),
+                    },
+                    "start": float(row[2])/settings["step_size"],
+                    "end": (float(row[2])+float(row[3]))/settings["step_size"],
+                    "severity": float(row[4])
+                }
+                events.append(event)
     rewards = []
     reward_filename = settings["point_grid"]
     with open(reward_filename,newline='') as csv_file:
@@ -916,6 +920,7 @@ def plan_mission_replan_interval(settings):
             csvwriter = csv.writer(csvfile, delimiter=',',
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
             plan = satellite["plan"]
+            print(len(plan))
             rows = []
             grid_locations = []
             with open(settings["point_grid"],'r') as csvfile:
@@ -928,6 +933,9 @@ def plan_mission_replan_interval(settings):
                     if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
                         row = [obs["start"],obs["end"],loc[0],loc[1]]
                         rows.append(row)
+                if settings["cross_track_ffov"] == 0:
+                    row = [obs["start"],obs["end"],obs["location"]["lat"],obs["location"]["lon"]]
+                    rows.append(row)
             plan = unique(rows)
             for row in plan:
                 csvwriter.writerow(row)
@@ -959,20 +967,20 @@ if __name__ == "__main__":
         "plot_rain": True
     }
     settings = {
-        "directory": "./missions/test_mission_5/",
+        "directory": "./missions/test_mission_5_reduced/",
         "step_size": 10,
         "duration": 1,
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
         "grid_type": "event", # can be "event" or "static"
-        "point_grid": "./coverage_grids/riverATLAS.csv",
+        "point_grid": "./events/lakes/lake_event_points_reduced.csv",
         "preplanned_observations": None,
-        "event_csvs": ['bloom_events.csv','level_events.csv','temperature_events.csv'],
+        "event_csvs": ['./events/lakes/bloom_events_reduced.csv','./events/lakes/level_events_reduced.csv','./events/lakes/temperature_events_reduced.csv'],
         "plot_clouds": False,
         "plot_rain": False,
         "plot_obs": True,
         "plot_duration": 2/24,
         "plot_interval": 10,
-        "plot_location": "./missions/"+mission_name+"/plots/",
+        "plot_location": "./missions/test_mission_5_reduced/plots/",
         "cross_track_ffor": cross_track_ffor,
         "along_track_ffor": along_track_ffor,
         "cross_track_ffov": cross_track_ffov,
@@ -985,9 +993,11 @@ if __name__ == "__main__":
         "planner_options": {
             "reobserve": "encouraged",
             "reobserve_reward": 2
-        }
+        },
+        "experiment_settings":
+        {"event_duration": 7200}
     }
-    #plan_mission(settings)
+    plan_mission(settings)
     plan_mission_replan_interval(settings)
     #plan_mission_mcts(settings)
     #plan_mission_dp(settings)

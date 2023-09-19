@@ -1,7 +1,7 @@
 import csv
 import numpy as np
 
-filename = './events/lakes/lake_event_points.csv'
+filename = './events/lakes/lake_event_points_reduced.csv'
 
 lake_locations = []
 with open(filename,newline='') as csv_file:
@@ -29,7 +29,7 @@ for lake in lake_locations:
     initial_requests.append(sar_event)
     initial_requests.append(therm_event)
 
-with open('./events/lakes/initial_requests.csv','w') as csvfile:
+with open('./events/lakes/initial_requests_reduced.csv','w') as csvfile:
     csvwriter = csv.writer(csvfile, delimiter=',',
                         quotechar='|', quoting=csv.QUOTE_MINIMAL)
     csvwriter.writerow(['lat [deg]','lon [deg]','start time [s]','duration [s]','severity',"measurements"])

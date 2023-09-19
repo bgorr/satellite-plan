@@ -85,7 +85,7 @@ def create_mission(settings):
         if settings["grid_type"] == "static":
             grid_array = [{"@type": "customGrid", "covGridFilePath": "./coverage_grids/riverATLAS.csv"}]
         elif settings["grid_type"] == "event":
-            grid_array = [{"@type": "customGrid", "covGridFilePath": "./events/lakes/lake_event_points.csv"}]
+            grid_array = [{"@type": "customGrid", "covGridFilePath": "./events/lakes/lake_event_points_reduced.csv"}]
         else:
             print("Invalid grid type")
         mission_dict["grid"] = grid_array
@@ -112,12 +112,12 @@ def create_mission(settings):
 
 if __name__ == "__main__":
     settings = {
-        "directory": "./missions/test_mission_5/",
+        "directory": "./missions/test_mission_5_reduced/",
         "step_size": 10,
         "duration": 1,
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
         "grid_type": "event", # can be "event" or "static"
-        "event_csvs": ['bloom_events.csv','level_events.csv','temperature_events.csv'],
+        "event_csvs": ['bloom_events_reduced.csv','level_events_reduced.csv','temperature_events_reduced.csv'],
         "plot_clouds": False,
         "plot_rain": False
     }
