@@ -465,7 +465,6 @@ def plan_satellite(satellite,settings):
         return
     else:
         print("unsupported planner")
-    print(len(plan))
     satellite["plan"] = plan
     grid_locations = []
     with open(settings["point_grid"],'r') as csvfile:
@@ -495,6 +494,12 @@ def plan_mission(settings):
         if ".json" in subdir:
             continue
         satellite = {}
+        already_planned = False
+        for f in os.listdir(directory+subdir):
+            if "plan" in f:
+                already_planned = True
+        if already_planned:
+            continue
         for f in os.listdir(directory+subdir):
             if "datametrics" in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
@@ -532,6 +537,12 @@ def plan_mission_replan(settings):
         if ".json" in subdir:
             continue
         satellite = {}
+        already_planned = False
+        for f in os.listdir(directory+subdir):
+            if "replan" in f:
+                already_planned = True
+        if already_planned:
+            continue
         for f in os.listdir(directory+subdir):
             if "datametrics" in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
@@ -987,7 +998,7 @@ if __name__ == "__main__":
             "reobserve_reward": 2
         }
     }
-    #plan_mission(settings)
+    plan_mission(settings)
     plan_mission_replan_interval(settings)
     #plan_mission_mcts(settings)
     #plan_mission_dp(settings)
