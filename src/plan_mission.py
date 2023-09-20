@@ -496,7 +496,7 @@ def plan_mission(settings):
         satellite = {}
         already_planned = False
         for f in os.listdir(directory+subdir):
-            if "plan" in f:
+            if "plan_heuristic" in f:
                 already_planned = True
         if already_planned:
             continue
@@ -759,6 +759,12 @@ def plan_mission_replan_interval(settings):
         if ".json" in subdir:
             continue
         satellite = {}
+        already_planned = False
+        for f in os.listdir(directory+subdir):
+            if "replan_intervalheuristic" in f:
+                already_planned = True
+        if already_planned:
+            continue
         for f in os.listdir(directory+subdir):
             if "datametrics" in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
@@ -867,6 +873,7 @@ def plan_mission_replan_interval(settings):
     reward_update_locations = []
     while elapsed_plan_time < float(settings["duration"])*86400/settings["step_size"]:
         updated_reward_list = []
+        interval = 1000/settings["step_size"]
         planner_input_list = []
         for satellite in satellites:
             obs_list = satellite["obs_list"].copy()

@@ -28,13 +28,14 @@ def compute_statistics_pieces(input):
     num_event_obs = 0
     obs_per_event_list = []
     event_duration = settings["experiment_settings"]["event_duration"]
+    ss = settings["step_size"]
     for event in events:
         obs_per_event = 0
         for obs in observations:
-            if obs[0] > ((float(event[2])+float(event[3])) + event_duration):
+            if obs[0] > ((float(event[2])/ss+float(event[3])/ss) + event_duration/ss):
                 break
             if close_enough(obs[2],obs[3],float(event[0]),float(event[1])):
-                if (float(event[2]) < obs[0] < (float(event[2])+float(event[3]))) or (float(event[2]) < obs[1] < (float(event[2])+float(event[3]))):
+                if ((float(event[2])/ss) < obs[0] < (float(event[2])/ss+float(event[3])/ss)) or ((float(event[2])/ss) < obs[1] < (float(event[2])/ss+float(event[3])/ss)):
                     event_obs_pair = {
                         "event": event,
                         "obs": obs
