@@ -22,7 +22,7 @@ def run_experiment(experiment_settings):
     # var = 5 # deg lat/lon
     # num_points_per_cell = 10
     simulation_step_size = 10 # seconds
-    simulation_duration = 0.05 # days
+    simulation_duration = 1 # days
     # event_frequency = 0.001/3600 # events per hour
     # event_duration = 3600*6 # second
     mission_name = experiment_settings["name"]
@@ -101,9 +101,10 @@ def run_experiment(experiment_settings):
         os.mkdir(settings["directory"]+'orbit_data/')
     create_mission(settings)
     execute_mission(settings)
-    #plan_mission(settings) # must come before process as process expects a plan.csv in the orbit_data directory
-    #plan_mission_replan_interval(settings)
-    compute_experiment_statistics(settings)
+    plan_mission(settings) # must come before process as process expects a plan.csv in the orbit_data directory
+    plan_mission_replan_interval(settings)
+    overall_results = compute_experiment_statistics(settings)
+    return overall_results
 
 
 if __name__ == "__main__":

@@ -5,6 +5,8 @@ src/__pycache__/
 missions/test_mission*
 missions/chrissi_results/
 missions/experiment*
+events/experiment*
+coverage_grids/experiment*
 rain_data/
 plotting_data/
 clouds/

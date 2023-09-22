@@ -53,7 +53,6 @@ def compute_statistics_pieces(input):
 
 def compute_statistics(events,obs,settings):
     obs.sort(key=lambda obs: obs[0])
-    print(len(obs))
     event_chunks = list(chunks(events,1))
     pool = multiprocessing.Pool()
     input_list = []
@@ -63,7 +62,6 @@ def compute_statistics(events,obs,settings):
         input["observations"] = obs
         input["settings"] = settings
         input_list.append(input)
-    print(len(input_list))
     #output_list = pool.map(compute_statistics_pieces, input_list)
     output_list = list(tqdm(pool.imap(compute_statistics_pieces, input_list)))
     all_events_count = 0
@@ -78,8 +76,15 @@ def compute_statistics(events,obs,settings):
     print("Number of event observations: "+str(all_events_count))
     print("Number of total events: "+str(len(events)))
     print("Number of events observed at least once: "+str(np.count_nonzero(obs_per_event_list)))
-    print("Percent of events observed at least once: "+str(np.count_nonzero(obs_per_event_list)/len(events)*100)+"%")
-    print("Average obs per event: "+str(np.average(obs_per_event_list)))
+    #print("Percent of events observed at least once: "+str(np.count_nonzero(obs_per_event_list)/len(events)*100)+"%")
+    obs_per_event_array = np.array(obs_per_event_list)
+    print("Average obs per event seen once: "+str(obs_per_event_array[np.nonzero(obs_per_event_array)].mean()))
+    results = {
+        "event_obs_count": all_events_count,
+        "events_seen_once": np.count_nonzero(obs_per_event_list),
+        "events_seen_once_average": obs_per_event_array[np.nonzero(obs_per_event_array)].mean()
+    }
+    return results
 
 def compute_experiment_statistics(settings):
     directory = settings["directory"]+"orbit_data/"
@@ -223,10 +228,11 @@ def compute_experiment_statistics(settings):
             events.append(row) # lat, lon, start, duration, severity
 
     print("Initial event observations")
-    compute_statistics(events,all_initial_observations,settings)
+    init_results = compute_statistics(events,all_initial_observations,settings)
     print("Replan event observations")
-    compute_statistics(events,all_replan_observations,settings)
+    replan_results = compute_statistics(events,all_replan_observations,settings)
     print("Potential observations (visibilities)")
+<<<<<<< HEAD
     compute_statistics(events,all_visibilities,settings)
 
 def __main__():
@@ -275,3 +281,16 @@ def __main__():
         {"event_duration": 7200}
     }
     compute_experiment_statistics(settings)
+=======
+    vis_results = compute_statistics(events,all_visibilities,settings)
+    overall_results = {
+        "init_results": init_results,
+        "replan_results": replan_results,
+        "vis_results": vis_results,
+        "num_events": len(events),
+        "num_obs_init": len(all_initial_observations),
+        "num_obs_replan": len(all_replan_observations),
+        "num_vis": len(all_visibilities)
+    }
+    return overall_results
+>>>>>>> 8ba3db9ea7d8f9dd29c27ea83481ed04f29235c0
