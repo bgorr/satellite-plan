@@ -28,13 +28,14 @@ def compute_statistics_pieces(input):
     num_event_obs = 0
     obs_per_event_list = []
     event_duration = settings["experiment_settings"]["event_duration"]
+    ss = settings["step_size"]
     for event in events:
         obs_per_event = 0
         for obs in observations:
-            if obs[0] > ((float(event[2])+float(event[3])) + event_duration):
+            if obs[0] > ((float(event[2])/ss+float(event[3])/ss) + event_duration/ss):
                 break
             if close_enough(obs[2],obs[3],float(event[0]),float(event[1])):
-                if (float(event[2]) < obs[0] < (float(event[2])+float(event[3]))) or (float(event[2]) < obs[1] < (float(event[2])+float(event[3]))):
+                if ((float(event[2])/ss) < obs[0] < (float(event[2])/ss+float(event[3])/ss)) or ((float(event[2])/ss) < obs[1] < (float(event[2])/ss+float(event[3])/ss)):
                     event_obs_pair = {
                         "event": event,
                         "obs": obs
@@ -132,7 +133,7 @@ def compute_experiment_statistics(settings):
                 satellite["visibilities"] = visibilities
                 #all_visibilities.extend(visibilities)
 
-            if "plan" in f and not "replan" in f:
+            if "plan_heuristic" in f and not "replan" in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
                     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                     observations = []
@@ -146,7 +147,7 @@ def compute_experiment_statistics(settings):
                         observations.append(row)
                 all_initial_observations.extend(observations)
 
-            if "replan" in f:
+            if "replan_intervalheuristic" in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
                     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                     observations = []
@@ -293,4 +294,60 @@ def __main__():
         "num_vis": len(all_visibilities)
     }
     return overall_results
->>>>>>> 8ba3db9ea7d8f9dd29c27ea83481ed04f29235c0
+
+def main():
+    experiment_settings = {
+        "name": "experiment_num_7",
+        "ffor": 60,
+        "ffov": 5,
+        "constellation_size": 6,
+        "agility": 1,
+        "event_duration": 1.5*3600,
+        "event_frequency": 0.01/3600,
+        "event_density": 10,
+        "event_clustering": 4,
+        "planner": "heuristic",
+        "planner_options": {
+                "reobserve": "encouraged",
+                "reobserve_reward": 2
+        }
+    }
+    mission_name = experiment_settings["name"]
+    cross_track_ffor = experiment_settings["ffor"]
+    along_track_ffor = experiment_settings["ffor"]
+    cross_track_ffov = experiment_settings["ffov"]
+    along_track_ffov = experiment_settings["ffov"] # TODO carefully consider this assumption
+    agility = experiment_settings["agility"]
+    num_planes = experiment_settings["constellation_size"]
+    num_sats_per_plane = experiment_settings["constellation_size"]
+    var = experiment_settings["event_clustering"]
+    num_points_per_cell = experiment_settings["event_density"]
+    event_frequency = experiment_settings["event_frequency"]
+    event_duration = experiment_settings["event_duration"]
+    simulation_step_size = 10 # seconds
+    simulation_duration = 1 # days
+    settings = {
+        "directory": "./missions/"+mission_name+"/",
+        "step_size": simulation_step_size,
+        "duration": simulation_duration,
+        "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
+        "grid_type": "event", # can be "event" or "static"
+        "point_grid": "./coverage_grids/"+mission_name+"/event_locations.csv",
+        "preplanned_observations": None,
+        "event_csvs": ["./events/"+mission_name+"/events.csv"],
+        "cross_track_ffor": cross_track_ffor,
+        "along_track_ffor": along_track_ffor,
+        "cross_track_ffov": cross_track_ffov,
+        "along_track_ffov": along_track_ffov,
+        "num_planes": num_planes,
+        "num_sats_per_plane": num_sats_per_plane,
+        "agility": agility,
+        "process_obs_only": False,
+        "planner": experiment_settings["planner"],
+        "planner_options": experiment_settings["planner_options"],
+        "experiment_settings": experiment_settings
+    }
+    compute_experiment_statistics(settings)
+
+if __name__ == "__main__":
+    main()

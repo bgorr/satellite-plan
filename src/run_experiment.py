@@ -92,15 +92,17 @@ def run_experiment(experiment_settings):
         "num_sats_per_plane": num_sats_per_plane,
         "agility": agility,
         "process_obs_only": False,
-        "planner": "fifo",
+        "planner": experiment_settings["planner"],
+        "planner_options": experiment_settings["planner_options"],
         "experiment_settings": experiment_settings
     }
     if not os.path.exists(settings["directory"]):
         os.mkdir(settings["directory"])
+        
     if not os.path.exists(settings["directory"]+'orbit_data/'):
         os.mkdir(settings["directory"]+'orbit_data/')
-    create_mission(settings)
-    execute_mission(settings)
+        create_mission(settings)
+        execute_mission(settings)
     plan_mission(settings) # must come before process as process expects a plan.csv in the orbit_data directory
     plan_mission_replan_interval(settings)
     overall_results = compute_experiment_statistics(settings)
