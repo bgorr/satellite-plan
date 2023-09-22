@@ -4,13 +4,13 @@ import time
 
 from run_experiment import run_experiment
 
-ffor_levels = [120,80,60,40,20]
+ffor_levels = [10,20,40,60,80]
 ffov_levels = [20,10,5,2,1]
-constellation_size_levels = [10,8,6,4,2]
+constellation_size_levels = [2,4,6,8,10]
 agility_levels = [10,5,1,0.1,0.01]
 event_duration_levels = [24*3600,12*3600,6*3600,3*3600,1.5*3600]
 event_frequency_levels = [1/3600,0.1/3600,0.01/3600,0.001/3600,1e-4/3600]
-event_density_levels = [1,5,10,20,50]
+event_density_levels = [1,2,5,10]
 event_clustering_levels = [1,2,4,8,16]
 planners = ["fifo","mcts","dp","heuristic","milp"]
 
@@ -38,17 +38,16 @@ parameters = {
     "event_frequency": event_frequency_levels,
     "event_density": event_density_levels,
     "ffor": ffor_levels,
-    "ffov": ffov_levels,
-    "constellation_size": constellation_size_levels
+    "constellation_size": constellation_size_levels,
+    "ffov": ffov_levels
 }
 
 i = 0
 settings_list = []
-#settings_list.append(default_settings)
+settings_list.append(default_settings)
 for parameter in parameters:
     for level in parameters[parameter]:
         experiment_name = 'experiment_num_'+str(i)
-        i = i+1
         # already_experimented = False
         # for f in os.listdir('./missions/'):
         #     if experiment_name in f:
@@ -61,18 +60,19 @@ for parameter in parameters:
             continue
         modified_settings["name"] = experiment_name
         settings_list.append(modified_settings)
+        i = i+1
         
 
 
 #overall_results = run_experiment(default_settings)
-with open('./experiment_results_091923.csv','w') as csvfile:
+with open('./experiment_results_092223.csv','w') as csvfile:
     csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
     first_row = ["name","for","fov","constellation_size","agility",
                 "event_duration","event_frequency","event_density","event_clustering",
                 "planner","reobserve",
                 "events","init_obs_count","replan_obs_count","vis_count",
                 "init_event_obs_count","init_events_seen",
-                "replan_event_obs_count","replan_events_seen"
+                "replan_event_obs_count","replan_events_seen",
                 "vis_event_obs_count","vis_events_seen","time"]
     csvwriter.writerow(first_row)
     csvfile.close()
@@ -82,7 +82,7 @@ for settings in settings_list:
     overall_results = run_experiment(settings)
     end = time.time()
     elapsed_time = end-start
-    with open('./experiment_results_091923.csv','a') as csvfile:
+    with open('./experiment_results_092223.csv','a') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
         row = [settings["name"],settings["ffor"],settings["ffov"],settings["constellation_size"],settings["agility"],
             settings["event_duration"],settings["event_frequency"],settings["event_density"],settings["event_clustering"],

@@ -332,7 +332,7 @@ def get_action_space(curr_time,curr_angle,obs_list,last_obs,settings):
         if last_obs is not None and obs["location"]["lat"] == last_obs["location"]["lat"]:
             continue
         if obs["start"] > curr_time:
-            feasible, transition_end_time = check_maneuver_feasibility(curr_angle,obs["angle"],curr_time,obs["end"]-1,settings)
+            feasible, transition_end_time = check_maneuver_feasibility(curr_angle,np.min(obs["angles"]),curr_time,obs["end"],settings)
             if transition_end_time < obs["start"]:
                 obs["soonest"] = obs["start"]
             else:
@@ -351,11 +351,11 @@ def check_maneuver_feasibility(curr_angle,obs_angle,curr_time,obs_end_time,setti
     # TODO add back FOV free visibility
     if(obs_end_time==curr_time):
         return False, False
-    slew_rate = abs(obs_angle-curr_angle)/abs(obs_end_time-curr_time)
+    slew_rate = abs(obs_angle-curr_angle)/abs(obs_end_time-curr_time)/settings["step_size"]
     max_slew_rate = settings["agility"] # deg / s
     #slewTorque = 4 * abs(np.deg2rad(new_angle)-np.deg2rad(curr_angle))*0.05 / pow(abs(new_time-curr_time),2)
     #maxTorque = 4e-3
-    transition_end_time = abs(obs_angle-curr_angle)/max_slew_rate + curr_time
+    transition_end_time = abs(obs_angle-curr_angle)/(max_slew_rate*settings["step_size"]) + curr_time
     moved = True
     return slew_rate < max_slew_rate, transition_end_time
 
@@ -494,12 +494,12 @@ def plan_mission(settings):
         if ".json" in subdir:
             continue
         satellite = {}
-        already_planned = False
-        for f in os.listdir(directory+subdir):
-            if "plan_heuristic" in f:
-                already_planned = True
-        if already_planned:
-            continue
+        # already_planned = False
+        # for f in os.listdir(directory+subdir):
+        #     if "plan_heuristic" in f:
+        #         already_planned = True
+        # if already_planned:
+        #     continue
         for f in os.listdir(directory+subdir):
             if "datametrics" in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
@@ -759,12 +759,12 @@ def plan_mission_replan_interval(settings):
         if ".json" in subdir:
             continue
         satellite = {}
-        already_planned = False
-        for f in os.listdir(directory+subdir):
-            if "replan_intervalheuristic" in f:
-                already_planned = True
-        if already_planned:
-            continue
+        # already_planned = False
+        # for f in os.listdir(directory+subdir):
+        #     if "replan_intervalheuristic" in f and "experiment_num_2" not in directory:
+        #         already_planned = True
+        # if already_planned:
+        #     continue
         for f in os.listdir(directory+subdir):
             if "datametrics" in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
@@ -1005,7 +1005,58 @@ if __name__ == "__main__":
             "reobserve_reward": 2
         }
     }
-    plan_mission(settings)
+    experiment_settings = {
+        "name": "experiment_num_4",
+        "ffor": 60,
+        "ffov": 5,
+        "constellation_size": 6,
+        "agility": 1,
+        "event_duration": 24*3600,
+        "event_frequency": 0.01/3600,
+        "event_density": 10,
+        "event_clustering": 4,
+        "planner": "heuristic",
+        "planner_options": {
+                "reobserve": "encouraged",
+                "reobserve_reward": 2
+        }
+    }
+    mission_name = experiment_settings["name"]
+    cross_track_ffor = experiment_settings["ffor"]
+    along_track_ffor = experiment_settings["ffor"]
+    cross_track_ffov = experiment_settings["ffov"]
+    along_track_ffov = experiment_settings["ffov"] # TODO carefully consider this assumption
+    agility = experiment_settings["agility"]
+    num_planes = experiment_settings["constellation_size"]
+    num_sats_per_plane = experiment_settings["constellation_size"]
+    var = experiment_settings["event_clustering"]
+    num_points_per_cell = experiment_settings["event_density"]
+    event_frequency = experiment_settings["event_frequency"]
+    event_duration = experiment_settings["event_duration"]
+    simulation_step_size = 10 # seconds
+    simulation_duration = 1 # days
+    settings = {
+        "directory": "./missions/"+mission_name+"/",
+        "step_size": simulation_step_size,
+        "duration": simulation_duration,
+        "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
+        "grid_type": "event", # can be "event" or "static"
+        "point_grid": "./coverage_grids/"+mission_name+"/event_locations.csv",
+        "preplanned_observations": None,
+        "event_csvs": ["./events/"+mission_name+"/events.csv"],
+        "cross_track_ffor": cross_track_ffor,
+        "along_track_ffor": along_track_ffor,
+        "cross_track_ffov": cross_track_ffov,
+        "along_track_ffov": along_track_ffov,
+        "num_planes": num_planes,
+        "num_sats_per_plane": num_sats_per_plane,
+        "agility": agility,
+        "process_obs_only": False,
+        "planner": experiment_settings["planner"],
+        "planner_options": experiment_settings["planner_options"],
+        "experiment_settings": experiment_settings
+    }
+    #plan_mission(settings)
     plan_mission_replan_interval(settings)
     #plan_mission_mcts(settings)
     #plan_mission_dp(settings)
