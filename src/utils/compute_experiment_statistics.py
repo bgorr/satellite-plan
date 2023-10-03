@@ -133,7 +133,7 @@ def compute_experiment_statistics(settings):
                 satellite["visibilities"] = visibilities
                 #all_visibilities.extend(visibilities)
 
-            if "plan_heuristic" in f and not "replan" in f:
+            if "plan" in f and not "replan" in f and settings["planner"] in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
                     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                     observations = []
@@ -147,7 +147,7 @@ def compute_experiment_statistics(settings):
                         observations.append(row)
                 all_initial_observations.extend(observations)
 
-            if "replan_intervalheuristic" in f:
+            if "replan" in f and settings["planner"] in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
                     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                     observations = []

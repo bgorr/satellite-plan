@@ -5,8 +5,14 @@ src/__pycache__/
 missions/test_mission*
 missions/chrissi_results/
 missions/experiment*
+missions/planner*
+missions/reward*
 events/experiment*
+events/planner*
+events/reward*
 coverage_grids/experiment*
+coverage_grids/planner*
+coverage_grids/reward*
 rain_data/
 plotting_data/
 clouds/

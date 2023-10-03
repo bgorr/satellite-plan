@@ -12,10 +12,11 @@ event_duration_levels = [24*3600,12*3600,6*3600,3*3600,1.5*3600]
 event_frequency_levels = [1/3600,0.1/3600,0.01/3600,0.001/3600,1e-4/3600]
 event_density_levels = [1,2,5,10]
 event_clustering_levels = [1,2,4,8,16]
-planners = ["fifo","mcts","dp","heuristic","milp"]
+reward_levels = [0.5,1,2,5,10]
+planners = ["fifo","mcts","dp","heuristic"]
 
 default_settings = {
-    "name": "experiment_test",
+    "name": "reward_comparison_default",
     "ffor": 60,
     "ffov": 5,
     "constellation_size": 6,
@@ -26,20 +27,23 @@ default_settings = {
     "event_clustering": 4,
     "planner": "heuristic",
     "planner_options": {
-            "reobserve": "encouraged",
-            "reobserve_reward": 2
-    }
+        "reobserve": "encouraged",
+        "reobserve_reward": 2
+    },
+    "reward": 10
 }
 
 parameters = {
-    "agility": agility_levels,
-    "event_duration": event_duration_levels,
-    "event_clustering": event_clustering_levels,
-    "event_frequency": event_frequency_levels,
-    "event_density": event_density_levels,
-    "ffor": ffor_levels,
-    "constellation_size": constellation_size_levels,
-    "ffov": ffov_levels
+    # "agility": agility_levels,
+    # "event_duration": event_duration_levels,
+    # "event_clustering": event_clustering_levels,
+    # "event_frequency": event_frequency_levels,
+    # "event_density": event_density_levels,
+    # "ffor": ffor_levels,
+    # "constellation_size": constellation_size_levels,
+    # "ffov": ffov_levels
+    #"planner": planners
+    "reward": reward_levels
 }
 
 i = 0
@@ -47,12 +51,13 @@ settings_list = []
 settings_list.append(default_settings)
 for parameter in parameters:
     for level in parameters[parameter]:
-        experiment_name = 'experiment_num_'+str(i)
+        experiment_name = 'planner_comparison_'+str(i)
         # already_experimented = False
         # for f in os.listdir('./missions/'):
         #     if experiment_name in f:
         #         already_experimented = True
         # if already_experimented:
+        #     i = i + 1
         #     continue
         modified_settings = default_settings.copy()
         modified_settings[parameter] = level
@@ -65,11 +70,11 @@ for parameter in parameters:
 
 
 #overall_results = run_experiment(default_settings)
-with open('./experiment_results_092223.csv','w') as csvfile:
+with open('./reward_comparison.csv','w') as csvfile:
     csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
     first_row = ["name","for","fov","constellation_size","agility",
                 "event_duration","event_frequency","event_density","event_clustering",
-                "planner","reobserve",
+                "planner","reobserve", "reward",
                 "events","init_obs_count","replan_obs_count","vis_count",
                 "init_event_obs_count","init_events_seen",
                 "replan_event_obs_count","replan_events_seen",
@@ -82,11 +87,11 @@ for settings in settings_list:
     overall_results = run_experiment(settings)
     end = time.time()
     elapsed_time = end-start
-    with open('./experiment_results_092223.csv','a') as csvfile:
+    with open('./reward_comparison.csv','a') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
         row = [settings["name"],settings["ffor"],settings["ffov"],settings["constellation_size"],settings["agility"],
             settings["event_duration"],settings["event_frequency"],settings["event_density"],settings["event_clustering"],
-            settings["planner"],settings["planner_options"]["reobserve"],
+            settings["planner"],settings["planner_options"]["reobserve"], settings["reward"],
             overall_results["num_events"],overall_results["num_obs_init"],overall_results["num_obs_replan"],overall_results["num_vis"],
             overall_results["init_results"]["event_obs_count"],overall_results["init_results"]["events_seen_once"],
             overall_results["replan_results"]["event_obs_count"],overall_results["replan_results"]["events_seen_once"],
