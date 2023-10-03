@@ -111,30 +111,40 @@ def compute_statistics(events,observations,file_descriptor,step_size):
     observed_locations = []
 
     for event in events:
-        measurements_str : str = event[5]
-        measurements_str = measurements_str.replace('[','')
-        measurements_str = measurements_str.replace(']','')
-        measurements_str = measurements_str.replace(' ','')
-        measurements_str = measurements_str.replace('\'','')
-        measurements = measurements_str.split(',')
-        if len(measurements) == 3:
+        # measurements_str : str = event[5]
+        # measurements_str = measurements_str.replace('[','')
+        # measurements_str = measurements_str.replace(']','')
+        # measurements_str = measurements_str.replace(' ','')
+        # measurements_str = measurements_str.replace('\'','')
+        # measurements = measurements_str.split(',')
+        # if len(measurements) == 3:
+        #     event_type = "bloom"
+        # elif "thermal" in measurements:
+        #     event_type = "temp"
+        # elif "sar" in measurements:
+        #     event_type = "level"
+
+        if event[5] == "2":
             event_type = "bloom"
-        elif "thermal" in measurements:
+            measurements = ['visible','sar','thermal']
+        elif event[5] == "1":
             event_type = "temp"
-        elif "sar" in measurements:
+            measurements = ['visible','thermal']
+        elif event[5] == "0":
             event_type = "level"
+            measurements = ['visible','sar']
 
         for obs in observations:
-            if obs[0]*step_size > ((float(event[2])+float(event[3])) + 6000):
-                break
+            # if obs[0] > ((float(event[2])+float(event[3])) + 6000):
+            #     break
             if close_enough(obs[2],obs[3],float(event[0]),float(event[1])):
-                if (float(event[2]) < obs[0]*step_size < (float(event[2])+float(event[3]))) or (float(event[2]) < obs[1]*step_size < (float(event[2])+float(event[3]))):
+                if (float(event[2]) < obs[0] < (float(event[2])+float(event[3]))) or (float(event[2]) < obs[1] < (float(event[2])+float(event[3]))):
                     if satellite_name_dict[obs[4]] in measurements:
                         measurements.remove(satellite_name_dict[obs[4]])
 
         if len(measurements) == 0:
-            print("whoa a co-obs")
-            print(event)
+            # print("whoa a co-obs")
+            # print(event)
             if event_type == "bloom":
                 bloom_events_count += 1
                 bloom_events_reward += float(event[4])
@@ -169,7 +179,7 @@ def compute_statistics(events,observations,file_descriptor,step_size):
     print("Number of observations: "+str(len(observed_locations)))
     print("Number of unique observation locations: "+str(len(unique(observed_locations))))
 
-    with open('./missions/test_mission_5/coobs_plan_'+file_descriptor+'.csv','w') as csvfile:
+    with open('./missions/test_mission_5_reduced/coobs_plan_'+file_descriptor+'.csv','w') as csvfile:
         csvwriter = csv.writer(csvfile, delimiter=',',
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
         for event in bloom_events:
@@ -186,7 +196,7 @@ def compute_statistics(events,observations,file_descriptor,step_size):
             csvwriter.writerow(level_event)
 
 settings = {
-    "directory": "./missions/test_mission_5/",
+    "directory": "./missions/test_mission_5_reduced/",
     "step_size": 10,
     "duration": 1,
     "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
@@ -256,7 +266,7 @@ for subdir in os.listdir(directory):
             #all_visibilities.extend(visibilities)
 
 
-        if "plan_w_replan_interval.csv" in f:
+        if "replan" in f:
             with open(directory+subdir+"/"+f,newline='') as csv_file:
                 spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                 observations_replan = []
@@ -268,11 +278,10 @@ for subdir in os.listdir(directory):
                     row = [float(i) for i in row]
                     row.append(subdir)
                     observations_replan.append(row)
-            print(len(unique(observations_replan)))
             satellite["observations_replan"] = observations_replan
             all_observations_replan.extend(observations_replan)
 
-        if "plan.csv" == f:
+        if "plan_heuristic.csv" == f:
             with open(directory+subdir+"/"+f,newline='') as csv_file:
                 spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                 observations = []
@@ -314,8 +323,8 @@ for satellite in satellites:
         continuous_visibilities = []
         visibility = visibilities[i]
         continuous_visibilities.append(visibility)
-        start = visibility[0]*settings["step_size"]
-        end = visibility[0]*settings["step_size"]
+        start = visibility[0]
+        end = visibility[0]
         while(i < len(visibilities)-1 and visibilities[i+1][0] == start):
             i += 1
         vis_done = False
@@ -327,7 +336,7 @@ for satellite in satellites:
             while visibilities[i+1][0] == start+num_steps:
                 if visibilities[i+1][1] == visibility[1]:
                     continuous_visibilities.append(visibilities[i+1])
-                    end = visibilities[i+1][0]*settings["step_size"]
+                    end = visibilities[i+1][0]
                     vis_done = False
                 if i == len(visibilities)-2:
                     break
@@ -341,11 +350,9 @@ for satellite in satellites:
         for cont_vis in continuous_visibilities:
             visibilities.remove(cont_vis)
         i = 0
-    print(len(vis_windows))
     all_visibilities.extend(vis_windows)
-print(len(all_visibilities))
 events = []
-event_filename = './events/lakes/all_events.csv'
+event_filename = './events/lakes/all_events_reduced.csv'
 with open(event_filename,newline='') as csv_file:
     csvreader = csv.reader(csv_file, delimiter=',', quotechar='|')
     i = 0
@@ -353,55 +360,13 @@ with open(event_filename,newline='') as csv_file:
         if i < 1:
             i=i+1
             continue
+        row[2] = float(row[2])/settings["step_size"]
+        row[3] = float(row[3])/settings["step_size"]
         events.append(row)
 
 print("Actual observations")
 compute_statistics(events,all_observations,"obs",10)
 print("Actual observations, replan")
-compute_statistics(events,all_observations_replan,"obs")
+compute_statistics(events,all_observations_replan,"obs",10)
 print("Potential observations (visibilities)")
-all_visibilities.sort(key=lambda all_visibilities: all_visibilities[0])
-print(len(all_visibilities))
-event_chunks = list(chunks(events,10))
-pool = multiprocessing.Pool()
-input_list = []
-for i in range(len(event_chunks)):
-    input = {}
-    input["events"] = event_chunks[i]
-    input["observations"] = all_visibilities
-    input_list.append(input)
-output_list = pool.map(compute_statistics_pieces, input_list)
-all_events_count_sum = 0
-bloom_events_count_sum = 0
-temp_events_count_sum = 0
-level_events_count_sum = 0
-all_events_reward_sum = 0
-bloom_events_reward_sum = 0
-temp_events_reward_sum = 0
-level_events_reward_sum = 0
-observed_locations_sum = 0
-unique_observed_locations_sum = 0
-for output in output_list:
-    all_events_count_sum += output["all_events_count"]
-    bloom_events_count_sum += output["bloom_events_count"]
-    temp_events_count_sum += output["temp_events_count"]
-    level_events_count_sum += output["level_events_count"]
-    all_events_reward_sum += output["all_events_reward"]
-    bloom_events_reward_sum += output["bloom_events_reward"]
-    temp_events_reward_sum += output["temp_events_reward"]
-    level_events_reward_sum += output["level_events_reward"]
-    observed_locations_sum += output["num_observations"]
-    unique_observed_locations_sum += output["num_unique_observations"]
-
-print("All events co-observed: "+str(all_events_count_sum))
-print("Bloom events co-observed: "+str(bloom_events_count_sum))
-print("Temperature events co-observed: "+str(temp_events_count_sum))
-print("Level events co-observed: "+str(level_events_count_sum))
-
-print("All events co-observed reward: "+str(all_events_reward_sum))
-print("Bloom events co-observed reward: "+str(bloom_events_reward_sum))
-print("Temperature events co-observed reward: "+str(temp_events_reward_sum))
-print("Level events co-observed reward: "+str(level_events_reward_sum))
-
-print("Observed locations: "+str(observed_locations_sum))
-print("Unique observed locations: "+str(unique_observed_locations_sum))
+compute_statistics(events,all_visibilities,"vis",10)

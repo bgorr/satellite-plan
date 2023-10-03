@@ -33,9 +33,13 @@ def execute_mission(settings):
 
 if __name__ == "__main__":
     settings = {
-        "directory": "./missions/test_mission_2/",
-        "step_size": 100,
-        "duration": 0.2,
-        "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
+        "directory": "./missions/test_mission_5_reduced/",
+        "step_size": 10,
+        "duration": 1,
+        "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
+        "grid_type": "event", # can be "event" or "static"
+        "event_csvs": ['bloom_events_reduced.csv','level_events_reduced.csv','temperature_events_reduced.csv'],
+        "plot_clouds": False,
+        "plot_rain": False
     }
     execute_mission(settings)
