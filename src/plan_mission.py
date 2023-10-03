@@ -517,7 +517,6 @@ def plan_mission(settings):
                         row = [float(i) for i in row]
                         visibilities.append(row)
                 satellite["visibilities"] = visibilities
-                print(visibilities)
                 satellite["orbitpy_id"] = subdir
 
         satellites.append(satellite)
