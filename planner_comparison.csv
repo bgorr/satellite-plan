@@ -1,0 +1,5 @@
+name,for,fov,constellation_size,agility,event_duration,event_frequency,event_density,event_clustering,planner,reobserve,events,init_obs_count,replan_obs_count,vis_count,init_event_obs_count,init_events_seen,replan_event_obs_count,replan_events_seen,vis_event_obs_count,vis_events_seen,time
+planner_comparison_default,60,5,6,1,21600,2.777777777777778e-06,10,4,heuristic,encouraged,1604,72945,51772,344993,3979,1340,5770,988,18408,1496,3984.6925184726715
+planner_comparison_0,60,5,6,1,21600,2.777777777777778e-06,10,4,fifo,encouraged,1585,83858,77958,347531,4446,1264,4148,1240,18702,1476,4388.527040719986
+planner_comparison_1,60,5,6,1,21600,2.777777777777778e-06,10,4,mcts,encouraged,1569,85563,71736,347145,4433,1256,5340,1168,17907,1475,23243.47467827797
+planner_comparison_2,60,5,6,1,21600,2.777777777777778e-06,10,4,dp,encouraged,1596,120548,105480,344307,6517,1359,9212,1313,18684,1496,5674.734047412872

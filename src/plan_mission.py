@@ -27,6 +27,28 @@ def repair_plan(plan):
             i = i+1
     return plan
 
+def save_plan_w_fov(satellite,settings,grid_locations):
+    directory = settings["directory"] + "orbit_data/"
+    with open(directory+satellite["orbitpy_id"]+'/replan_interval'+settings["planner"]+'.csv','w') as csvfile:
+        csvwriter = csv.writer(csvfile, delimiter=',',
+                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        plan = satellite["plan"]
+        rows = []
+        grid_locations = []
+        with open(settings["point_grid"],'r') as csvfile:
+            csvreader = csv.reader(csvfile,delimiter=',')
+            next(csvfile)
+            for row in csvreader:
+                grid_locations.append([float(row[0]),float(row[1])])
+        for obs in tqdm(plan):
+            for loc in grid_locations:
+                if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
+                    row = [obs["start"],obs["end"],loc[0],loc[1]]
+                    rows.append(row)
+        plan = unique(rows)
+        for row in plan:
+            csvwriter.writerow(row)
+
 def within_fov(loc_array,loc_dict,angle,orbit_height_km):
     lat1 = np.deg2rad(loc_array[0])
     lon1 = np.deg2rad(loc_array[1])
@@ -140,7 +162,7 @@ def greedy_lemaitre_planner_events(planner_inputs):
                 if close_enough(best_obs["location"]["lat"],best_obs["location"]["lon"],event["location"]["lat"],event["location"]["lon"]):
                     if (event["start"] <= best_obs["start"] <= event["end"]) or (event["start"] <= best_obs["end"] <= event["end"]):
                         updated_reward = { 
-                            "reward": event["severity"]*10,
+                            "reward": event["severity"]*settings["experiment_settings"]["reward"],
                             "location": best_obs["location"],
                             "last_updated": curr_time 
                         }
@@ -215,7 +237,7 @@ def greedy_lemaitre_planner_events_interval(planner_inputs):
                 if close_enough(best_obs["location"]["lat"],best_obs["location"]["lon"],event["location"]["lat"],event["location"]["lon"]):
                     if (event["start"] <= best_obs["start"] <= event["end"]) or (event["start"] <= best_obs["end"] <= event["end"]):
                         updated_reward = { 
-                            "reward": event["severity"]*10,
+                            "reward": event["severity"]*settings["experiment_settings"]["reward"],
                             "location": best_obs["location"],
                             "last_updated": curr_time 
                         }
@@ -311,7 +333,7 @@ def fifo_planner_events_interval(planner_inputs):
             if close_enough(next_obs["location"]["lat"],next_obs["location"]["lon"],event["location"]["lat"],event["location"]["lon"]):
                 if (event["start"] <= next_obs["start"] <= event["end"]) or (event["start"] <= next_obs["end"] <= event["end"]):
                     updated_reward = { 
-                            "reward": event["severity"]*10,
+                            "reward": event["severity"]*settings["experiment_settings"]["reward"],
                             "location": next_obs["location"],
                             "last_updated": curr_time 
                         }
@@ -413,16 +435,16 @@ def plan_satellite(satellite,settings):
     elif settings["planner"] == "fifo":
         plan = fifo_planner(obs_list,settings)
     elif settings["planner"] == "dp":
-        plan = graph_search(obs_list)
+        plan = graph_search(obs_list,settings)
     elif settings["planner"] == "mcts":
-        mcts = monte_carlo_tree_search(obs_list)
-        plan = mcts.do_search()
+        mcts = monte_carlo_tree_search()
+        plan = mcts.do_search(obs_list,settings)
     elif settings["planner"] == "all":
         heuristic_plan = greedy_lemaitre_planner(obs_list,settings)
         fifo_plan = fifo_planner(obs_list,settings)
-        dp_plan = graph_search(obs_list)
-        mcts = monte_carlo_tree_search(obs_list)
-        mcts_plan = mcts.do_search()
+        dp_plan = graph_search(obs_list,settings)
+        mcts = monte_carlo_tree_search()
+        mcts_plan = mcts.do_search(obs_list,settings)
         satellite["plan"] = heuristic_plan
         grid_locations = []
         with open(settings["point_grid"],'r') as csvfile:
@@ -494,12 +516,12 @@ def plan_mission(settings):
         if ".json" in subdir:
             continue
         satellite = {}
-        # already_planned = False
-        # for f in os.listdir(directory+subdir):
-        #     if "plan_heuristic" in f:
-        #         already_planned = True
-        # if already_planned:
-        #     continue
+        already_planned = False
+        for f in os.listdir(directory+subdir):
+            if "replan" in f and settings["planner"] in f:
+                already_planned = True
+        if already_planned:
+            continue
         for f in os.listdir(directory+subdir):
             if "datametrics" in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
@@ -759,12 +781,12 @@ def plan_mission_replan_interval(settings):
         if ".json" in subdir:
             continue
         satellite = {}
-        # already_planned = False
-        # for f in os.listdir(directory+subdir):
-        #     if "replan_intervalheuristic" in f and "experiment_num_2" not in directory:
-        #         already_planned = True
-        # if already_planned:
-        #     continue
+        already_planned = False
+        for f in os.listdir(directory+subdir):
+            if "replan" in f and settings["planner"] in f:
+                already_planned = True
+        if already_planned:
+            continue
         for f in os.listdir(directory+subdir):
             if "datametrics" in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
@@ -929,26 +951,33 @@ def plan_mission_replan_interval(settings):
                 satellites[i]["plan"] = planner_output_list[i]["plan"]
         elapsed_plan_time += interval
         print("Elapsed planning time: "+str(elapsed_plan_time))
-    for satellite in satellites:
-        with open(directory+satellite["orbitpy_id"]+'/replan_interval'+settings["planner"]+'.csv','w') as csvfile:
-            csvwriter = csv.writer(csvfile, delimiter=',',
-                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
-            plan = satellite["plan"]
-            rows = []
-            grid_locations = []
-            with open(settings["point_grid"],'r') as csvfile:
-                csvreader = csv.reader(csvfile,delimiter=',')
-                next(csvfile)
-                for row in csvreader:
-                    grid_locations.append([float(row[0]),float(row[1])])
-            for obs in tqdm(plan):
-                for loc in grid_locations:
-                    if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
-                        row = [obs["start"],obs["end"],loc[0],loc[1]]
-                        rows.append(row)
-            plan = unique(rows)
-            for row in plan:
-                csvwriter.writerow(row)
+    # for satellite in satellites:
+    #     with open(directory+satellite["orbitpy_id"]+'/replan_interval'+settings["planner"]+'.csv','w') as csvfile:
+    #         csvwriter = csv.writer(csvfile, delimiter=',',
+    #                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    #         plan = satellite["plan"]
+    #         rows = []
+    #         grid_locations = []
+    #         with open(settings["point_grid"],'r') as csvfile:
+    #             csvreader = csv.reader(csvfile,delimiter=',')
+    #             next(csvfile)
+    #             for row in csvreader:
+    #                 grid_locations.append([float(row[0]),float(row[1])])
+    #         for obs in tqdm(plan):
+    #             for loc in grid_locations:
+    #                 if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
+    #                     row = [obs["start"],obs["end"],loc[0],loc[1]]
+    #                     rows.append(row)
+    #         plan = unique(rows)
+    #         for row in plan:
+    #             csvwriter.writerow(row)
+    grid_locations = []
+    with open(settings["point_grid"],'r') as csvfile:
+        csvreader = csv.reader(csvfile,delimiter=',')
+        next(csvfile)
+        for row in csvreader:
+            grid_locations.append([float(row[0]),float(row[1])])
+    pool.map(partial(save_plan_w_fov, settings=settings, grid_locations=grid_locations), satellites)
     print("Planned mission with replans at interval!")
 
 if __name__ == "__main__":
@@ -1015,7 +1044,7 @@ if __name__ == "__main__":
         "event_frequency": 0.01/3600,
         "event_density": 10,
         "event_clustering": 4,
-        "planner": "heuristic",
+        "planner": "mcts",
         "planner_options": {
                 "reobserve": "encouraged",
                 "reobserve_reward": 2
