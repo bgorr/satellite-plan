@@ -253,10 +253,10 @@ def compute_experiment_statistics_het(settings):
                 continue
             events.append(row) # lat, lon, start, duration, severity
 
-    print("Initial event observations")
-    init_results = compute_statistics(events,all_initial_observations,settings)
-    print("Replan event observations")
-    replan_results = compute_statistics(events,all_replan_observations,settings)
+    #print("Initial event observations")
+    #init_results = compute_statistics(events,all_initial_observations,settings)
+    #print("Replan event observations")
+    #replan_results = compute_statistics(events,all_replan_observations,settings)
     print("Potential observations (visibilities)")
     vis_results = compute_statistics(events,all_visibilities,settings)
     overall_results = {

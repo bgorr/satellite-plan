@@ -1,0 +1,2 @@
+name,for,fov,constellation_size,agility,event_duration,event_frequency,event_density,event_clustering,planner,reobserve_reward,reward,events,init_obs_count,replan_obs_count,vis_count,init_event_obs_count,init_events_seen,replan_event_obs_count,replan_events_seen,vis_event_obs_count,vis_events_seen,time
+reward_comparison_default,60,5,6,1,21600,2.777777777777778e-06,10,4,heuristic,2,0.5,1464,73279,66723,349739,3734,1245,1629,1169,17749,1375,8088.107131719589

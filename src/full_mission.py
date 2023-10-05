@@ -21,10 +21,10 @@ def main():
         "duration": 1,
         "plot_interval": 5,
         "plot_duration": 2/24,
-        "plot_location": "./missions/chrissi_results/"+f[:-4],
+        "plot_location": ".",
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
         "grid_type": "static", # can be "event" or "static"
-        "preplanned_observations": "./missions/test_mission_6/planner_outputs/accesses_2h_rew_5sat_sol_2degs.csv",
+        "preplanned_observations": None,
         "event_csvs": [],
         "plot_clouds": False,
         "plot_rain": False,

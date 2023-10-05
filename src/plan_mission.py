@@ -214,11 +214,8 @@ def greedy_lemaitre_planner_events_interval(planner_inputs):
             if(len(actions) == 0):
                 break
             for action in actions:
-                if action["location"] in location_list:
-                    if settings["planner_options"]["reobserve"] == "encouraged" and action["reward"] == 1:
-                        action["reward"] = settings["planner_options"]["reobserve_reward"]
-                    elif settings["planner_options"]["reobserve"] == "discouraged":
-                        action["reward"] = 0
+                if action["location"] in location_list and action["reward"] == 1:
+                    action["reward"] = settings["reobserve_reward"]
                 duration = 86400/settings["step_size"] # TODO FIX
                 rho = (duration - action["end"])/duration
                 e = rho * estimated_reward
@@ -1032,10 +1029,7 @@ if __name__ == "__main__":
         "agility": agility,
         "process_obs_only": False,
         "planner": "heuristic",
-        "planner_options": {
-            "reobserve": "encouraged",
-            "reobserve_reward": 2
-        },
+        "reobserve_reward": 2,
         "experiment_settings":
         {"event_duration": 7200}
     }
@@ -1050,10 +1044,7 @@ if __name__ == "__main__":
         "event_density": 10,
         "event_clustering": 4,
         "planner": "mcts",
-        "planner_options": {
-                "reobserve": "encouraged",
-                "reobserve_reward": 2
-        }
+        "reobserve_reward": 2
     }
     mission_name = experiment_settings["name"]
     cross_track_ffor = experiment_settings["ffor"]

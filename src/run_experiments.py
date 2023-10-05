@@ -14,6 +14,7 @@ event_density_levels = [1,2,5,10]
 event_clustering_levels = [1,2,4,8,16]
 reward_levels = [0.5,1,2,5,10]
 planners = ["fifo","mcts","dp","heuristic"]
+reobserve_reward_levels = [0.1,0.5,1,2,5]
 
 default_settings = {
     "name": "reward_comparison_default",
@@ -26,11 +27,8 @@ default_settings = {
     "event_density": 10,
     "event_clustering": 4,
     "planner": "heuristic",
-    "planner_options": {
-        "reobserve": "encouraged",
-        "reobserve_reward": 2
-    },
-    "reward": 10
+    "reobserve_reward": 2,
+    "reward": 0.5
 }
 
 parameters = {
@@ -43,7 +41,8 @@ parameters = {
     # "constellation_size": constellation_size_levels,
     # "ffov": ffov_levels
     #"planner": planners
-    "reward": reward_levels
+    #"reward": reward_levels
+    "reobserve_reward": reobserve_reward_levels
 }
 
 i = 0
@@ -70,11 +69,11 @@ for parameter in parameters:
 
 
 #overall_results = run_experiment(default_settings)
-with open('./reward_comparison.csv','w') as csvfile:
+with open('./reobs_reward_comparison.csv','w') as csvfile:
     csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
     first_row = ["name","for","fov","constellation_size","agility",
                 "event_duration","event_frequency","event_density","event_clustering",
-                "planner","reobserve", "reward",
+                "planner","reobserve_reward", "reward",
                 "events","init_obs_count","replan_obs_count","vis_count",
                 "init_event_obs_count","init_events_seen",
                 "replan_event_obs_count","replan_events_seen",
@@ -87,11 +86,11 @@ for settings in settings_list:
     overall_results = run_experiment(settings)
     end = time.time()
     elapsed_time = end-start
-    with open('./reward_comparison.csv','a') as csvfile:
+    with open('./reobs_reward_comparison.csv','a') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
         row = [settings["name"],settings["ffor"],settings["ffov"],settings["constellation_size"],settings["agility"],
             settings["event_duration"],settings["event_frequency"],settings["event_density"],settings["event_clustering"],
-            settings["planner"],settings["planner_options"]["reobserve"], settings["reward"],
+            settings["planner"],settings["reobserve_reward"], settings["reward"],
             overall_results["num_events"],overall_results["num_obs_init"],overall_results["num_obs_replan"],overall_results["num_vis"],
             overall_results["init_results"]["event_obs_count"],overall_results["init_results"]["events_seen_once"],
             overall_results["replan_results"]["event_obs_count"],overall_results["replan_results"]["events_seen_once"],

@@ -26,11 +26,9 @@ default_settings = {
     "event_density": 10,
     "event_clustering": 4,
     "planner": "heuristic",
-    "planner_options": {
-            "reobserve": "encouraged",
-            "reobserve_reward": 2
-    },
-    "num_event_types": 3
+    "reobserve_reward": 2,
+    "num_event_types": 3,
+    "reward": 10
 }
 
 parameters = {
@@ -72,7 +70,7 @@ with open('./experiment_results_het_092623.csv','w') as csvfile:
     csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
     first_row = ["name","for","fov","constellation_size","agility",
                 "event_duration","event_frequency","event_density","event_clustering","num_event_types",
-                "planner","reobserve",
+                "planner","reobserve_reward", "reward"
                 "events","init_obs_count","replan_obs_count","vis_count",
                 "init_event_obs_count","init_events_seen",
                 "replan_event_obs_count","replan_events_seen",

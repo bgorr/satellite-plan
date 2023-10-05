@@ -93,7 +93,8 @@ def run_experiment(experiment_settings):
         "agility": agility,
         "process_obs_only": False,
         "planner": experiment_settings["planner"],
-        "planner_options": experiment_settings["planner_options"],
+        "reobserve_reward": experiment_settings["reobserve_reward"],
+        "reward": experiment_settings["reward"],
         "experiment_settings": experiment_settings
     }
     if not os.path.exists(settings["directory"]):
