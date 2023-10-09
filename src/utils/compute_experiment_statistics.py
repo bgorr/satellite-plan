@@ -5,6 +5,12 @@ import os
 import multiprocessing
 from functools import partial
 from tqdm import tqdm
+from multiprocessing import Pool, cpu_count
+from planners.BaseRL import BaseRL
+import config
+
+from planners import utils
+
 
 def unique(lakes):
     lakes = np.asarray(lakes)[:,0:1]
@@ -45,7 +51,6 @@ def compute_statistics_pieces(input):
                     num_event_obs += 1
         obs_per_event_list.append(obs_per_event)
 
-
     output = {}
     output["event_obs_pairs"] = event_obs_pairs
     output["num_event_obs"] = num_event_obs
@@ -54,25 +59,22 @@ def compute_statistics_pieces(input):
 
 def compute_statistics(events,obs,settings):
     obs.sort(key=lambda obs: obs[0])
-    event_chunks = list(chunks(events,1))
-    pool = multiprocessing.Pool()
-    input_list = []
-    for i in range(len(event_chunks)):
-        input = {}
-        input["events"] = event_chunks[i]
-        input["observations"] = obs
-        input["settings"] = settings
-        input_list.append(input)
-    #output_list = pool.map(compute_statistics_pieces, input_list)
-    output_list = list(tqdm(pool.imap(compute_statistics_pieces, input_list)))
+    event_chunks = list(chunks(events, 10))
+
+    input_list = [
+        {'events': event_chunk, 'observations': obs, 'settings': settings} for event_chunk in event_chunks
+    ]
+    with Pool(processes=config.cores) as pool:
+        output_list = list(tqdm(pool.imap(compute_statistics_pieces, input_list), total=len(input_list)))
+
+
     all_events_count = 0
     event_obs_pairs = []
     obs_per_event_list = []
-
     for output in output_list:
         all_events_count += output["num_event_obs"]
         event_obs_pairs.extend(output["event_obs_pairs"])
-        obs_per_event_list.extend(output["obs_per_event_list"])       
+        obs_per_event_list.extend(output["obs_per_event_list"])
 
     print("Number of event observations: "+str(all_events_count))
     print("Number of total events: "+str(len(events)))
@@ -93,8 +95,6 @@ def compute_experiment_statistics(settings):
     satellites = []
     all_initial_observations = []
     all_replan_observations = []
-    all_visibilities = []
-
 
     for subdir in os.listdir(directory):
         satellite = {}
@@ -116,7 +116,7 @@ def compute_experiment_statistics(settings):
                         states.append(row)
                 satellite["orbitpy_id"] = subdir
                 satellite["states"] = states
-                
+
             if "datametrics" in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
                     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
@@ -219,7 +219,7 @@ def compute_experiment_statistics(settings):
 
     events = []
     event_filename = settings["event_csvs"][0]
-    with open(event_filename,newline='') as csv_file:
+    with open(event_filename, newline='') as csv_file:
         csvreader = csv.reader(csv_file, delimiter=',', quotechar='|')
         i = 0
         for row in csvreader:

@@ -19,3 +19,5 @@ clouds/
 missions/het_experiment*
 events/het_experiment*
 coverage_grids/het_experiment*
+__pycache__/
+.egg-info
