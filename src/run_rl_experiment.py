@@ -9,7 +9,6 @@ from execute_mission import execute_mission
 from process_mission import process_mission
 from planners.BaseRL import BaseRL
 from plot_mission_cartopy import plot_mission
-from utils.compute_experiment_statistics import compute_experiment_statistics, compute_rl_experiment_statistics
 from planners.utils import record_results, record_json_results
 
 from results.ExperimentResult import ExperimentResult
