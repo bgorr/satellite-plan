@@ -10,6 +10,8 @@ from copy import deepcopy
 from multiprocessing import Pool, cpu_count
 import time
 import json
+import pymap3d as pm
+from datetime import datetime, timedelta
 
 
 def close_enough(lat0, lon0, lat1, lon1):
@@ -78,6 +80,7 @@ def extract_from_batch(experiences, attribute):
 # - new: get_sat_action_space
 # ------------------------------------------------------------
 
+
 def get_action_space(curr_time, curr_angle, obs_list, last_obs, settings):
     feasible_actions = []
     for obs in obs_list:
@@ -106,13 +109,11 @@ def check_maneuver_feasibility(curr_angle, obs_angle, curr_time, obs_end_time, s
     """
     Checks to see if the specified angle change violates the maximum slew rate constraint.
     """
-    moved = False
     if (obs_end_time == curr_time):
         return False, False
     slew_rate = abs(obs_angle - curr_angle) / abs(obs_end_time - curr_time) / settings["step_size"]
     max_slew_rate = settings["agility"]  # deg / s
     transition_end_time = abs(obs_angle - curr_angle) / (max_slew_rate * settings["step_size"]) + curr_time
-    moved = True
     return slew_rate < max_slew_rate, transition_end_time
 
 
@@ -129,7 +130,7 @@ def get_sat_action_space(curr_time, curr_angle, obs_list, last_obs, settings):
             feasible, transition_end_time = check_sat_maneuver_feasibility(
                 curr_angle, np.min(obs["angles"]), curr_time, obs["end"], agility, step_size
             )
-            obs["soonest"] = min(obs["start"], transition_end_time)
+            obs["soonest"] = max(obs["start"], transition_end_time)
             if feasible:
                 feasible_actions.append(obs)
             if len(feasible_actions) >= 10:  # Break out early if 10 feasible actions are found
@@ -394,4 +395,29 @@ def record_results(overall_results, settings, elapsed_time, epoch):
         ]
         csvwriter.writerow(row)
         csvfile.close()
+
+
+# ----------------------------------------------------
+# Helper functions
+# ----------------------------------------------------
+
+
+def seconds_to_datetime(seconds_since):
+    reference_date = datetime(2020, 1, 1, 0, 0, 0)
+    return reference_date + timedelta(seconds=seconds_since)
+
+
+def eci_to_latlon(x, y, z, seconds_since):
+    target_date = seconds_to_datetime(seconds_since)
+
+    # Convert ECI to ECEF
+    x_ecef, y_ecef, z_ecef = pm.eci2ecef(x, y, z, target_date)
+
+    # Convert ECEF to lat/lon/alt
+    lat, lon, _ = pm.ecef2geodetic(x_ecef, y_ecef, z_ecef)
+
+    return lat, lon
+
+
+
 

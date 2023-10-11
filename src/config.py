@@ -1,6 +1,6 @@
 
 
-cores = 12
+cores = 32
 
 
 

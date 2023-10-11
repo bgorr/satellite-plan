@@ -16,6 +16,10 @@ import time
 import matplotlib.pyplot as plt
 import config
 from deepdiff import DeepDiff
+import pymap3d as pm
+import math
+import tensorflow_addons as tfa
+import threading
 
 # Utility functions
 from planners import utils
@@ -24,16 +28,16 @@ from planners import utils
 class BaseRL:
 
     def __init__(self, settings):
-        self.pool_size = config.cores
+        self.pool_size = 32  # config.cores
         self.directory = settings["directory"] + "orbit_data/"
         self.settings = settings
 
         # Hyperparameters
         self.num_epochs = 1
         self.target_update_frequency = 10
-        self.replay_batch_size = 64
-        self.replay_frequency = 3
-        self.buffer_init_size = 100
+        self.replay_batch_size = 32
+        self.replay_frequency = 2
+        self.buffer_init_size = 50
         self.clip_gradients = False
 
         # 1. Initialize satellites / events / grid locations
@@ -47,7 +51,7 @@ class BaseRL:
         self.init_observations()
 
         # 3. Optimizers
-        self.learning_rate = 0.0001
+        self.learning_rate = 0.001
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
         self.gamma = 0.9
 
@@ -75,6 +79,8 @@ class BaseRL:
             satellite = {
                 'sat_time': 0.0,      # Current time after last action (init to 0)
                 'sat_angle': 0.0,     # Current slewing angle after last action
+                'sat_lat': None,
+                'sat_lon': None,
                 'last_obs': None,     # The last observation taken by the satellite
                 'has_actions': True,  # Records if sat has any actions left to take
                 'location_list': [],  # Locations seen by sat
@@ -108,7 +114,22 @@ class BaseRL:
                     satellite["orbitpy_id"] = subdir
                     satellite['q_network'] = SatelliteMLP().implicit_build()
                     satellite['target_q_network'] = SatelliteMLP().implicit_build()
+
+                if "state_geo" in f:
+                    with open(self.directory + subdir + "/" + f, newline='') as csv_file:
+                        spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
+                        nadir_lat_lons = []
+                        for idx, row in enumerate(spamreader):
+                            if idx < 1:
+                                continue
+                            row = [float(i) for i in row]
+                            nadir_lat_lons.append([row[0], row[1], row[2]])
+                        satellite["nadir_lat_lons"] = nadir_lat_lons
+
+            satellite['sat_lat'] = satellite["nadir_lat_lons"][0][1]
+            satellite['sat_lon'] = satellite["nadir_lat_lons"][0][2]
             all_sats.append(satellite)
+
         return all_sats
 
     def init_events(self):
@@ -198,7 +219,9 @@ class BaseRL:
                 debug = False
                 if idx == 0 and counter % 10 == 0:
                     debug = True
-                self.satellite_action(sat, debug)  # 0.2 seconds per satellite
+                # init = counter < self.buffer_init_size
+                init = False
+                self.satellite_action(sat, debug, init)  # 0.2 seconds per satellite
 
             # 4. Update satellite policies
             # self.update_satellite_policies()  # 0.8 seconds (not bad)
@@ -227,14 +250,17 @@ class BaseRL:
             # if counter > 50:
             #     break
 
-    def satellite_action(self, satellite, debug=False):
+    def satellite_action(self, satellite, debug=False, init=False):
         obs_list = satellite['obs_list']
         sat_time = satellite['sat_time']
         sat_angle = satellite['sat_angle']
         last_obs = satellite['last_obs']
+        sat_lat = satellite['sat_lat']
+        sat_lon = satellite['sat_lon']
 
         # 1. Get action space (size 10)
-        actions = self.get_action_space(sat_time, sat_angle, obs_list, last_obs, self.settings)
+        # actions = self.get_action_space(sat_time, sat_angle, obs_list, last_obs, self.settings)
+        actions = utils.get_action_space(sat_time, sat_angle, obs_list, last_obs, self.settings)
         num_actions = len(actions)
         if num_actions == 0:
             satellite['has_actions'] = False
@@ -242,13 +268,14 @@ class BaseRL:
             return
 
         # 2. Create q_network state, record
+        # state = deepcopy([sat_time, sat_angle, sat_lat, sat_lon])
         state = deepcopy([sat_time, sat_angle])
         satellite['last_state'] = state
         # print('--> STATE', state)
 
         # 3. Get q_network action, record
         q_network = satellite['q_network']
-        action_idx = q_network.get_aciton(state, num_actions=num_actions, debug=debug)
+        action_idx = q_network.get_aciton(state, num_actions=num_actions, debug=debug, rand_action=False, init_action=init)
         satellite['last_action_idx'] = action_idx
         # print('--> ACTION SELECTED:', action_idx)
 
@@ -261,7 +288,14 @@ class BaseRL:
         satellite['sat_angle'] = action["angle"]
         satellite['took_action'] = True
 
-        # 5. Calculate action reward
+        # 5. Record new lat and lon
+        sat_time_approx = int(round(action["soonest"] / 10.0, 0))
+        nadir_lat_lons = satellite['nadir_lat_lons'][sat_time_approx]
+        time, lat, lon = nadir_lat_lons[0], nadir_lat_lons[1], nadir_lat_lons[2]
+        satellite['sat_lat'] = lat
+        satellite['sat_lon'] = lon
+
+        # 6. Calculate action reward
         reward = action["reward"]
         reward += self.find_event_bonus(action, satellite['sat_time'])
         satellite['rewards'].append(deepcopy(reward))
@@ -301,6 +335,7 @@ class BaseRL:
         target_q_values = []
         target_states = []
         for sat in trainable_sats:
+            # curr_state = [sat['sat_time'], sat['sat_angle'], sat['sat_lat'], sat['sat_lon']]
             curr_state = [sat['sat_time'], sat['sat_angle']]
             target_states.append(curr_state)
             curr_q_value = sat['target_q_network'].get_q_value(curr_state)
@@ -398,7 +433,7 @@ class BaseRL:
                 min_buf_size = len(sat['q_network'].replay_buffer)
 
         # print('--> MIN BUF SIZE:', min_buf_size)
-        indices = random.sample(range(min_buf_size), 32)
+        indices = random.sample(range(int(min_buf_size)), 32)
         for sat in trainable_sats:
             sat_experiences.append(sat['q_network'].sample_buffer(self.replay_batch_size, indices=indices))
 
@@ -442,22 +477,21 @@ class BaseRL:
             loss = tf.reduce_mean(tf.square(summed_q_value - target_q_value))
             # print('--> REPLAY LOSS:', loss.numpy())
 
+        # --------------------------------------------
         # 4. Compute gradients over all sats and apply
-        # for idx, sat in enumerate(trainable_sats):
-        #     gradients = tape.gradient(loss, sat['q_network'].trainable_variables)
-        #
-        #     # Clip the gradients by value
-        #     if self.clip_gradients is True:
-        #         gradients = [tf.clip_by_value(grad, -1.0, 1.0) for grad in gradients]
-        #
-        #     sat['q_network'].optimizer.apply_gradients(zip(gradients, sat['q_network'].trainable_variables))
+        # --------------------------------------------
+
+        ### Method 1
+        for idx, sat in enumerate(trainable_sats):
+            gradients = tape.gradient(loss, sat['q_network'].trainable_variables)
+            sat['q_network'].optimizer.apply_gradients(zip(gradients, sat['q_network'].trainable_variables))
+
+        ### Method 2 (fastest)
+        # all_trainable_variables = [var for sat in trainable_sats for var in sat['q_network'].trainable_variables]
+        # gradients = tape.gradient(loss, all_trainable_variables)
+        # self.optimizer.apply_gradients(zip(gradients, all_trainable_variables))
 
 
-        all_trainable_variables = [var for sat in trainable_sats for var in sat['q_network'].trainable_variables]
-        gradients = tape.gradient(loss, all_trainable_variables)
-        if self.clip_gradients is True:
-            gradients = [tf.clip_by_value(grad, -1.0, 1.0) for grad in gradients]
-        self.optimizer.apply_gradients(zip(gradients, all_trainable_variables))
         del tape
         return loss
 
@@ -478,9 +512,14 @@ class BaseRL:
                 feasible, transition_end_time = self.check_maneuver_feasibility(
                     curr_angle, np.min(obs["angles"]), curr_time, obs["end"], agility, step_size
                 )
-                obs["soonest"] = min(obs["start"], transition_end_time)
                 if feasible:
+                    obs["soonest"] = max(obs["start"], transition_end_time)
                     feasible_actions.append(obs)
+
+                    # obs_copy = deepcopy(obs)
+                    # obs_copy["soonest"] = max(obs_copy["start"], transition_end_time)
+                    # feasible_actions.append(obs_copy)
+
                 if len(feasible_actions) >= 10:  # Break out early if 10 feasible actions are found
                     break
 
@@ -489,7 +528,8 @@ class BaseRL:
     def check_maneuver_feasibility(self, curr_angle, obs_angle, curr_time, obs_end_time, max_slew_rate, step_size):
         if obs_end_time == curr_time:
             return False, False
-        slew_rate = abs(obs_angle - curr_angle) / ((obs_end_time - curr_time) * step_size)
+        slew_rate = abs(obs_angle - curr_angle) / abs(obs_end_time - curr_time) / step_size
+        # slew_rate = abs(obs_angle - curr_angle) / ((obs_end_time - curr_time) * step_size)
         transition_end_time = abs(obs_angle - curr_angle) / (max_slew_rate * step_size) + curr_time
         return slew_rate < max_slew_rate, transition_end_time
 

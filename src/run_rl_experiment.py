@@ -11,6 +11,7 @@ from planners.BaseRL import BaseRL
 from plot_mission_cartopy import plot_mission
 from planners.utils import record_results, record_json_results
 
+from utils.convert_geo import convert_geo_cords
 from results.ExperimentResult import ExperimentResult
 
 
@@ -23,7 +24,7 @@ def run():
         "agility": 1,
         "event_duration": 6 * 3600,  # 6 hours event duration (seconds)
         "event_frequency": 0.01 / 3600,  # probability event gets created at each location per time-step
-        "event_density": 10,  # points considered per 10 deg lat/lon grid cell
+        "event_density": 10,  # points consideresd per 10 deg lat/lon grid cell
         "event_clustering": 4,  # specifies clustering of points in lat/lon grid cells (var of gaussian dist)
         "planner": "rl",
         "planner_options": {
@@ -151,6 +152,12 @@ def run_experiment(experiment_settings):
         os.mkdir(settings["directory"] + 'orbit_data/')
         create_mission(settings)
         execute_mission(settings)
+
+    # ------------------------------------------------------------
+    # Calc geo coords
+    # ------------------------------------------------------------
+    convert_geo_cords(settings)
+
 
     # ------------------------------------------------------------
     # Planning Step

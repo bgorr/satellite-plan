@@ -347,7 +347,6 @@ def fifo_planner_events_interval(planner_inputs):
     }  
     return planner_outputs
 
-
 def get_action_space(curr_time,curr_angle,obs_list,last_obs,settings):
     feasible_actions = []
     for obs in obs_list:
@@ -361,7 +360,7 @@ def get_action_space(curr_time,curr_angle,obs_list,last_obs,settings):
                 obs["soonest"] = transition_end_time
             if feasible:
                 feasible_actions.append(obs)
-        if len(feasible_actions) > 10: # THIS IS NOT A GOOD IDEA BUT SHOULD HELP RUNTIME TODO
+        if len(feasible_actions) > 10:  # THIS IS NOT A GOOD IDEA BUT SHOULD HELP RUNTIME TODO
             break
     return feasible_actions
 

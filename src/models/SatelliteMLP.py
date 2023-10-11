@@ -5,6 +5,7 @@ import math
 import random
 from math import cos, pi
 from collections import namedtuple, deque
+import numpy as np
 
 
 Experience = namedtuple('Experience', ['state', 'action', 'reward', 'next_state', 'done'])
@@ -17,13 +18,21 @@ class SatelliteMLP(tf.keras.Model):
         # ----- STATE SPACE -----
         # 1. Satellite mission_time
         # 2. Satellite slewing angle
+        # 3. Satellite latitude
+        # 4. Satellite longitude
         self.state_vars = 2
         self.input_layer = layers.InputLayer(input_shape=(self.state_vars,), name="mlp_input_layer")
 
         # Hidden Layers
-        self.hidden_0 = layers.Dense(16, activation="leaky_relu", name="mlp_hidden_0")
-        self.hidden_1 = layers.Dense(32, activation="leaky_relu", name="mlp_hidden_1")
-        self.hidden_2 = layers.Dense(16, activation="leaky_relu", name="mlp_hidden_2")
+
+        # sequence of hidden layers
+        self.hidden_layers = keras.Sequential([
+            layers.Dense(16, activation="leaky_relu"),
+            layers.Dense(32, activation="leaky_relu"),
+            layers.Dense(64, activation="leaky_relu"),
+            layers.Dense(32, activation="leaky_relu"),
+            layers.Dense(16, activation="leaky_relu"),
+        ])
 
         # Output Layers
         # - probability distribution over possible actions
@@ -32,7 +41,7 @@ class SatelliteMLP(tf.keras.Model):
         self.activation = layers.Activation('linear', dtype='float32')
 
         # Optimizer
-        self.learning_rate = 0.0001
+        self.learning_rate = 0.001
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
 
         # Hyperparameters
@@ -40,7 +49,7 @@ class SatelliteMLP(tf.keras.Model):
         self.step = 1
 
         # Replay Buffer
-        self.buffer_size = 1000
+        self.buffer_size = 10000
         self.replay_buffer = deque(maxlen=self.buffer_size)
 
 
@@ -48,23 +57,21 @@ class SatelliteMLP(tf.keras.Model):
         state = inputs
 
         activations = self.input_layer(state)
-        activations = self.hidden_0(activations)
-        activations = self.hidden_1(activations)
-        activations = self.hidden_2(activations)
+        activations = self.hidden_layers(activations)
         activations = self.output_layer(activations)
         probabilities = self.activation(activations)
 
         return probabilities
 
     def linear_decay(self):
-        epsilon_end = 0.15
-        total_steps = 1000
+        epsilon_end = 0.05
+        total_steps = 600
         if self.step > total_steps:
             return epsilon_end
         return self.epsilon - self.step * (self.epsilon - epsilon_end) / total_steps
 
     def cosine_decay(self):
-        decay_steps = 800
+        decay_steps = 400
         decay_min = 0.15
         step = min(self.step, decay_steps)
         cosine_decay = 0.5 * (1 + cos(pi * step / decay_steps))
@@ -81,7 +88,7 @@ class SatelliteMLP(tf.keras.Model):
         state_tensor = tf.expand_dims(state_tensor, axis=0)  # Add batch dimension
         return state_tensor
 
-    def get_aciton(self, state, training=True, num_actions=None, debug=False):
+    def get_aciton(self, state, training=True, num_actions=None, debug=False, rand_action=False, init_action=False):
         if num_actions is None:
             num_actions = self.total_actions
 
@@ -93,20 +100,29 @@ class SatelliteMLP(tf.keras.Model):
         q_values = q_values[0, :num_actions]
 
         # Either random action or greedy action (epsilon greedy)
-        # epsilon = self.cosine_decay()
-        epsilon = self.linear_decay()
-        if tf.random.uniform(shape=()) < epsilon:
-            action_idx = tf.random.uniform(shape=(), minval=0, maxval=num_actions, dtype=tf.int64)
+        if init_action is False:
+            # epsilon = self.cosine_decay()
+            epsilon = self.linear_decay()
+            if rand_action is True:
+                epsilon = 1
+            if tf.random.uniform(shape=()) < epsilon:
+                action_idx = tf.random.uniform(shape=(), minval=0, maxval=num_actions, dtype=tf.int64)
+            else:
+                action_idx = tf.argmax(q_values)
         else:
-            action_idx = tf.argmax(q_values)
-        self.step += 1
+            probabilities = [0.2, 0.18, 0.16, 0.14, 0.12, 0.1, 0.08, 0.06, 0.04, 0.02]
+            probabilities = [p / sum(probabilities) for p in probabilities]
+            action_idx = np.random.choice(range(self.total_actions), p=probabilities)
+            action_idx = tf.convert_to_tensor(action_idx, dtype=tf.int64)
+            epsilon = -1.0
 
         # Debug
         if debug is True:
             q_list = q_values.numpy().tolist()
             q_list = [round(q, 2) for q in q_list]
-            print('STEP, EPSILON, Q-VALUES:', self.step, round(epsilon, 2), '|', q_list)
+            print('STEP', self.step, 'ACTION', action_idx.numpy(), 'EPSILON', round(epsilon, 2), 'Q-VALUES', q_list)
 
+        self.step += 1
         return action_idx.numpy()
 
     def get_q_value(self, state, action_idx=None, training=True):
