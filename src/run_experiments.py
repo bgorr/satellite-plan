@@ -17,7 +17,7 @@ planners = ["fifo","mcts","dp","heuristic"]
 reobserve_reward_levels = [0.1,0.5,1,2,5]
 
 default_settings = {
-    "name": "reward_comparison_default",
+    "name": "reobs_reward_comparison_default",
     "ffor": 60,
     "ffov": 5,
     "constellation_size": 6,
@@ -50,7 +50,7 @@ settings_list = []
 settings_list.append(default_settings)
 for parameter in parameters:
     for level in parameters[parameter]:
-        experiment_name = 'planner_comparison_'+str(i)
+        experiment_name = 'reobs_reward_comparison_'+str(i)
         # already_experimented = False
         # for f in os.listdir('./missions/'):
         #     if experiment_name in f:

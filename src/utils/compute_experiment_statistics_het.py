@@ -158,7 +158,7 @@ def compute_experiment_statistics_het(settings):
                 satellite["visibilities"] = visibilities
                 #all_visibilities.extend(visibilities)
 
-            if "plan_heuristic" in f and not "replan" in f:
+            if "plan" in f and not "replan" in f and settings["planner"] in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
                     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                     observations = []
@@ -172,7 +172,7 @@ def compute_experiment_statistics_het(settings):
                         observations.append(row)
                 all_initial_observations.extend(observations)
 
-            if "replan_intervalheuristic" in f:
+            if "replan" in f and settings["planner"] in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
                     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                     observations = []
@@ -253,10 +253,10 @@ def compute_experiment_statistics_het(settings):
                 continue
             events.append(row) # lat, lon, start, duration, severity
 
-    #print("Initial event observations")
-    #init_results = compute_statistics(events,all_initial_observations,settings)
-    #print("Replan event observations")
-    #replan_results = compute_statistics(events,all_replan_observations,settings)
+    print("Initial event observations")
+    init_results = compute_statistics(events,all_initial_observations,settings)
+    print("Replan event observations")
+    replan_results = compute_statistics(events,all_replan_observations,settings)
     print("Potential observations (visibilities)")
     vis_results = compute_statistics(events,all_visibilities,settings)
     overall_results = {
