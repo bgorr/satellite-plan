@@ -7,12 +7,15 @@ missions/chrissi_results/
 missions/experiment*
 missions/planner*
 missions/reward*
+missions/oa*
 events/experiment*
 events/planner*
 events/reward*
+events/oa*
 coverage_grids/experiment*
 coverage_grids/planner*
 coverage_grids/reward*
+coverage_grids/oa*
 rain_data/
 plotting_data/
 clouds/

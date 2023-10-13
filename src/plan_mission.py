@@ -43,7 +43,7 @@ def save_plan_w_fov(satellite,settings,grid_locations):
         for obs in tqdm(plan):
             for loc in grid_locations:
                 if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
-                    row = [obs["start"],obs["end"],loc[0],loc[1]]
+                    row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                     rows.append(row)
         plan = unique(rows)
         for row in plan:
@@ -370,7 +370,7 @@ def check_maneuver_feasibility(curr_angle,obs_angle,curr_time,obs_end_time,setti
     # TODO add back FOV free visibility
     if(obs_end_time==curr_time):
         return False, False
-    slew_rate = abs(obs_angle-curr_angle)/abs(obs_end_time-curr_time)/settings["step_size"]
+    slew_rate = abs(obs_angle-curr_angle)/abs(obs_end_time-curr_time)/settings["step_size"] 
     max_slew_rate = settings["agility"] # deg / s
     #slewTorque = 4 * abs(np.deg2rad(new_angle)-np.deg2rad(curr_angle))*0.05 / pow(abs(new_time-curr_time),2)
     #maxTorque = 4e-3
@@ -455,7 +455,7 @@ def plan_satellite(satellite,settings):
             for obs in tqdm(heuristic_plan):
                 for loc in grid_locations:
                     if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
-                        row = [obs["start"],obs["end"],loc[0],loc[1]]
+                        row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
         with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_dp.csv','w') as csvfile:
             csvwriter = csv.writer(csvfile, delimiter=',',
@@ -463,7 +463,7 @@ def plan_satellite(satellite,settings):
             for obs in tqdm(dp_plan):
                 for loc in grid_locations:
                     if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
-                        row = [obs["start"],obs["end"],loc[0],loc[1]]
+                        row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
         with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_fifo.csv','w') as csvfile:
             csvwriter = csv.writer(csvfile, delimiter=',',
@@ -471,7 +471,7 @@ def plan_satellite(satellite,settings):
             for obs in tqdm(fifo_plan):
                 for loc in grid_locations:
                     if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
-                        row = [obs["start"],obs["end"],loc[0],loc[1]]
+                        row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
         with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_mcts.csv','w') as csvfile:
             csvwriter = csv.writer(csvfile, delimiter=',',
@@ -479,7 +479,7 @@ def plan_satellite(satellite,settings):
             for obs in tqdm(mcts_plan):
                 for loc in grid_locations:
                     if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
-                        row = [obs["start"],obs["end"],loc[0],loc[1]]
+                        row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
         return
     else:
@@ -497,10 +497,10 @@ def plan_satellite(satellite,settings):
         for obs in tqdm(plan):
             for loc in grid_locations:
                 if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
-                    row = [obs["start"],obs["end"],loc[0],loc[1]]
+                    row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                     csvwriter.writerow(row)
             if settings["cross_track_ffov"] == 0:
-                row = [obs["start"],obs["end"],obs["location"]["lat"],obs["location"]["lon"]]
+                row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                 csvwriter.writerow(row)
 
 def plan_mission(settings):
@@ -516,12 +516,12 @@ def plan_mission(settings):
         if ".json" in subdir:
             continue
         satellite = {}
-        already_planned = False
-        for f in os.listdir(directory+subdir):
-            if "replan" in f and settings["planner"] in f:
-                already_planned = True
-        if already_planned:
-            continue
+        # already_planned = False
+        # for f in os.listdir(directory+subdir):
+        #     if "replan" in f and settings["planner"] in f:
+        #         already_planned = True
+        # if already_planned:
+        #     continue
         for f in os.listdir(directory+subdir):
             if "datametrics" in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
@@ -761,7 +761,7 @@ def plan_mission_replan(settings):
             plan = satellite["plan"]
             rows = []
             for obs in plan:
-                row = [obs["start"],obs["end"],obs["location"]["lat"],obs["location"]["lon"]]
+                row = [obs["soonest"],obs["soonest"],obs["location"]["lat"],obs["location"]["lon"],obs["angle"],obs["reward"]]
                 rows.append(row)
             plan = unique(rows)
             for row in plan:
@@ -781,12 +781,12 @@ def plan_mission_replan_interval(settings):
         if ".json" in subdir:
             continue
         satellite = {}
-        already_planned = False
-        for f in os.listdir(directory+subdir):
-            if "replan" in f and settings["planner"] in f:
-                already_planned = True
-        if already_planned:
-            continue
+        # already_planned = False
+        # for f in os.listdir(directory+subdir):
+        #     if "replan" in f and settings["planner"] in f:
+        #         already_planned = True
+        # if already_planned:
+        #     continue
         for f in os.listdir(directory+subdir):
             if "datametrics" in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
@@ -892,25 +892,36 @@ def plan_mission_replan_interval(settings):
                 i = 0
             satellite["obs_list"] = obs_list
     elapsed_plan_time = 0
-    reward_update_locations = []
+    reward_dict = {}
+    grid_locations = []
+    with open(settings["point_grid"],'r') as csvfile:
+        csvreader = csv.reader(csvfile,delimiter=',')
+        next(csvfile)
+        for row in csvreader:
+            grid_locations.append([float(row[0]),float(row[1])])
+    for loc in grid_locations:
+        reward_dict[(loc[0],loc[1])] = {
+            "last_updated": 0,
+            "reward": 1
+        }
     while elapsed_plan_time < float(settings["duration"])*86400/settings["step_size"]:
         updated_reward_list = []
         interval = 1000/settings["step_size"]
         planner_input_list = []
         for satellite in satellites:
+
+            # Obs list update logic
             obs_list = satellite["obs_list"].copy()
             new_obs_list = []
             for obs in obs_list:
-                for rul in reward_update_locations:
-                    if obs["location"] == rul["location"]:
-                        obs["reward"] = rul["reward"]
-                        obs["last_updated"] = elapsed_plan_time
-                if (obs["last_updated"] + settings["experiment_settings"]["event_duration"]) < elapsed_plan_time:
-                    obs["last_updated"] = elapsed_plan_time
-                    obs["reward"] = 1
+                for location in reward_dict.keys():
+                    if (obs["location"]["lat"],obs["location"]["lon"]) == location:
+                        obs["reward"] = reward_dict[location]["reward"]
+                        obs["last_updated"] = reward_dict[location]["last_updated"]
                 if obs["start"] < elapsed_plan_time:
                     continue
                 new_obs_list.append(obs)
+
             plan_start = elapsed_plan_time
             interval = 1000/settings["step_size"] # 500 seconds
             plan_end = plan_start+interval
@@ -936,14 +947,21 @@ def plan_mission_replan_interval(settings):
         for po in planner_output_list:
             if po["updated_rewards"] is not None:
                 updated_reward_list.extend(po["updated_rewards"])
-        reward_update_locations = []
         for updated_reward in updated_reward_list:
-            reward_update_locations.append({"location": updated_reward["location"],
-                                            "reward": updated_reward["reward"],
-                                            "last_updated": plan_end})
-            for i in range(len(rewards)):
-                if updated_reward["location"] == rewards[i]["location"]:
-                    rewards[i] = updated_reward
+            if (updated_reward["location"]["lat"],updated_reward["location"]["lon"]) in reward_dict:
+                if updated_reward["last_updated"] > reward_dict[(updated_reward["location"]["lat"],updated_reward["location"]["lon"])]["last_updated"]:
+                    reward_dict[(updated_reward["location"]["lat"],updated_reward["location"]["lon"])]["last_updated"] = updated_reward["last_updated"]
+                    reward_dict[(updated_reward["location"]["lat"],updated_reward["location"]["lon"])]["reward"] = updated_reward["reward"]
+            else:
+                reward_dict[(updated_reward["location"]["lat"],updated_reward["location"]["lon"])] = {
+                    "last_updated": updated_reward["last_updated"],
+                    "reward": updated_reward["reward"]
+                }
+        for location in reward_dict.keys():
+            reward_dict[location]["reward"] += 0.1
+            if (reward_dict[location]["last_updated"] + settings["experiment_settings"]["event_duration"]) < elapsed_plan_time:
+                reward_dict[location]["last_updated"] = elapsed_plan_time
+                reward_dict[location]["reward"] = 1
         for i in range(len(satellites)):
             if "plan" in satellites[i]:
                 satellites[i]["plan"].extend(planner_output_list[i]["plan"])
@@ -1006,7 +1024,7 @@ if __name__ == "__main__":
         "plot_rain": True
     }
     settings = {
-        "directory": "./missions/test_mission_5_reduced/",
+        "directory": "./missions/test_mission_5/",
         "step_size": 10,
         "duration": 1,
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
@@ -1019,7 +1037,7 @@ if __name__ == "__main__":
         "plot_obs": True,
         "plot_duration": 2/24,
         "plot_interval": 10,
-        "plot_location": "./missions/test_mission_5_reduced/plots/",
+        "plot_location": "./missions/test_mission_5/plots/",
         "cross_track_ffor": cross_track_ffor,
         "along_track_ffor": along_track_ffor,
         "cross_track_ffov": cross_track_ffov,
@@ -1029,22 +1047,26 @@ if __name__ == "__main__":
         "agility": agility,
         "process_obs_only": False,
         "planner": "heuristic",
-        "reobserve_reward": 2,
+        "reward": 10,
+        "reobserve_reward": 0.0,
         "experiment_settings":
-        {"event_duration": 7200}
+        {"event_duration": 7200,
+         "reward": 10}
     }
     experiment_settings = {
-        "name": "experiment_num_4",
-        "ffor": 60,
+        "name": "oa_het_1",
+        "ffor": 30,
         "ffov": 5,
-        "constellation_size": 6,
+        "constellation_size": 2,
         "agility": 1,
-        "event_duration": 24*3600,
+        "event_duration": 6*3600,
         "event_frequency": 0.01/3600,
-        "event_density": 10,
+        "event_density": 1,
         "event_clustering": 4,
-        "planner": "mcts",
-        "reobserve_reward": 2
+        "planner": "dp",
+        "reward": 10,
+        "reobserve_reward": 0.0,
+        "num_event_types": 4
     }
     mission_name = experiment_settings["name"]
     cross_track_ffor = experiment_settings["ffor"]
@@ -1058,6 +1080,7 @@ if __name__ == "__main__":
     num_points_per_cell = experiment_settings["event_density"]
     event_frequency = experiment_settings["event_frequency"]
     event_duration = experiment_settings["event_duration"]
+    num_event_types = experiment_settings["num_event_types"]
     simulation_step_size = 10 # seconds
     simulation_duration = 1 # days
     settings = {
@@ -1078,7 +1101,8 @@ if __name__ == "__main__":
         "agility": agility,
         "process_obs_only": False,
         "planner": experiment_settings["planner"],
-        "planner_options": experiment_settings["planner_options"],
+        "reward": experiment_settings["reward"],
+        "reobserve_reward": experiment_settings["reobserve_reward"],
         "experiment_settings": experiment_settings
     }
     #plan_mission(settings)

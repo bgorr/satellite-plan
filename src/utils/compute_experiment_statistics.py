@@ -20,6 +20,32 @@ def chunks(xs, n):
     n = max(1, n)
     return (xs[i:i+n] for i in range(0, len(xs), n))
 
+def compute_max_revisit_time(observations,settings):
+    # only computing based on starts so that I don't have to do start/stop tracking
+    # TODO stop being lazy
+    start_list = []
+    start_list.append(0)
+    start_list.append(86400)
+    for obs in observations:
+        start_list.append(obs[0]*settings["step_size"])
+    gaps = []
+    for i in range(len(start_list)-1):
+        gaps.append(start_list[i+1]-start_list[i])
+    return np.max(gaps)
+
+def compute_avg_revisit_time(observations,settings):
+    # only computing based on starts so that I don't have to do start/stop tracking
+    # TODO stop being lazy
+    start_list = []
+    start_list.append(0)
+    start_list.append(86400)
+    for obs in observations:
+        start_list.append(obs[0]*settings["step_size"])
+    gaps = []
+    for i in range(len(start_list)-1):
+        gaps.append(start_list[i+1]-start_list[i])
+    return np.average(gaps)
+
 def compute_statistics_pieces(input):
     events = input["events"]
     observations = input["observations"]
@@ -29,8 +55,11 @@ def compute_statistics_pieces(input):
     obs_per_event_list = []
     event_duration = settings["experiment_settings"]["event_duration"]
     ss = settings["step_size"]
+    cumulative_event_reward = 0
+    cumulative_plan_reward = 0
     for event in events:
         obs_per_event = 0
+        event_reward = float(event[4])
         for obs in observations:
             if obs[0] > ((float(event[2])/ss+float(event[3])/ss) + event_duration/ss):
                 break
@@ -41,18 +70,21 @@ def compute_statistics_pieces(input):
                         "obs": obs
                     }
                     event_obs_pairs.append(event_obs_pair)
+                    cumulative_event_reward += event_reward
+                    cumulative_plan_reward += settings["experiment_settings"]["reward"]
                     obs_per_event += 1
                     num_event_obs += 1
         obs_per_event_list.append(obs_per_event)
-
 
     output = {}
     output["event_obs_pairs"] = event_obs_pairs
     output["num_event_obs"] = num_event_obs
     output["obs_per_event_list"] = obs_per_event_list
+    output["cumulative_event_reward"] = cumulative_event_reward
+    output["cumulative_plan_reward"] = cumulative_plan_reward
     return output
 
-def compute_statistics(events,obs,settings):
+def compute_statistics(events,obs,grid_locations,settings):
     obs.sort(key=lambda obs: obs[0])
     event_chunks = list(chunks(events,1))
     pool = multiprocessing.Pool()
@@ -66,13 +98,47 @@ def compute_statistics(events,obs,settings):
     #output_list = pool.map(compute_statistics_pieces, input_list)
     output_list = list(tqdm(pool.imap(compute_statistics_pieces, input_list)))
     all_events_count = 0
+    planner_reward = 0
+    event_reward = 0
     event_obs_pairs = []
     obs_per_event_list = []
 
     for output in output_list:
+        event_reward += output["cumulative_event_reward"]
+        planner_reward += output["cumulative_plan_reward"] 
         all_events_count += output["num_event_obs"]
         event_obs_pairs.extend(output["event_obs_pairs"])
-        obs_per_event_list.extend(output["obs_per_event_list"])       
+        obs_per_event_list.extend(output["obs_per_event_list"])    
+    max_rev_time_list = []
+    avg_rev_time_list = []
+    event_count = 0
+    for event in tqdm(events):
+        obs_per_event = []
+        for eop in event_obs_pairs:
+            if eop["event"] == event:
+                obs_per_event.append(eop["obs"])
+        if len(obs_per_event) != 0:
+            max_rev_time = compute_max_revisit_time(obs_per_event,settings)
+            avg_rev_time = compute_avg_revisit_time(obs_per_event,settings)
+            max_rev_time_list.append(max_rev_time)
+            avg_rev_time_list.append(avg_rev_time)
+            event_count += 1
+    events_perc_cov = event_count / len(events)
+
+    all_max_rev_time_list = []
+    all_avg_rev_time_list = []
+    loc_count = 0
+    for loc in tqdm(grid_locations):
+        obs_per_loc = []
+        for ob in obs:
+            if close_enough(ob[2],ob[3],loc[0],loc[1]):
+                obs_per_loc.append(ob)
+        max_rev_time = compute_max_revisit_time(obs_per_loc,settings)
+        avg_rev_time = compute_avg_revisit_time(obs_per_loc,settings)
+        all_max_rev_time_list.append(max_rev_time)
+        all_avg_rev_time_list.append(avg_rev_time)
+        loc_count += 1
+    locations_perc_cov = loc_count / len(grid_locations)
 
     print("Number of event observations: "+str(all_events_count))
     print("Number of total events: "+str(len(events)))
@@ -83,7 +149,15 @@ def compute_statistics(events,obs,settings):
     results = {
         "event_obs_count": all_events_count,
         "events_seen_once": np.count_nonzero(obs_per_event_list),
-        "events_seen_once_average": obs_per_event_array[np.nonzero(obs_per_event_array)].mean()
+        "events_seen_once_average": obs_per_event_array[np.nonzero(obs_per_event_array)].mean(),
+        "event_reward": event_reward,
+        "planner_reward": planner_reward,
+        "percent_coverage": events_perc_cov,
+        "event_max_revisit_time": np.max(max_rev_time_list), # max of max
+        "event_avg_revisit_time": np.average(avg_rev_time_list), # average of average
+        "all_percent_coverage": locations_perc_cov,
+        "all_max_revisit_time": np.max(all_max_rev_time_list), # max of max
+        "all_avg_revisit_time": np.average(all_avg_rev_time_list) # average of average
     }
     return results
 
@@ -227,13 +301,20 @@ def compute_experiment_statistics(settings):
                 i=i+1
                 continue
             events.append(row) # lat, lon, start, duration, severity
+    
+    grid_locations = []
+    with open(settings["point_grid"],'r') as csvfile:
+        csvreader = csv.reader(csvfile,delimiter=',')
+        next(csvfile)
+        for row in csvreader:
+            grid_locations.append([float(row[0]),float(row[1])])
 
     print("Initial event observations")
-    init_results = compute_statistics(events,all_initial_observations,settings)
+    init_results = compute_statistics(events,all_initial_observations,grid_locations,settings)
     print("Replan event observations")
-    replan_results = compute_statistics(events,all_replan_observations,settings)
+    replan_results = compute_statistics(events,all_replan_observations,grid_locations,settings)
     print("Potential observations (visibilities)")
-    vis_results = compute_statistics(events,all_visibilities,settings)
+    vis_results = compute_statistics(events,all_visibilities,grid_locations,settings)
     overall_results = {
         "init_results": init_results,
         "replan_results": replan_results,
@@ -247,20 +328,17 @@ def compute_experiment_statistics(settings):
 
 def main():
     experiment_settings = {
-        "name": "experiment_num_7",
+        "name": "reward_comparison_default",
         "ffor": 60,
         "ffov": 5,
         "constellation_size": 6,
         "agility": 1,
-        "event_duration": 1.5*3600,
+        "event_duration": 6*3600,
         "event_frequency": 0.01/3600,
         "event_density": 10,
         "event_clustering": 4,
         "planner": "heuristic",
-        "planner_options": {
-                "reobserve": "encouraged",
-                "reobserve_reward": 2
-        }
+        "reward": 10
     }
     mission_name = experiment_settings["name"]
     cross_track_ffor = experiment_settings["ffor"]
@@ -294,10 +372,11 @@ def main():
         "agility": agility,
         "process_obs_only": False,
         "planner": experiment_settings["planner"],
-        "planner_options": experiment_settings["planner_options"],
+        "reward": experiment_settings["reward"],
         "experiment_settings": experiment_settings
     }
-    compute_experiment_statistics(settings)
+    overall_results = compute_experiment_statistics(settings)
+    print(overall_results)
 
 if __name__ == "__main__":
     main()

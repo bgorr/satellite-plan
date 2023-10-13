@@ -98,7 +98,8 @@ def run_experiment_het(experiment_settings):
         "agility": agility,
         "process_obs_only": False,
         "planner": experiment_settings["planner"],
-        "planner_options": experiment_settings["planner_options"],
+        "reward": experiment_settings["reward"],
+        "reobserve_reward": experiment_settings["reobserve_reward"],
         "experiment_settings": experiment_settings
     }
     just_recomputing = False
