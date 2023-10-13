@@ -17,29 +17,33 @@ event_clustering_levels = [1,4,8]
 event_type_levels = [2,3,4]
 constellation_size_levels = [2,3]
 
-run_size = 200
-number_of_factors = 8
-factor_levels = [4,4,3,3,3,3,3,3]
-strength = 0
+if os.path.exists('oa_200_8_opt.txt'):
+    oa = np.loadtxt('oa_200_8_opt.txt', dtype=int)
+else:
+    run_size = 200
+    number_of_factors = 8
+    factor_levels = [4,4,3,3,3,3,3,3]
+    strength = 0
 
 
-arrayclass = oapackage.arraydata_t(factor_levels, run_size, strength, number_of_factors)
+    arrayclass = oapackage.arraydata_t(factor_levels, run_size, strength, number_of_factors)
 
-alpha=[1,2,0]
+    alpha=[1,2,0]
 
-scores, design_efficiencies, designs, ngenerated = oapackage.Doptim.Doptimize(
-    arrayclass, nrestarts=40, optimfunc=alpha, selectpareto=True
-)
-print('Generated %d designs, the best D-efficiency is %.4f' % (len(designs), design_efficiencies[:,0].max() ))
-selected_array = designs[0]
-print("The array is (in transposed form):\n")
-selected_array.transposed().showarraycompact()
-oa = np.array(selected_array)
-print(oa)
+    scores, design_efficiencies, designs, ngenerated = oapackage.Doptim.Doptimize(
+        arrayclass, nrestarts=40, optimfunc=alpha, selectpareto=True
+    )
+    print('Generated %d designs, the best D-efficiency is %.4f' % (len(designs), design_efficiencies[:,0].max() ))
+    selected_array = designs[0]
+    print("The array is (in transposed form):\n")
+    selected_array.transposed().showarraycompact()
+    oa = np.array(selected_array)
+    np.savetxt('oa_200_8_opt.txt', oa, fmt='%d')
 
-experiment_num = 6
+
+experiment_num = 0
 settings_list = []
-for i in range(6,len(oa[:,0])):
+for i in range(0,len(oa[:,0])):
     settings = {
         "name": "oa_het_"+str(experiment_num),
         "ffor": ffor_levels[oa[i,2]],
@@ -60,7 +64,7 @@ for i in range(6,len(oa[:,0])):
 
         
 
-with open('./oa_results_het_101223.csv','w') as csvfile:
+with open('./oa_results_het_101323.csv','w') as csvfile:
     csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
     first_row = ["name","for","fov","constellation_size","agility",
                 "event_duration","event_frequency","event_density","event_clustering","num_event_types",
@@ -78,7 +82,7 @@ for settings in settings_list:
     overall_results = run_experiment_het(settings)
     end = time.time()
     elapsed_time = end-start
-    with open('./oa_results_het_101223.csv','a') as csvfile:
+    with open('./oa_results_het_101323.csv','a') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
         row = [settings["name"],settings["ffor"],settings["ffov"],settings["constellation_size"],settings["agility"],
             settings["event_duration"],settings["event_frequency"],settings["event_density"],settings["event_clustering"],settings["num_event_types"],

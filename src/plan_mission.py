@@ -909,22 +909,21 @@ def plan_mission_replan_interval(settings):
         interval = 1000/settings["step_size"]
         planner_input_list = []
         for satellite in satellites:
-
+            plan_start = elapsed_plan_time
+            interval = 1000/settings["step_size"] # 500 seconds
+            plan_end = plan_start+interval
             # Obs list update logic
             obs_list = satellite["obs_list"].copy()
+            obs_list = chop_obs_list(obs_list,plan_start,plan_end)
             new_obs_list = []
             for obs in obs_list:
+                if obs["start"] < elapsed_plan_time:
+                    continue
                 for location in reward_dict.keys():
                     if (obs["location"]["lat"],obs["location"]["lon"]) == location:
                         obs["reward"] = reward_dict[location]["reward"]
                         obs["last_updated"] = reward_dict[location]["last_updated"]
-                if obs["start"] < elapsed_plan_time:
-                    continue
                 new_obs_list.append(obs)
-
-            plan_start = elapsed_plan_time
-            interval = 1000/settings["step_size"] # 500 seconds
-            plan_end = plan_start+interval
             new_obs_list = chop_obs_list(new_obs_list,plan_start,plan_end)
             planner_inputs = {
                 "obs_list": new_obs_list.copy(),
