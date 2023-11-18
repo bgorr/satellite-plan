@@ -9,54 +9,64 @@ from run_experiment_het import run_experiment_het
 
 event_frequency_levels = [0.1/3600,0.01/3600,0.001/3600,1e-4/3600]
 agility_levels = [5,1,0.1,0.01]
-ffor_levels = [10,30,60]
-ffov_levels = [10,5,1]
-event_duration_levels = [12*3600,6*3600,3600]
-event_density_levels = [1,5,10]
-event_clustering_levels = [1,4,8]
-event_type_levels = [2,3,4]
+ffor_levels = [10,30,60,120]
+ffov_levels = [20,10,5,1]
+event_duration_levels = [24*3600,12*3600,6*3600,3600]
+event_density_levels = [1,2,5,10]
+event_clustering_levels = [1,4,8,16]
+event_type_levels = [1,2,3,4]
 constellation_size_levels = [2,3]
 
-if os.path.exists('oa_200_8_opt.txt'):
-    oa = np.loadtxt('oa_200_8_opt.txt', dtype=int)
-else:
-    run_size = 200
-    number_of_factors = 8
-    factor_levels = [4,4,3,3,3,3,3,3]
-    strength = 0
+# if os.path.exists('oa_200_8_opt.txt'):
+#     oa = np.loadtxt('oa_200_8_opt.txt', dtype=int)
+# else:
+#     run_size = 200
+#     number_of_factors = 8
+#     factor_levels = [4,4,3,3,3,3,3,3]
+#     strength = 0
 
 
-    arrayclass = oapackage.arraydata_t(factor_levels, run_size, strength, number_of_factors)
+#     arrayclass = oapackage.arraydata_t(factor_levels, run_size, strength, number_of_factors)
 
-    alpha=[1,2,0]
+#     alpha=[1,2,0]
 
-    scores, design_efficiencies, designs, ngenerated = oapackage.Doptim.Doptimize(
-        arrayclass, nrestarts=40, optimfunc=alpha, selectpareto=True
-    )
-    print('Generated %d designs, the best D-efficiency is %.4f' % (len(designs), design_efficiencies[:,0].max() ))
-    selected_array = designs[0]
-    print("The array is (in transposed form):\n")
-    selected_array.transposed().showarraycompact()
-    oa = np.array(selected_array)
-    np.savetxt('oa_200_8_opt.txt', oa, fmt='%d')
+#     scores, design_efficiencies, designs, ngenerated = oapackage.Doptim.Doptimize(
+#         arrayclass, nrestarts=40, optimfunc=alpha, selectpareto=True
+#     )
+#     print('Generated %d designs, the best D-efficiency is %.4f' % (len(designs), design_efficiencies[:,0].max() ))
+#     selected_array = designs[0]
+#     print("The array is (in transposed form):\n")
+#     selected_array.transposed().showarraycompact()
+#     oa = np.array(selected_array)
+#     np.savetxt('oa_200_8_opt.txt', oa, fmt='%d')
 
+if os.path.exists("oa.32.9.4.2.txt"):
+    oa = np.loadtxt("oa.32.9.4.2.txt",dtype=str)
+orthogonal_array = np.zeros(shape=(32,9),dtype=int)
+r = 0
+for row in oa:
+    c = 0
+    for char in row:
+        orthogonal_array[r,c] = int(char)
+        c+=1
+    r+=1
 
 experiment_num = 0
 settings_list = []
-for i in range(0,len(oa[:,0])):
+for i in range(0,len(orthogonal_array[:,0])):
     settings = {
-        "name": "oa_het_"+str(experiment_num),
-        "ffor": ffor_levels[oa[i,2]],
-        "ffov": ffov_levels[oa[i,3]],
+        "name": "oa_het_new_"+str(experiment_num),
+        "ffor": ffor_levels[orthogonal_array[i,2]],
+        "ffov": ffov_levels[orthogonal_array[i,3]],
         "constellation_size": constellation_size_levels[0],
-        "agility": agility_levels[oa[i,1]],
-        "event_duration": event_duration_levels[oa[i,4]],
-        "event_frequency": event_frequency_levels[oa[i,0]],
-        "event_density": event_density_levels[oa[i,5]],
-        "event_clustering": event_clustering_levels[oa[i,6]],
+        "agility": agility_levels[orthogonal_array[i,1]],
+        "event_duration": event_duration_levels[orthogonal_array[i,4]],
+        "event_frequency": event_frequency_levels[orthogonal_array[i,0]],
+        "event_density": event_density_levels[orthogonal_array[i,5]],
+        "event_clustering": event_clustering_levels[orthogonal_array[i,6]],
         "planner": "dp",
         "reobserve_reward": 2,
-        "num_event_types": event_type_levels[oa[i,7]],
+        "num_meas_types": event_type_levels[orthogonal_array[i,7]],
         "reward": 10
     }
     settings_list.append(settings)
@@ -64,10 +74,10 @@ for i in range(0,len(oa[:,0])):
 
         
 
-with open('./oa_results_het_101323.csv','w') as csvfile:
+with open('./oa_results_het_111023.csv','w') as csvfile:
     csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
     first_row = ["name","for","fov","constellation_size","agility",
-                "event_duration","event_frequency","event_density","event_clustering","num_event_types",
+                "event_duration","event_frequency","event_density","event_clustering","num_meas_types",
                 "planner","reobserve_reward", "reward",
                 "events","init_obs_count","replan_obs_count","vis_count",
                 "init_event_obs_count","init_events_seen","init_event_reward","init_planner_reward","init_perc_cov","init_max_rev","init_avg_rev","init_all_perc_cov","init_all_max_rev","init_all_avg_rev",
@@ -82,10 +92,10 @@ for settings in settings_list:
     overall_results = run_experiment_het(settings)
     end = time.time()
     elapsed_time = end-start
-    with open('./oa_results_het_101323.csv','a') as csvfile:
+    with open('./oa_results_het_111023.csv','a') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
         row = [settings["name"],settings["ffor"],settings["ffov"],settings["constellation_size"],settings["agility"],
-            settings["event_duration"],settings["event_frequency"],settings["event_density"],settings["event_clustering"],settings["num_event_types"],
+            settings["event_duration"],settings["event_frequency"],settings["event_density"],settings["event_clustering"],settings["num_meas_types"],
             settings["planner"],settings["reobserve_reward"], settings["reward"],
             overall_results["num_events"],overall_results["num_obs_init"],overall_results["num_obs_replan"],overall_results["num_vis"],
             overall_results["init_results"]["event_obs_count"],overall_results["init_results"]["events_seen_once"],overall_results["init_results"]["event_reward"],overall_results["init_results"]["planner_reward"],overall_results["init_results"]["percent_coverage"],overall_results["init_results"]["event_max_revisit_time"],overall_results["init_results"]["event_avg_revisit_time"],overall_results["init_results"]["all_percent_coverage"],overall_results["init_results"]["all_max_revisit_time"],overall_results["init_results"]["all_avg_revisit_time"],

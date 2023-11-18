@@ -15,13 +15,32 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from cartopy.feature.nightshade import Nightshade
 from multiprocessing import set_start_method
+from matplotlib.lines import Line2D
+import matplotlib.patches as mpatches
 
 
 def nearest(items, pivot):
     return min([i for i in items if i <= pivot], key=lambda x: abs(x - pivot))
 
+def get_latest_reward_grid_file(settings,step_num):
+    timing_list = []
+    file_list = []
+    for file in os.listdir(settings["directory"]+'reward_grids/'):
+        file_list.append(file)
+        file = file[:-4]
+        file = file [5:]
+        timing_list.append(float(file))
+    closest_time = None
+    time_dist = 86400
+    for time in timing_list:
+        if step_num > time and (step_num-time) < time_dist:
+            closest_time = time
+            time_dist = step_num - time
+    idx = timing_list.index(closest_time)
+    return file_list[idx]
+
 def plot_step(step_num,b):
-    filename = f'{b["plot_location"]}/frame_{step_num}.png'
+    filename = f'{b["directory"]}plots/frame_{step_num}.png'
     # m = Basemap(projection='merc',llcrnrlat=-75,urcrnrlat=75,\
     #         llcrnrlon=-180,urcrnrlon=180,resolution='c')
     data_crs = ccrs.PlateCarree()
@@ -31,8 +50,8 @@ def plot_step(step_num,b):
     ax = plt.axes(projection=data_crs)
     ax.set_global()
     #ax.set_extent([-150, -30, 20, 70], crs=ccrs.PlateCarree())
-    # ax.set_xlim([-150,-30])
-    # ax.set_ylim([20,70])
+    #ax.set_xlim([-150,-30])
+    #ax.set_ylim([20,70])
     x0c, x1c, y0c, y1c = ax.properties()['extent']
     ax.coastlines()
     #ax.stock_img()
@@ -59,11 +78,18 @@ def plot_step(step_num,b):
         csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
         for row in csvreader:
             swath_rows.append(row)
-    # crosslinks = []
-    # with open(b["directory"]+'crosslinks/step'+str(step_num)+'.csv','r') as csvfile:
-    #     csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
-    #     for row in csvreader:
-    #         crosslinks.append(row)
+    crosslinks = []
+    with open(b["directory"]+'crosslinks/step'+str(step_num)+'.csv','r') as csvfile:
+        csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        for row in csvreader:
+            crosslinks.append(row)
+
+    reward_grid_rows = []
+    reward_grid_filename = get_latest_reward_grid_file(b,step_num)
+    with open(b["directory"]+'reward_grids/'+reward_grid_filename,'r') as csvfile:
+        csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        for row in csvreader:
+            reward_grid_rows.append(row)
 
     past_lats = []
     past_lons = []
@@ -74,22 +100,36 @@ def plot_step(step_num,b):
             past_lats.append(float(row[1]))
             past_lons.append(float(row[2]))
             past_rows.append(row)
-    grid_lats = []
-    grid_lons = []
-    if not "point_grid" in b:
-        b["point_grid"] = b["directory"]+"orbit_data/grid0.csv"
-    with open(b["point_grid"]) as csvfile:
-        csvreader = csv.reader(csvfile,delimiter=',')
-        next(csvfile)
-        for row in csvreader:
-            grid_lats.append(float(row[0]))
-            grid_lons.append(float(row[1]))
-    if b["grid_type"] == "event":
-        event_rows = []
-        with open(b["directory"]+'events/step'+str(step_num)+'.csv','r') as csvfile:
-            csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+    if b["grid_type"] == "static":
+        grid_lats = []
+        grid_lons = []
+        with open('./coverage_grids/riverATLAS.csv','r') as csvfile:
+            csvreader = csv.reader(csvfile,delimiter=',')
+            next(csvfile)
             for row in csvreader:
-                event_rows.append(row)
+                grid_lats.append(float(row[0]))
+                grid_lons.append(float(row[1]))
+    elif b["grid_type"] == "event":
+        grid_lats = []
+        grid_lons = []
+        with open('./events/lakes/lake_event_points.csv','r') as csvfile:
+            csvreader = csv.reader(csvfile,delimiter=',')
+            next(csvfile)
+            for row in csvreader:
+                grid_lats.append(float(row[0]))
+                grid_lons.append(float(row[1]))
+
+    event_rows = []
+    with open(b["directory"]+'events/step'+str(step_num)+'.csv','r') as csvfile:
+        csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        for row in csvreader:
+            event_rows.append(row)
+    
+    coobs_rows = []
+    with open(b["directory"]+'coobs/step'+str(step_num)+'.csv','r') as csvfile:
+        csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        for row in csvreader:
+            coobs_rows.append(row)
 
 
     #ax.drawmapboundary(fill_color='#99ffff')
@@ -208,18 +248,41 @@ def plot_step(step_num,b):
 
     #x, y = ax(grid_lons,grid_lats)
     ax.scatter(grid_lons,grid_lats,2,marker='o',color='blue',transform=data_crs)
-    if b["grid_type"] == "event":
-        for row in event_rows:
-            plt.scatter(float(row[1]),float(row[0]),int(np.min([4*float(row[2]),10])),marker='*',color='cyan',transform=data_crs)
 
+    for row in event_rows:
+        if float(row[3]) == 0:
+            plt.scatter(float(row[1]),float(row[0]),int(np.min([4*float(row[2]),10])),marker='*',color='green',transform=data_crs)
+        if float(row[3]) == 1:
+            plt.scatter(float(row[1]),float(row[0]),int(np.min([4*float(row[2]),10])),marker='*',color='magenta',transform=data_crs)
+        if float(row[3]) == 2:
+            plt.scatter(float(row[1]),float(row[0]),int(np.min([4*float(row[2]),10])),marker='*',color='cyan',transform=data_crs)
+         
+    for row in coobs_rows:
+        if float(row[3]) == 0:
+            plt.scatter(float(row[2]),float(row[1]),10,marker='s',color='green',transform=data_crs)
+        if float(row[3]) == 1:
+            plt.scatter(float(row[2]),float(row[1]),10,marker='s',color='magenta',transform=data_crs)
+        if float(row[3]) == 2:
+            plt.scatter(float(row[2]),float(row[1]),10,marker='s',color='cyan',transform=data_crs)
+         
     #x, y = m(past_lons,past_lats)
-    ax.scatter(past_lons,past_lats,3,marker='o',color='yellow',transform=data_crs)
+    if b["plot_obs"]:
+        ax.scatter(past_lons,past_lats,1,marker='o',color='yellow',transform=data_crs)
     
     for row in pos_rows:
         #x, y = ax(float(row[2]),float(row[1]))
-        plt.scatter(float(row[2]),float(row[1]),4,marker='^',color='black',transform=data_crs)
+        if float(row[0][3]) <= 2:
+            color = 'green'
+            name = 'img'+str(row[0][3])
+        elif float(row[0][3]) <= 5:
+            color = 'blue'
+            name = 'sar'+str(int(row[0][3])-3)
+        elif float(row[0][3]) <= 8:
+            color = 'red'
+            name = 'thermal'+str(int(row[0][3])-6)
+        plt.scatter(float(row[2]),float(row[1]),4,marker='^',color=color,transform=data_crs)
         transform = data_crs._as_mpl_transform(ax)
-        ax.annotate(row[0], xy=(float(row[2]), float(row[1])), xycoords=transform,
+        ax.annotate(name, xy=(float(row[2]), float(row[1])), color=color, xycoords=transform,
                     ha='right', va='top',annotation_clip=True)
         #ax.annotate(row[0], (x, y))
     
@@ -227,31 +290,33 @@ def plot_step(step_num,b):
         #x, y = m(float(row[4]),float(row[3]))
         plt.scatter(float(row[4]),float(row[3]),4,marker='o',color='orange',transform=data_crs)
 
-    for row in obs_rows:
-        #obs_x, obs_y = m(float(row[4]),float(row[3]))
-        #m.scatter(obs_x,obs_y,5,marker='o',color='green')
-        #sat_x, sat_y = m(float(row[2]),float(row[1]))
-        if(np.sign(float(row[4])) != np.sign(float(row[2]))):
+    if b["plot_obs"]:
+        for row in obs_rows:
+            #obs_x, obs_y = m(float(row[4]),float(row[3]))
+            #m.scatter(obs_x,obs_y,5,marker='o',color='green')
+            #sat_x, sat_y = m(float(row[2]),float(row[1]))
+            if(np.sign(float(row[4])) != np.sign(float(row[2]))):
+                continue
+            xs = [float(row[4]),float(row[2])]
+            ys = [float(row[3]),float(row[1])]
+            plt.plot(xs,ys,linewidth=1,color='r',transform=data_crs)
+
+    if b["plot_obs"]:
+        for row in past_rows:
+            if int(row[0]) > 1:
+                #x, y = m(float(row[2]),float(row[1]))
+                transform = data_crs._as_mpl_transform(ax)
+                ax.annotate(row[0], xy=(float(row[2]), float(row[1])), xycoords=transform,
+                            ha='right', va='top',fontsize=3,annotation_clip=True)
+
+    for row in crosslinks:
+        #sat1_x, sat1_y = m(float(row[3]),float(row[2]))
+        #sat2_x, sat2_y = m(float(row[5]),float(row[4]))
+        if(np.sign(float(row[5])) != np.sign(float(row[3]))):
             continue
-        xs = [float(row[4]),float(row[2])]
-        ys = [float(row[3]),float(row[1])]
-        plt.plot(xs,ys,linewidth=1,color='r',transform=data_crs)
-
-    for row in past_rows:
-        if int(row[0]) > 1:
-            #x, y = m(float(row[2]),float(row[1]))
-            transform = data_crs._as_mpl_transform(ax)
-            ax.annotate(row[0], xy=(float(row[2]), float(row[1])), xycoords=transform,
-                        ha='right', va='top',fontsize=5,annotation_clip=True)
-
-    # for row in crosslinks:
-    #     #sat1_x, sat1_y = m(float(row[3]),float(row[2]))
-    #     #sat2_x, sat2_y = m(float(row[5]),float(row[4]))
-    #     if(np.sign(float(row[5])) != np.sign(float(row[3]))):
-    #         continue
-    #     xs = [float(row[3]),float(row[5])]
-    #     ys = [float(row[2]),float(row[4])]
-    #     plt.plot(xs,ys,linewidth=0.5,linestyle='dashed',color='black',transform=data_crs)
+        xs = [float(row[3]),float(row[5])]
+        ys = [float(row[2]),float(row[4])]
+        plt.plot(xs,ys,linewidth=0.5,linestyle='dashed',color='black',transform=data_crs)
         
     satlist = []
     for i in range(len(swath_rows)):
@@ -278,27 +343,35 @@ def plot_step(step_num,b):
 
     
 
+    
     # legend stuff
-    plt.scatter([], [], c='blue',marker='o', label='Grid location')
+    plt.scatter([], [], c='blue',marker='o', label='Lake location')
     plt.scatter([], [], c='orange',marker='o', label='Point in view')
-    plt.scatter([], [], c='yellow',marker='o', label='Point observed')
-    plt.scatter([], [], c='black',marker='^', label='Satellite')
+    plt.scatter([], [], c='green',marker='^', label='Imaging satellite')
+    plt.scatter([], [], c='blue',marker='^', label='SAR satellite')
+    plt.scatter([], [], c='red',marker='^', label='Thermal satellite')
+    plt.scatter([], [], c='green',marker='*', label='Lake bloom event')
+    plt.scatter([], [], c='magenta',marker='*', label='Lake temperature event')
+    plt.scatter([], [], c='cyan',marker='*', label='Lake level event')
+    plt.scatter([], [], c='green',marker='s', label='Lake bloom co-obs')
+    plt.scatter([], [], c='magenta',marker='s', label='Lake temperature co-obs')
+    plt.scatter([], [], c='cyan',marker='s', label='Lake level co-obs')
     plt.plot([],[], c='black', linestyle='dashed', label='Crosslink')
-    plt.plot([],[], c='red', label='Observation')
 
 
     # Put a legend to the right of the current axis
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
     ax.legend(loc='center left', fontsize=5, bbox_to_anchor=(1, 0.5))
+    # plt.legend(fontsize=5,loc='upper right')
     # #m.imshow(precip, origin='upper', cmap='RdYlGn_r', vmin=1, vmax=200, zorder=3)
     if b["plot_clouds"]:
         ax.imshow(clouds,transform = img_proj, origin='upper', cmap='gray',alpha=0.5)
     if b["plot_rain"]:
         ax.imshow(precip, origin='upper', extent=[x0c, x1c, y0c, y1c], cmap=cmap, vmin=0.01*25.4, vmax=762)
     
-    plt.title('Simulation state at time t='+str(step_num)+' steps')
-    plt.savefig(filename,dpi=200)
+    plt.title('Simulation state at time t='+str(np.round(step_num*b["step_size"]/3600,2))+' hours')
+    plt.savefig(filename,dpi=300)
     plt.close()
     print("Step "+str(step_num)+" complete!")
 
@@ -308,17 +381,16 @@ def plot_mission(settings):
     pool = multiprocessing.Pool()
     # PLOTS THE LAST 1/4th OF THE SIMULATION
     # imageio gif creation kills itself if there are too many images, is there a fix or is it just a WSL issue?
-    start_frac = 0
-    end_frac = settings["plot_duration"]
-    num_skip = settings["plot_interval"]
-    steps = np.arange(int(np.floor(settings["duration"]*start_frac*86400/settings["step_size"])),int(np.floor(settings["duration"]*end_frac*86400/settings["step_size"])),num_skip)
+    start_frac = 0.75
+    num_skip = 20
+    steps = np.arange(int(np.floor(settings["duration"]*start_frac*86400/settings["step_size"])),int(np.floor(settings["duration"]*86400/settings["step_size"])),num_skip)
     print(steps)
     pool.map(partial(plot_step, b=settings), steps)
     filenames = []
     for step in steps:
-        filenames.append(f'{settings["plot_location"]}/frame_{step}.png')
+        filenames.append(f'{settings["directory"]}plots/frame_{step}.png')
     # print('Charts saved\n')
-    gif_name = settings["plot_location"]+'animation'
+    gif_name = settings["directory"]+'animation'
     # Build GIF
     print('Creating gif\n')
     with imageio.get_writer(f'{gif_name}.gif', mode='I') as writer:
@@ -328,35 +400,16 @@ def plot_mission(settings):
     print('Gif saved\n')
 
 if __name__ == "__main__":
-    cross_track_ffor = 7.5 # deg
-    along_track_ffor = 7.5 # deg
-    cross_track_ffov = 0 # deg
-    along_track_ffov = 0 # deg
-    agility = 1 # deg/s
-    num_planes = 10
-    num_sats_per_plane = 10
+    set_start_method("spawn")
     settings = {
-        "directory": "./missions/100_sats_prelim/",
+        "directory": "./missions/test_mission_5/",
         "step_size": 10,
         "duration": 1,
-        "plot_interval": 5,
-        "plot_duration": 2/24,
-        "plot_location": ".",
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
-        "grid_type": "uniform", # can be "event" or "static"
-        "preplanned_observations": None,
-        "event_csvs": [],
+        "grid_type": "event", # can be "event" or "static"
+        "event_csvs": ['bloom_events.csv','level_events.csv','temperature_events.csv'],
         "plot_clouds": False,
         "plot_rain": False,
-        "plot_obs": True,
-        "cross_track_ffor": cross_track_ffor,
-        "along_track_ffor": along_track_ffor,
-        "cross_track_ffov": cross_track_ffov,
-        "along_track_ffov": along_track_ffov,
-        "num_planes": num_planes,
-        "num_sats_per_plane": num_sats_per_plane,
-        "agility": agility,
-        "planner": "dp",
-        "process_obs_only": False
+        "plot_obs": True
     }
     plot_mission(settings)

@@ -106,14 +106,14 @@ def compute_statistics_pieces(input):
 
 def compute_statistics(events,obs,grid_locations,settings):
     satellite_name_dict = {}
-    for i in range(settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_event_types"]**2):
-        if i < settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_event_types"]:
+    for i in range(settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_meas_types"]**2):
+        if i < settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_meas_types"]:
             meas_type = "0"
-        elif i < 2*settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_event_types"]:
+        elif i < 2*settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_meas_types"]:
             meas_type = "1"
-        elif i < 3*settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_event_types"]:
+        elif i < 3*settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_meas_types"]:
             meas_type = "2"
-        elif i < 4*settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_event_types"]:
+        elif i < 4*settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_meas_types"]:
             meas_type = "3"
         satellite_name_dict["sat"+str(i)] = meas_type
     obs.sort(key=lambda obs: obs[0])
@@ -174,8 +174,9 @@ def compute_statistics(events,obs,grid_locations,settings):
         loc_count += 1
     locations_perc_cov = loc_count / len(grid_locations)
 
-    print("Number of event co-observations: "+str(all_events_count))
+    print("Number of observations: "+str(len(obs)))
     print("Number of total events: "+str(len(events)))
+    print("Number of event co-observations: "+str(all_events_count))
     print("Number of events observed at least once: "+str(np.count_nonzero(obs_per_event_list)))
     #print("Percent of events observed at least once: "+str(np.count_nonzero(obs_per_event_list)/len(events)*100)+"%")
     obs_per_event_array = np.array(obs_per_event_list)
@@ -207,6 +208,7 @@ def compute_experiment_statistics_het(settings):
     satellites = []
     all_initial_observations = []
     all_replan_observations = []
+    all_replan_het_observations = []
     all_visibilities = []
 
 
@@ -261,7 +263,7 @@ def compute_experiment_statistics_het(settings):
                         observations.append(row)
                 all_initial_observations.extend(observations)
 
-            if "replan" in f and settings["planner"] in f:
+            if "replan" in f and settings["planner"] in f and "het" not in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
                     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                     observations = []
@@ -274,6 +276,20 @@ def compute_experiment_statistics_het(settings):
                         row.append(subdir)
                         observations.append(row)
                 all_replan_observations.extend(observations)
+
+            if "replan" in f and settings["planner"] in f and "het" in f:
+                with open(directory+subdir+"/"+f,newline='') as csv_file:
+                    spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
+                    observations = []
+                    i = 0
+                    for row in spamreader:
+                        if i < 1:
+                            i=i+1
+                            continue
+                        row = [float(i) for i in row]
+                        row.append(subdir)
+                        observations.append(row)
+                all_replan_het_observations.extend(observations)
 
         if settings["preplanned_observations"] is not None:
             with open(settings["preplanned_observations"],newline='') as csv_file:
@@ -353,15 +369,19 @@ def compute_experiment_statistics_het(settings):
     init_results = compute_statistics(events,all_initial_observations,grid_locations,settings)
     print("Replan event observations")
     replan_results = compute_statistics(events,all_replan_observations,grid_locations,settings)
+    print("Replan het event observations")
+    replan_het_results = compute_statistics(events,all_replan_het_observations,grid_locations,settings)
     print("Potential observations (visibilities)")
     vis_results = compute_statistics(events,all_visibilities,grid_locations,settings)
     overall_results = {
         "init_results": init_results,
         "replan_results": replan_results,
+        "replan_het_results": replan_het_results,
         "vis_results": vis_results,
         "num_events": len(events),
         "num_obs_init": len(all_initial_observations),
         "num_obs_replan": len(all_replan_observations),
+        "num_obs_replan_het": len(all_replan_het_observations),
         "num_vis": len(all_visibilities)
     }
     print(overall_results)
@@ -369,19 +389,21 @@ def compute_experiment_statistics_het(settings):
 
 def main():
     experiment_settings = {
-        "name": "oa_het_1",
+        "name": "grid_search_0",
         "ffor": 30,
-        "ffov": 5,
+        "ffov": 0,
         "constellation_size": 2,
-        "agility": 1,
-        "event_duration": 6*3600,
-        "event_frequency": 0.01/3600,
-        "event_density": 1,
-        "event_clustering": 4,
+        "agility": 0.1,
+        "event_duration": 3600*4,
+        "event_frequency": 0.1/3600,
+        "event_density": 5,
+        "event_clustering": 1,
         "planner": "dp",
+        "reobserve_reward": 2,
+        "num_meas_types": 3,
         "reward": 10,
-        "reobserve_reward": 2.0,
-        "num_event_types": 4
+        "reward_increment": 0.1,
+        "time_horizon": 1000
     }
     mission_name = experiment_settings["name"]
     cross_track_ffor = experiment_settings["ffor"]
@@ -395,7 +417,7 @@ def main():
     num_points_per_cell = experiment_settings["event_density"]
     event_frequency = experiment_settings["event_frequency"]
     event_duration = experiment_settings["event_duration"]
-    num_event_types = experiment_settings["num_event_types"]
+    num_meas_types = experiment_settings["num_meas_types"]
     simulation_step_size = 10 # seconds
     simulation_duration = 1 # days
     settings = {

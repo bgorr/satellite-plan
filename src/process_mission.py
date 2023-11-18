@@ -336,6 +336,8 @@ def process_mission(settings):
             continue
         if ".json" in subdir:
             continue
+        if ".csv" in subdir:
+            continue
         for f in os.listdir(directory+subdir):
             
             if "state_cartesian" in f:
@@ -371,7 +373,7 @@ def process_mission(settings):
                     observations = []
                     i = 0
                     for row in spamreader:
-                        if i < 5:
+                        if i < 1:
                             i=i+1
                             continue
                         row = [float(i) for i in row]
@@ -447,31 +449,50 @@ def process_mission(settings):
                                     quotechar='|', quoting=csv.QUOTE_MINIMAL)
                 for vis in sat_visibilities:
                     csvwriter.writerow(vis)
-
-    if not os.path.exists(base_directory+'sat_observations'):
-        os.mkdir(base_directory+'sat_observations')
-    for i in range(len(steps)):
-        sat_observations = []
-        for sat in satellites:
-            name = sat["orbitpy_id"]
-            states = sat["states"]
-            curr_state = states[i]
-            r_eci = [curr_state[1]*1e3,curr_state[2]*1e3,curr_state[3]*1e3]
-            v_eci = [curr_state[4]*1e3,curr_state[5]*1e3,curr_state[6]*1e3]
-            jd = base_jd + timestep*i/86400
-            centuries = (jd-2451545)/36525
-            r_ecef, _ = eci2ecef(r_eci,v_eci,centuries,jd,lod,xp,yp,ddpsi,ddeps)
-            lat, lon, _ = ecef2lla(r_ecef[0],r_ecef[1],r_ecef[2])
-            
-            for observation in sat["observations"]:
-                if observation[0] <= i and i <= observation[1]:
-                    sat_pos_and_observation = [name,lat[0][0],lon[0][0],observation[2],observation[3]]
-                    sat_observations.append(sat_pos_and_observation)
-        with open(base_directory+'sat_observations/step'+str(i)+'.csv','w') as csvfile:
-            csvwriter = csv.writer(csvfile, delimiter=',',
-                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
-            for obs in sat_observations:
-                csvwriter.writerow(obs)
+    if not settings["process_obs_only"]:
+        if not os.path.exists(base_directory+'overlaps'):
+            os.mkdir(base_directory+'overlaps')
+        for i in range(len(steps)):
+            overlaps = []
+            visibilities = []
+            for sat in satellites:                
+                for visibility in sat["visibilities"]:
+                    if visibility[0] == i:
+                        visibilities.append((visibility[2],visibility[3]))
+            for visibility in visibilities:
+                if visibilities.count(visibility) > 1:
+                    if visibility not in overlaps:
+                        overlaps.append(visibility)
+            with open(base_directory+'overlaps/step'+str(i)+'.csv','w') as csvfile:
+                csvwriter = csv.writer(csvfile, delimiter=',',
+                                    quotechar='|', quoting=csv.QUOTE_MINIMAL)
+                for overlap in overlaps:
+                    csvwriter.writerow(overlap)
+    if not settings["process_obs_only"]:
+        if not os.path.exists(base_directory+'sat_observations'):
+            os.mkdir(base_directory+'sat_observations')
+        for i in range(len(steps)):
+            sat_observations = []
+            for sat in satellites:
+                name = sat["orbitpy_id"]
+                states = sat["states"]
+                curr_state = states[i]
+                r_eci = [curr_state[1]*1e3,curr_state[2]*1e3,curr_state[3]*1e3]
+                v_eci = [curr_state[4]*1e3,curr_state[5]*1e3,curr_state[6]*1e3]
+                jd = base_jd + timestep*i/86400
+                centuries = (jd-2451545)/36525
+                r_ecef, _ = eci2ecef(r_eci,v_eci,centuries,jd,lod,xp,yp,ddpsi,ddeps)
+                lat, lon, _ = ecef2lla(r_ecef[0],r_ecef[1],r_ecef[2])
+                
+                for observation in sat["observations"]:
+                    if observation[0] <= i and i <= observation[1]+1:
+                        sat_pos_and_observation = [name,lat[0][0],lon[0][0],observation[2],observation[3]]
+                        sat_observations.append(sat_pos_and_observation)
+            with open(base_directory+'sat_observations/step'+str(i)+'.csv','w') as csvfile:
+                csvwriter = csv.writer(csvfile, delimiter=',',
+                                    quotechar='|', quoting=csv.QUOTE_MINIMAL)
+                for obs in sat_observations:
+                    csvwriter.writerow(obs)
 
     if not os.path.exists(base_directory+'constellation_past_observations'):
         os.mkdir(base_directory+'constellation_past_observations')
@@ -481,10 +502,10 @@ def process_mission(settings):
         for sat in satellites:
             name = sat["orbitpy_id"]        
             for observation in sat["observations"]:
-                if observation[0] == i:
+                if observation[0] <= i and i <= observation[1]+1:
                     prev_obs = None
                     for past_obs in past_observations:
-                        if past_obs[1] == observation[2]:
+                        if past_obs[1] == observation[2] and past_obs[2] == observation[3]:
                             prev_obs = past_obs
                     if prev_obs is not None:
                         new_observation = [prev_obs[0]+1,observation[2],observation[3]]
@@ -602,20 +623,58 @@ def process_mission(settings):
     print("Processed mission!")
 
 if __name__ == "__main__":
-    mission_name = "experiment0"
     cross_track_ffor = 60 # deg
     along_track_ffor = 60 # deg
-    cross_track_ffov = 10 # deg
-    along_track_ffov = 10 # deg
+    cross_track_ffov = 0 # deg
+    along_track_ffov = 0 # deg
     agility = 1 # deg/s
-    num_planes = 5 # deg/s
-    num_sats_per_plane = 10 # deg/s
-    var = 1 # deg lat/lon
+    num_planes = 5
+    num_sats_per_plane = 5
+    settings = {
+        "directory": "./missions/25_sats_prelim/",
+        "step_size": 10,
+        "duration": 1,
+        "plot_interval": 5,
+        "plot_duration": 2/24,
+        "plot_location": ".",
+        "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
+        "grid_type": "uniform", # can be "event" or "static"
+        "preplanned_observations": None,
+        "event_csvs": [],
+        "plot_clouds": False,
+        "plot_rain": False,
+        "plot_obs": True,
+        "cross_track_ffor": cross_track_ffor,
+        "along_track_ffor": along_track_ffor,
+        "cross_track_ffov": cross_track_ffov,
+        "along_track_ffov": along_track_ffov,
+        "num_planes": num_planes,
+        "num_sats_per_plane": num_sats_per_plane,
+        "agility": agility,
+        "planner": "dp",
+        "process_obs_only": True
+    }
+
+    mission_name = "oa_het_9"
+    cross_track_ffor = 90 # deg
+    along_track_ffor = 90 # deg
+    cross_track_ffov = 1 # deg
+    along_track_ffov = 1 # deg
+    agility = 0.01 # deg/s
+    num_planes = 4
+    num_sats_per_plane = 4
+    var = 4 # deg lat/lon
     num_points_per_cell = 10
     simulation_step_size = 10 # seconds
     simulation_duration = 1 # days
     event_frequency = 1e-5 # events per second
-    event_duration = 3600 # seconds
+    event_duration = 21600 # second
+    experiment_settings = {
+        "event_duration": event_duration,
+        "planner": "dp",
+        "reobserve_reward": 2,
+        "reward": 10
+    }
     settings = {
         "directory": "./missions/"+mission_name+"/",
         "step_size": simulation_step_size,
@@ -625,12 +684,6 @@ if __name__ == "__main__":
         "point_grid": "./coverage_grids/"+mission_name+"/event_locations.csv",
         "preplanned_observations": None,
         "event_csvs": ["./events/"+mission_name+"/events.csv"],
-        "plot_clouds": False,
-        "plot_rain": False,
-        "plot_obs": True,
-        "plot_duration": 2/24,
-        "plot_interval": 10,
-        "plot_location": "./missions/"+mission_name+"/plots/",
         "cross_track_ffor": cross_track_ffor,
         "along_track_ffor": along_track_ffor,
         "cross_track_ffov": cross_track_ffov,
@@ -638,6 +691,10 @@ if __name__ == "__main__":
         "num_planes": num_planes,
         "num_sats_per_plane": num_sats_per_plane,
         "agility": agility,
-        "process_obs_only": True
+        "process_obs_only": False,
+        "planner": "dp",
+        "reward": 10,
+        "reobserve_reward": 2,
+        "experiment_settings": experiment_settings
     }
     process_mission(settings)
