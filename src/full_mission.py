@@ -9,21 +9,21 @@ from plot_mission_cartopy import plot_mission
 
 def main():
     cross_track_ffor = 60 # deg
-    along_track_ffor = 2 # deg
+    along_track_ffor = 60 # deg
     cross_track_ffov = 0 # deg
     along_track_ffov = 0 # deg
     agility = 1 # deg/s
-    num_planes = 1
+    num_planes = 5
     num_sats_per_plane = 5
     settings = {
-        "directory": "./missions/test_mission_6/",
-        "step_size": 1,
+        "directory": "./missions/25_sats_prelim/",
+        "step_size": 10,
         "duration": 1,
         "plot_interval": 5,
         "plot_duration": 2/24,
         "plot_location": ".",
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
-        "grid_type": "static", # can be "event" or "static"
+        "grid_type": "uniform", # can be "event" or "static"
         "preplanned_observations": None,
         "event_csvs": [],
         "plot_clouds": False,
@@ -36,6 +36,7 @@ def main():
         "num_planes": num_planes,
         "num_sats_per_plane": num_sats_per_plane,
         "agility": agility,
+        "planner": "dp",
         "process_obs_only": False
     }
     if not os.path.exists(settings["directory"]):

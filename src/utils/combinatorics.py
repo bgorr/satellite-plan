@@ -1,36 +1,48 @@
-import numpy as np
-from math import factorial
+import pulp
 
-sum = 0
-for i in range(16):
-    print(i)
-    c = factorial(i+4)/(factorial(4)*factorial(i))
-    sum += c
-
-print(sum)
-
-sum = 0
-for i in range(7):
-    print(i)
-    c = factorial(i+2)/(factorial(2)*factorial(i))
-    sum += c
-
-print(sum)
-
-n = 6
-result = 0.5*factorial(n)/(factorial(int(n/2)))
-print(result)
-result2 = factorial(2*n)/(factorial(n)*factorial(n))
-print(result2)
-
-sum = 0
-for i in range(7):
-    c = factorial(i+2)/(factorial(2)*factorial(i))
-    sum += c
-print(sum)
-
-sum = 0
-for i in range(7):
-    for j in range(i,16):
-        sum += (factorial(j-i+1)/factorial(j-i) * factorial(i+2)/2/factorial(i))
-print(sum)
+transportation_problem = pulp.LpProblem("Transportation Problem", pulp.LpMinimize)
+factories = ["Factory_A", "Factory_B"]
+warehouses = ["Warehouse_1", "Warehouse_2"]
+distribution_center = "Distribution_Center"
+costs = {
+    ("Factory_A", "Warehouse_1"): 7,
+    ("Factory_B", "Warehouse_2"): 9,
+    ("Factory_A", distribution_center): 3,
+    ("Factory_B", distribution_center): 4,
+    (distribution_center, "Warehouse_1"): 2,
+    (distribution_center, "Warehouse_2"): 4,
+}
+supply = {
+    "Factory_A": 80,
+    "Factory_B": 70,
+    distribution_center: 50,
+}
+demand = {
+    "Warehouse_1": 60,
+    "Warehouse_2": 90,
+}
+x = pulp.LpVariable.dicts("shipments", ((i, j) for i in factories for j in warehouses), lowBound=0, cat="Continuous")
+y = pulp.LpVariable.dicts("trucking", ((i, j) for i in factories for j in warehouses), lowBound=0, upBound=50, cat="Integer")
+for i in factories:
+    transportation_problem += (pulp.lpSum(x[i, j] for j in warehouses) == supply[i])
+for j in warehouses:
+    transportation_problem += (pulp.lpSum(x[i, j] for i in factories) == demand[j])
+# for i in factories:
+#     for j in warehouses:
+#         transportation_problem += (pulp.lpSum(y[i, j]) <= 50)
+# transportation_problem += (x["Factory_A", "Warehouse_2"] == 0)
+# transportation_problem += (x["Factory_B", "Warehouse_1"] == 0)
+truck_cost = pulp.lpSum(costs[i, j] * y[i, j] for i in factories for j in warehouses if (i, j) in costs)
+obj = (
+    pulp.lpSum(costs[i, j] * x[i, j] for i in factories for j in warehouses if (i, j) in costs) + truck_cost
+)
+transportation_problem.setObjective(obj)
+transportation_problem.solve()
+print("Feasible?:", pulp.LpStatus[transportation_problem.status])
+for i in factories:
+    for j in warehouses:
+        if x[i, j].varValue > 0:
+            print(f"Ship {int(x[i, j].varValue)} units from {i} to {j}")
+        if y[i, j].varValue is not None and y[i, j].varValue > 0:
+            print(f"Use truckers to ship {int(y[i, j].varValue)} units from {i} to {j}")
+print("Total Cost = $", pulp.value(obj))

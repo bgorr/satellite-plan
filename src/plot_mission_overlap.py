@@ -31,8 +31,8 @@ def plot_step(step_num,b):
     ax = plt.axes(projection=data_crs)
     ax.set_global()
     #ax.set_extent([-150, -30, 20, 70], crs=ccrs.PlateCarree())
-    # ax.set_xlim([-150,-30])
-    # ax.set_ylim([20,70])
+    ax.set_xlim([-150,-30])
+    ax.set_ylim([20,50])
     x0c, x1c, y0c, y1c = ax.properties()['extent']
     ax.coastlines()
     #ax.stock_img()
@@ -47,6 +47,12 @@ def plot_step(step_num,b):
         csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
         for row in csvreader:
             vis_rows.append(row)
+
+    overlap_rows = []
+    with open(b["directory"]+'overlaps/step'+str(step_num)+'.csv','r') as csvfile:
+        csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        for row in csvreader:
+            overlap_rows.append(row)
 
     obs_rows = []
     with open(b["directory"]+'sat_observations/step'+str(step_num)+'.csv','r') as csvfile:
@@ -94,7 +100,7 @@ def plot_step(step_num,b):
 
     #ax.drawmapboundary(fill_color='#99ffff')
     #ax.fillcontinents(color='#cc9966',lake_color='#99ffff')
-    #ax.stock_img()
+    ax.stock_img()
     #ax.add_feature(cfeature.LAND)
     #ax.add_feature(cfeature.COASTLINE)
 
@@ -227,6 +233,10 @@ def plot_step(step_num,b):
         #x, y = m(float(row[4]),float(row[3]))
         plt.scatter(float(row[4]),float(row[3]),4,marker='o',color='orange',transform=data_crs)
 
+    for row in overlap_rows:
+        #x, y = m(float(row[4]),float(row[3]))
+        plt.scatter(float(row[1]),float(row[0]),4,marker='o',color='purple',transform=data_crs)
+
     for row in obs_rows:
         #obs_x, obs_y = m(float(row[4]),float(row[3]))
         #m.scatter(obs_x,obs_y,5,marker='o',color='green')
@@ -282,8 +292,9 @@ def plot_step(step_num,b):
     plt.scatter([], [], c='blue',marker='o', label='Grid location')
     plt.scatter([], [], c='orange',marker='o', label='Point in view')
     plt.scatter([], [], c='yellow',marker='o', label='Point observed')
+    plt.scatter([], [], c='purple',marker='o', label='Point overlapped')
     plt.scatter([], [], c='black',marker='^', label='Satellite')
-    plt.plot([],[], c='black', linestyle='dashed', label='Crosslink')
+    #plt.plot([],[], c='black', linestyle='dashed', label='Crosslink')
     plt.plot([],[], c='red', label='Observation')
 
 
@@ -328,20 +339,20 @@ def plot_mission(settings):
     print('Gif saved\n')
 
 if __name__ == "__main__":
-    cross_track_ffor = 7.5 # deg
-    along_track_ffor = 7.5 # deg
+    cross_track_ffor = 60 # deg
+    along_track_ffor = 60 # deg
     cross_track_ffov = 0 # deg
     along_track_ffov = 0 # deg
     agility = 1 # deg/s
-    num_planes = 10
-    num_sats_per_plane = 10
+    num_planes = 5
+    num_sats_per_plane = 5
     settings = {
-        "directory": "./missions/100_sats_prelim/",
+        "directory": "./missions/25_sats_prelim/",
         "step_size": 10,
         "duration": 1,
-        "plot_interval": 5,
+        "plot_interval": 2,
         "plot_duration": 2/24,
-        "plot_location": ".",
+        "plot_location": "./missions/25_sats_prelim/plots/",
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
         "grid_type": "uniform", # can be "event" or "static"
         "preplanned_observations": None,

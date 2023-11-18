@@ -20,6 +20,23 @@ from multiprocessing import set_start_method
 def nearest(items, pivot):
     return min([i for i in items if i <= pivot], key=lambda x: abs(x - pivot))
 
+def get_latest_reward_grid_file(settings,step_num):
+    timing_list = []
+    file_list = []
+    for file in os.listdir(settings["directory"]+'reward_grids/'):
+        file_list.append(file)
+        file = file[:-4]
+        file = file [5:]
+        timing_list.append(float(file))
+    closest_time = None
+    time_dist = 86400
+    for time in timing_list:
+        if step_num >= time and (step_num-time) < time_dist:
+            closest_time = time
+            time_dist = step_num - time
+    idx = timing_list.index(closest_time)
+    return file_list[idx]
+
 def plot_step(step_num,b):
     filename = f'{b["plot_location"]}/frame_{step_num}.png'
     # m = Basemap(projection='merc',llcrnrlat=-75,urcrnrlat=75,\
@@ -31,8 +48,10 @@ def plot_step(step_num,b):
     ax = plt.axes(projection=data_crs)
     ax.set_global()
     #ax.set_extent([-150, -30, 20, 70], crs=ccrs.PlateCarree())
-    # ax.set_xlim([-150,-30])
-    # ax.set_ylim([20,70])
+    ax.set_xlim([-120,-50])
+    ax.set_ylim([20,70])
+    gl = ax.gridlines(crs=data_crs, draw_labels=True,
+                  linewidth=2, color='gray', alpha=0.5, linestyle='--')
     x0c, x1c, y0c, y1c = ax.properties()['extent']
     ax.coastlines()
     #ax.stock_img()
@@ -48,6 +67,12 @@ def plot_step(step_num,b):
         for row in csvreader:
             vis_rows.append(row)
 
+    overlap_rows = []
+    with open(b["directory"]+'overlaps/step'+str(step_num)+'.csv','r') as csvfile:
+        csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        for row in csvreader:
+            overlap_rows.append(row)
+
     obs_rows = []
     with open(b["directory"]+'sat_observations/step'+str(step_num)+'.csv','r') as csvfile:
         csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
@@ -59,11 +84,19 @@ def plot_step(step_num,b):
         csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
         for row in csvreader:
             swath_rows.append(row)
+
     # crosslinks = []
     # with open(b["directory"]+'crosslinks/step'+str(step_num)+'.csv','r') as csvfile:
     #     csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
     #     for row in csvreader:
     #         crosslinks.append(row)
+
+    reward_grid_rows = []
+    reward_grid_filename = get_latest_reward_grid_file(b,step_num)
+    with open(b["directory"]+'reward_grids/'+reward_grid_filename,'r') as csvfile:
+        csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        for row in csvreader:
+            reward_grid_rows.append(row)
 
     past_lats = []
     past_lons = []
@@ -84,17 +117,17 @@ def plot_step(step_num,b):
         for row in csvreader:
             grid_lats.append(float(row[0]))
             grid_lons.append(float(row[1]))
-    if b["grid_type"] == "event":
-        event_rows = []
-        with open(b["directory"]+'events/step'+str(step_num)+'.csv','r') as csvfile:
-            csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
-            for row in csvreader:
-                event_rows.append(row)
+    # if b["grid_type"] == "event":
+    #     event_rows = []
+    #     with open(b["directory"]+'events/step'+str(step_num)+'.csv','r') as csvfile:
+    #         csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+    #         for row in csvreader:
+    #             event_rows.append(row)
 
 
     #ax.drawmapboundary(fill_color='#99ffff')
     #ax.fillcontinents(color='#cc9966',lake_color='#99ffff')
-    #ax.stock_img()
+    ax.stock_img()
     #ax.add_feature(cfeature.LAND)
     #ax.add_feature(cfeature.COASTLINE)
 
@@ -208,12 +241,16 @@ def plot_step(step_num,b):
 
     #x, y = ax(grid_lons,grid_lats)
     ax.scatter(grid_lons,grid_lats,2,marker='o',color='blue',transform=data_crs)
-    if b["grid_type"] == "event":
-        for row in event_rows:
-            plt.scatter(float(row[1]),float(row[0]),int(np.min([4*float(row[2]),10])),marker='*',color='cyan',transform=data_crs)
+    # if b["grid_type"] == "event":
+    #     for row in event_rows:
+    #         plt.scatter(float(row[1]),float(row[0]),int(np.min([4*float(row[2]),10])),marker='*',color='cyan',transform=data_crs)
 
     #x, y = m(past_lons,past_lats)
+    reward_grid_rows = np.asfarray(reward_grid_rows)
+    
+    ax.scatter(reward_grid_rows[:,1],reward_grid_rows[:,0],(reward_grid_rows[:,2])**1.5,color='purple',transform=data_crs, marker=',')
     ax.scatter(past_lons,past_lats,3,marker='o',color='yellow',transform=data_crs)
+
     
     for row in pos_rows:
         #x, y = ax(float(row[2]),float(row[1]))
@@ -227,15 +264,19 @@ def plot_step(step_num,b):
         #x, y = m(float(row[4]),float(row[3]))
         plt.scatter(float(row[4]),float(row[3]),4,marker='o',color='orange',transform=data_crs)
 
-    for row in obs_rows:
-        #obs_x, obs_y = m(float(row[4]),float(row[3]))
-        #m.scatter(obs_x,obs_y,5,marker='o',color='green')
-        #sat_x, sat_y = m(float(row[2]),float(row[1]))
-        if(np.sign(float(row[4])) != np.sign(float(row[2]))):
-            continue
-        xs = [float(row[4]),float(row[2])]
-        ys = [float(row[3]),float(row[1])]
-        plt.plot(xs,ys,linewidth=1,color='r',transform=data_crs)
+    for row in overlap_rows:
+        #x, y = m(float(row[4]),float(row[3]))
+        plt.scatter(float(row[1]),float(row[0]),4,marker='o',color='purple',transform=data_crs)
+
+    # for row in obs_rows:
+    #     #obs_x, obs_y = m(float(row[4]),float(row[3]))
+    #     #m.scatter(obs_x,obs_y,5,marker='o',color='green')
+    #     #sat_x, sat_y = m(float(row[2]),float(row[1]))
+    #     if(np.sign(float(row[4])) != np.sign(float(row[2]))):
+    #         continue
+    #     xs = [float(row[4]),float(row[2])]
+    #     ys = [float(row[3]),float(row[1])]
+    #     plt.plot(xs,ys,linewidth=1,color='r',transform=data_crs)
 
     for row in past_rows:
         if int(row[0]) > 1:
@@ -282,9 +323,10 @@ def plot_step(step_num,b):
     plt.scatter([], [], c='blue',marker='o', label='Grid location')
     plt.scatter([], [], c='orange',marker='o', label='Point in view')
     plt.scatter([], [], c='yellow',marker='o', label='Point observed')
+    plt.scatter([], [], c='purple',marker='o', label='Reward magnitude')
     plt.scatter([], [], c='black',marker='^', label='Satellite')
-    plt.plot([],[], c='black', linestyle='dashed', label='Crosslink')
-    plt.plot([],[], c='red', label='Observation')
+    #plt.plot([],[], c='black', linestyle='dashed', label='Crosslink')
+    #plt.plot([],[], c='red', label='Observation')
 
 
     # Put a legend to the right of the current axis
@@ -328,27 +370,35 @@ def plot_mission(settings):
     print('Gif saved\n')
 
 if __name__ == "__main__":
-    cross_track_ffor = 7.5 # deg
-    along_track_ffor = 7.5 # deg
-    cross_track_ffov = 0 # deg
-    along_track_ffov = 0 # deg
-    agility = 1 # deg/s
-    num_planes = 10
-    num_sats_per_plane = 10
+    mission_name = "oa_het_9"
+    cross_track_ffor = 90 # deg
+    along_track_ffor = 90 # deg
+    cross_track_ffov = 1 # deg
+    along_track_ffov = 1 # deg
+    agility = 0.01 # deg/s
+    num_planes = 4
+    num_sats_per_plane = 4
+    var = 4 # deg lat/lon
+    num_points_per_cell = 10
+    simulation_step_size = 10 # seconds
+    simulation_duration = 1 # days
+    event_frequency = 1e-5 # events per second
+    event_duration = 21600 # second
+    experiment_settings = {
+        "event_duration": event_duration,
+        "planner": "dp",
+        "reobserve_reward": 2,
+        "reward": 10
+    }
     settings = {
-        "directory": "./missions/100_sats_prelim/",
-        "step_size": 10,
-        "duration": 1,
-        "plot_interval": 5,
-        "plot_duration": 2/24,
-        "plot_location": ".",
+        "directory": "./missions/"+mission_name+"/",
+        "step_size": simulation_step_size,
+        "duration": simulation_duration,
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
-        "grid_type": "uniform", # can be "event" or "static"
+        "grid_type": "event", # can be "event" or "static"
+        "point_grid": "./coverage_grids/"+mission_name+"/event_locations.csv",
         "preplanned_observations": None,
-        "event_csvs": [],
-        "plot_clouds": False,
-        "plot_rain": False,
-        "plot_obs": True,
+        "event_csvs": ["./events/"+mission_name+"/events.csv"],
         "cross_track_ffor": cross_track_ffor,
         "along_track_ffor": along_track_ffor,
         "cross_track_ffov": cross_track_ffov,
@@ -356,7 +406,16 @@ if __name__ == "__main__":
         "num_planes": num_planes,
         "num_sats_per_plane": num_sats_per_plane,
         "agility": agility,
+        "process_obs_only": False,
         "planner": "dp",
-        "process_obs_only": False
+        "reward": 10,
+        "reobserve_reward": 2,
+        "experiment_settings": experiment_settings,
+        "plot_clouds": False,
+        "plot_rain": False,
+        "plot_obs": True,
+        "plot_interval": 50,
+        "plot_duration": 1,
+        "plot_location": "./missions/"+mission_name+"/plots/",
     }
     plot_mission(settings)

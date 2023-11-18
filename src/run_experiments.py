@@ -75,9 +75,10 @@ with open('./reobs_reward_comparison.csv','w') as csvfile:
                 "event_duration","event_frequency","event_density","event_clustering",
                 "planner","reobserve_reward", "reward",
                 "events","init_obs_count","replan_obs_count","vis_count",
-                "init_event_obs_count","init_events_seen",
-                "replan_event_obs_count","replan_events_seen",
-                "vis_event_obs_count","vis_events_seen","time"]
+                "init_event_obs_count","init_events_seen","init_event_reward","init_planner_reward","init_perc_cov","init_max_rev","init_avg_rev","init_all_perc_cov","init_all_max_rev","init_all_avg_rev",
+                "replan_event_obs_count","replan_events_seen","replan_event_reward","replan_planner_reward","replan_perc_cov","replan_max_rev","replan_avg_rev","replan_all_perc_cov","replan_all_max_rev","replan_all_avg_rev",
+                "vis_event_obs_count","vis_events_seen","vis_event_reward","vis_planner_reward","vis_perc_cov","vis_max_rev","vis_avg_rev","vis_all_perc_cov","vis_all_max_rev","vis_all_avg_rev",
+                "time"]
     csvwriter.writerow(first_row)
     csvfile.close()
 for settings in settings_list:
@@ -92,9 +93,9 @@ for settings in settings_list:
             settings["event_duration"],settings["event_frequency"],settings["event_density"],settings["event_clustering"],
             settings["planner"],settings["reobserve_reward"], settings["reward"],
             overall_results["num_events"],overall_results["num_obs_init"],overall_results["num_obs_replan"],overall_results["num_vis"],
-            overall_results["init_results"]["event_obs_count"],overall_results["init_results"]["events_seen_once"],
-            overall_results["replan_results"]["event_obs_count"],overall_results["replan_results"]["events_seen_once"],
-            overall_results["vis_results"]["event_obs_count"],overall_results["vis_results"]["events_seen_once"],
+            overall_results["init_results"]["event_obs_count"],overall_results["init_results"]["events_seen_once"],overall_results["init_results"]["event_reward"],overall_results["init_results"]["planner_reward"],overall_results["init_results"]["percent_coverage"],overall_results["init_results"]["event_max_revisit_time"],overall_results["init_results"]["event_avg_revisit_time"],overall_results["init_results"]["all_percent_coverage"],overall_results["init_results"]["all_max_revisit_time"],overall_results["init_results"]["all_avg_revisit_time"],
+            overall_results["replan_results"]["event_obs_count"],overall_results["replan_results"]["events_seen_once"],overall_results["replan_results"]["event_reward"],overall_results["replan_results"]["planner_reward"],overall_results["replan_results"]["percent_coverage"],overall_results["replan_results"]["event_max_revisit_time"],overall_results["replan_results"]["event_avg_revisit_time"],overall_results["replan_results"]["all_percent_coverage"],overall_results["replan_results"]["all_max_revisit_time"],overall_results["replan_results"]["all_avg_revisit_time"],
+            overall_results["vis_results"]["event_obs_count"],overall_results["vis_results"]["events_seen_once"],overall_results["vis_results"]["event_reward"],overall_results["vis_results"]["planner_reward"],overall_results["vis_results"]["percent_coverage"],overall_results["vis_results"]["event_max_revisit_time"],overall_results["vis_results"]["event_avg_revisit_time"],overall_results["vis_results"]["all_percent_coverage"],overall_results["vis_results"]["all_max_revisit_time"],overall_results["vis_results"]["all_avg_revisit_time"],
             elapsed_time
         ]
         csvwriter.writerow(row)

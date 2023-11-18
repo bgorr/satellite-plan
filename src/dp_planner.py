@@ -108,6 +108,7 @@ def graph_search_events_interval(planner_inputs):
     plan_start = planner_inputs["plan_start"]
     plan_end = planner_inputs["plan_end"]
     settings = planner_inputs["settings"]
+    orbitpy_id = planner_inputs["orbitpy_id"]
     rewards, node_indices = propagate_weights(obs_list,settings)
     prelim_plan = list(extract_path(obs_list,rewards,node_indices))
     updated_rewards = []
@@ -122,15 +123,26 @@ def graph_search_events_interval(planner_inputs):
     for next_obs in prelim_plan:
         plan.append(next_obs)
         curr_time = next_obs["end"]
+        not_in_event = True
         for event in events:
             if close_enough(next_obs["location"]["lat"],next_obs["location"]["lon"],event["location"]["lat"],event["location"]["lon"]):
                 if (event["start"] <= next_obs["start"] <= event["end"]) or (event["start"] <= next_obs["end"] <= event["end"]):
                     updated_reward = { 
                         "reward": event["severity"]*settings["reward"],
                         "location": next_obs["location"],
-                        "last_updated": curr_time 
+                        "last_updated": curr_time,
+                        "orbitpy_id": orbitpy_id
                     }
                     updated_rewards.append(updated_reward)
+                    not_in_event = False
+        if not_in_event:
+            updated_reward = {
+                "reward": 0.0,
+                "location": next_obs["location"],
+                "last_updated": curr_time,
+                "orbitpy_id": orbitpy_id
+            }
+            updated_rewards.append(updated_reward)
         if curr_time > plan_end:
             break
                     
