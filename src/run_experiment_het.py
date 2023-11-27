@@ -30,8 +30,8 @@ def run_experiment_het(experiment_settings):
     cross_track_ffov = experiment_settings["ffov"]
     along_track_ffov = experiment_settings["ffov"] # TODO carefully consider this assumption
     agility = experiment_settings["agility"]
-    num_planes = experiment_settings["constellation_size"]
-    num_sats_per_plane = experiment_settings["constellation_size"]
+    num_planes = 6
+    num_sats_per_plane = 6
     var = experiment_settings["event_clustering"]
     num_points_per_cell = experiment_settings["event_density"]
     event_frequency = experiment_settings["event_frequency"]
@@ -105,7 +105,7 @@ def run_experiment_het(experiment_settings):
         "reobserve_reward": experiment_settings["reobserve_reward"],
         "experiment_settings": experiment_settings
     }
-    just_recomputing = True
+    just_recomputing = False
     if not just_recomputing:
         if not os.path.exists(settings["directory"]):
             os.mkdir(settings["directory"])

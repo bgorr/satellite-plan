@@ -14,8 +14,8 @@ def create_mission_het(settings):
 
     new_instrument["fieldOfViewGeometry"]["angleHeight"] = settings["along_track_ffor"]
     new_instrument["fieldOfViewGeometry"]["angleWidth"] = settings["cross_track_ffor"]
-    r = settings["num_planes"]*settings["experiment_settings"]["num_meas_types"]; # number of planes
-    s = settings["num_sats_per_plane"]*settings["experiment_settings"]["num_meas_types"]; # number of satellites per plane
+    r = settings["num_planes"]; # number of planes
+    s = settings["num_sats_per_plane"]; # number of satellites per plane
     altitude = 500
     ecc = 0.0001
     inc = 90

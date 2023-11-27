@@ -1035,14 +1035,14 @@ def plan_mission_replan_interval_het(settings):
         # if already_planned:
         #     continue
         satellite_name_dict = {}
-        for i in range(settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_meas_types"]**2):
-            if i < settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_meas_types"]:
+        for i in range(settings["num_sats_per_plane"]*settings["num_planes"]):
+            if i < settings["num_sats_per_plane"]*settings["num_planes"]/settings["experiment_settings"]["num_meas_types"]:
                 meas_type = 0
-            elif i < 2*settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_meas_types"]:
+            elif i < 2*settings["num_sats_per_plane"]*settings["num_planes"]/settings["experiment_settings"]["num_meas_types"]:
                 meas_type = 1
-            elif i < 3*settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_meas_types"]:
+            elif i < 3*settings["num_sats_per_plane"]*settings["num_planes"]/settings["experiment_settings"]["num_meas_types"]:
                 meas_type = 2
-            elif i < 4*settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_meas_types"]:
+            elif i < 4*settings["num_sats_per_plane"]*settings["num_planes"]/settings["experiment_settings"]["num_meas_types"]:
                 meas_type = 3
             satellite_name_dict["sat"+str(i)] = meas_type
         for f in os.listdir(directory+subdir):

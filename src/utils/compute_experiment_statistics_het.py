@@ -106,14 +106,14 @@ def compute_statistics_pieces(input):
 
 def compute_statistics(events,obs,grid_locations,settings):
     satellite_name_dict = {}
-    for i in range(settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_meas_types"]**2):
-        if i < settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_meas_types"]:
+    for i in range(settings["num_sats_per_plane"]*settings["num_planes"]):
+        if i < settings["num_sats_per_plane"]*settings["num_planes"]/settings["experiment_settings"]["num_meas_types"]:
             meas_type = "0"
-        elif i < 2*settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_meas_types"]:
+        elif i < 2*settings["num_sats_per_plane"]*settings["num_planes"]/settings["experiment_settings"]["num_meas_types"]:
             meas_type = "1"
-        elif i < 3*settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_meas_types"]:
+        elif i < 3*settings["num_sats_per_plane"]*settings["num_planes"]/settings["experiment_settings"]["num_meas_types"]:
             meas_type = "2"
-        elif i < 4*settings["num_sats_per_plane"]*settings["num_planes"]*settings["experiment_settings"]["num_meas_types"]:
+        elif i < 4*settings["num_sats_per_plane"]*settings["num_planes"]/settings["experiment_settings"]["num_meas_types"]:
             meas_type = "3"
         satellite_name_dict["sat"+str(i)] = meas_type
     obs.sort(key=lambda obs: obs[0])
@@ -157,7 +157,10 @@ def compute_statistics(events,obs,grid_locations,settings):
             max_rev_time_list.append(max_rev_time)
             avg_rev_time_list.append(avg_rev_time)
             event_count += 1
-    events_perc_cov = event_count / len(events)
+    if len(events) > 0:
+        events_perc_cov = event_count / len(events)
+    else:
+        events_perc_cov = 0.0
 
     all_max_rev_time_list = []
     all_avg_rev_time_list = []
