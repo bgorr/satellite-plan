@@ -9,13 +9,15 @@ import numpy as np
 from copy import deepcopy
 from keras_nlp.layers import TransformerDecoder
 from keras_nlp.layers import TokenAndPositionEmbedding
+import tensorflow_addons as tfa
+
 
 import config
 
 Experience = namedtuple('Experience', ['state', 'action', 'reward', 'next_state', 'done'])
 
-@keras.saving.register_keras_serializable(package="SatTransformer", name="SatTransformer")
-class SatTransformer(tf.keras.Model):
+@keras.saving.register_keras_serializable(package="SatelliteTransformer", name="SatelliteTransformer")
+class SatelliteTransformer(tf.keras.Model):
 
     loss_fn = tf.keras.losses.MeanSquaredError()
     loss_tracker = tf.keras.metrics.Mean(name="loss")
@@ -28,46 +30,58 @@ class SatTransformer(tf.keras.Model):
         # 2. Satellite slewing angle
         # 3. Satellite latitude
         # 4. Satellite longitude
+        self.action_embed_dim = 64
         self.state_vars = 4
-        self.sequence_len = 10
-        self.batch_size = 32
+        self.sequence_len = config.sequence_len
+        self.batch_size = 16
         self.input_layer = layers.InputLayer(input_shape=(self.sequence_len, self.state_vars), name="mlp_input_layer")
 
         # State Embedding
-        self.state_embedding_layer = layers.Embedding(
-            input_dim=self.sequence_len,
-            output_dim=self.state_vars,
-            weights=[self.get_pos_encoding_matrix(self.sequence_len, self.state_vars)],
-            name="state_sequence_embedding",
-        )
+        # self.state_embedding_layer = layers.Embedding(
+        #     input_dim=self.sequence_len,
+        #     output_dim=self.state_vars,
+        #     weights=[self.get_pos_encoding_matrix(self.sequence_len, self.state_vars)],
+        #     name="state_sequence_embedding",
+        # )
+        self.state_embedding_layer = layers.Dense(self.action_embed_dim, name="state_dim_expansion")
 
         # Action Embedding
-        self.total_actions = 5
         self.action_embedding_layer = TokenAndPositionEmbedding(
             config.vocab_size,
             self.sequence_len,
-            self.state_vars,
+            self.action_embed_dim,
             mask_zero=True
         )
 
         # Decoders
         self.normalize_first = False
-        self.dense_dim = 128
+        self.dense_dim = 512
         self.decoder_1 = TransformerDecoder(
             self.dense_dim,
-            self.state_vars,
+            self.action_embed_dim,
             normalize_first=self.normalize_first,
             name='design_decoder_1'
         )
 
         # Output Layers
         # - probability distribution over possible actions
+        self.total_actions = 10
         self.output_layer = layers.Dense(self.total_actions, name="action_output_layer")
         self.activation = layers.Activation('linear', dtype='float32')
 
         # Optimizer
-        self.learning_rate = 0.001
+        self.learning_rate = 0.0001
+        # decay_steps = 1000.0
+        # initial_learning_rate = 0.0
+        # warmup_steps = 300.0
+        # target_learning_rate = 0.00001
+        # self.learning_rate = tf.keras.optimizers.schedules.CosineDecay(
+        #     initial_learning_rate, decay_steps, warmup_target=target_learning_rate,
+        #     warmup_steps=warmup_steps
+        # )
+
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
+        # self.optimizer = tfa.optimizers.RectifiedAdam(learning_rate=self.learning_rate)
 
         # Hyperparameters
         self.epsilon = 0.99
@@ -83,17 +97,20 @@ class SatTransformer(tf.keras.Model):
     def call(self, inputs, training=True, mask=None):
         states, actions = inputs
 
-        # state_position_embeddings = self.state_embedding_layer(tf.range(start=0, limit=config.state_sequence_len, delta=1))
-        state_embeddings = states  # + state_position_embeddings
+        # state_position_embeddings = self.state_embedding_layer(tf.range(start=0, limit=config.sequence_len, delta=1))
+        state_embeddings = self.state_embedding_layer(states)
+        # state_embeddings = states  # + state_position_embeddings
+
+
         action_embeddings = self.action_embedding_layer(actions)
-        decoded_actions = self.decoder_1(action_embeddings, encoder_sequence=state_embeddings, training=training, use_causal_mask=True)
+        decoded_actions = self.decoder_1(action_embeddings, encoder_sequence=state_embeddings, training=training, use_causal_mask=True, encoder_padding_mask=mask)
         activations = self.output_layer(decoded_actions)
         q_values = self.activation(activations)
 
         return q_values
 
     def implicit_build(self):
-        state_input = tf.zeros((1, config.state_sequence_len, self.state_vars))
+        state_input = tf.zeros((1, config.sequence_len, self.state_vars))
         action_input = tf.zeros((1, config.sequence_len))
         self.call([state_input, action_input])
         return self
@@ -130,13 +147,8 @@ class SatTransformer(tf.keras.Model):
     def get_state_sequence(self, states):
         # print('--> TRACING get_state_sequence')
         # Pad state sequence
-        state_mask = [1] * len(states)
-        while len(states) < config.state_sequence_len:
+        while len(states) < config.sequence_len:
             states.append([0 for _ in range(self.state_vars)])
-            state_mask.append(0)
-        # state_tensors = [self.get_state_tensor(state) for state in states]
-        # state_sequence = tf.concat(state_tensors, axis=0)        #  shape = (sequence_len, state_values:4)
-
 
         state_sequence = tf.convert_to_tensor(states, dtype=tf.float32)
         state_sequence = tf.expand_dims(state_sequence, axis=0)  # shape = (1, sequence_len, state_values:4)
@@ -148,39 +160,48 @@ class SatTransformer(tf.keras.Model):
         state_sequence_batch = tf.concat(state_tensors, axis=0)  #  shape = (batch_size, sequence_len, state_values:4)
         return state_sequence_batch
 
-
+    def get_state_sequence_fast(self, states):
+        state_sequence = tf.convert_to_tensor(states, dtype=tf.float32)
+        state_sequence = tf.expand_dims(state_sequence, axis=0)  # shape = (1, sequence_len, state_values:4)
 
     # ------------------------------------
     # Actions
     # ------------------------------------
 
-    def get_aciton(self, state, training=True, num_actions=None, debug=False, rand_action=False, init_action=False):
-
+    def get_aciton(self, state, training=True, num_actions=None, debug=False, rand_action=False):
+        history_len = int(config.sequence_len / 2)
 
         # State tensor
-        if len(self.state_memory) < config.state_sequence_len - 1:
+        # if len(self.state_memory) < config.sequence_len - 1:
+        if len(self.state_memory) < history_len:
             input_states = deepcopy(self.state_memory)
-            input_states.append(state)
         else:
-            input_states = deepcopy(self.state_memory[-(config.state_sequence_len - 1):])
-        input_states.append(state)
+            # Get last 3 elements of state memory
+            input_states = deepcopy(self.state_memory[-history_len:])
+        input_states.append(state)  # Add current state to get 4 total states
+
+        state_mask = [1] * len(input_states)
+        while len(state_mask) < config.sequence_len:
+            state_mask.append(0)
+        state_mask = tf.convert_to_tensor(state_mask)
+        state_mask = tf.expand_dims(state_mask, axis=0)
+
         state_tensor = self.get_state_sequence(input_states)  # shape: (1, sequence_len, state_values)
 
         # Action tensor
-        if len(self.action_memory) < self.sequence_len - 1:
+        if len(self.action_memory) < history_len:
             input_actions = deepcopy(self.action_memory)
+            input_actions.insert(0, '[start]')
         else:
-            input_actions = deepcopy(self.action_memory[-(self.sequence_len - 1):])
+            input_actions = deepcopy(self.action_memory[-(history_len + 1):])
         input_actions = [str(action) for action in input_actions]
-        input_actions.insert(0, '[start]')
         input_actions_str = ' '.join(input_actions)
         action_tensor = config.encode(input_actions_str)
         action_tensor = tf.expand_dims(action_tensor, axis=0)  # shape: (1, sequence_len)
         inference_idx = len(input_actions)-1
-        # print('--> ACTION TENSOR:', action_tensor)
 
         # Forward pass
-        q_values = self.call([state_tensor, action_tensor], training=training)
+        q_values = self.call([state_tensor, action_tensor], training=False, mask=state_mask)
         q_values = q_values[0, inference_idx, :]
         if num_actions:
             q_values = q_values[:num_actions]
@@ -230,14 +251,13 @@ class SatTransformer(tf.keras.Model):
         return q_value
 
     @tf.function
-    def get_q_value_idx_batch_fast(self, state_tensors, action_tensors, action_mask_tensors, action_idxs_tensors):
+    def get_q_value_idx_batch_fast(self, state_tensors, action_tensors, action_mask_tensors, action_idxs_tensors, state_mask):
         print('--> TRACING get_q_value_idx_batch_fast')
-        batch_size = 32
 
         # Forward pass
-        q_values = self.call([state_tensors, action_tensors], training=True)
+        q_values = self.call([state_tensors, action_tensors], training=True, mask=state_mask)
 
-        batch_indices = tf.range(batch_size)[:, tf.newaxis, tf.newaxis]
+        batch_indices = tf.range(self.batch_size)[:, tf.newaxis, tf.newaxis]
         seq_indices = tf.range(config.sequence_len)[tf.newaxis, :, tf.newaxis]
         combined_indices = tf.concat([
             batch_indices * tf.ones_like(action_idxs_tensors)[:, :, tf.newaxis],
@@ -252,11 +272,11 @@ class SatTransformer(tf.keras.Model):
         return q_values
 
     @tf.function
-    def get_q_value_max_batch_fast(self, state_tensors, action_tensors, action_mask_tensors):
+    def get_q_value_max_batch_fast(self, state_tensors, action_tensors, action_mask_tensors, state_mask):
         print('--> TRACING get_q_value_max_batch_fast')
 
         # Forward pass
-        q_values = self.call([state_tensors, action_tensors], training=True)
+        q_values = self.call([state_tensors, action_tensors], training=True, mask=state_mask)
 
 
         q_values = tf.reduce_max(q_values, axis=-1)
@@ -265,8 +285,6 @@ class SatTransformer(tf.keras.Model):
         q_values = q_values * action_mask_tensors
 
         return q_values
-
-
 
     def get_q_value_batch(self, inputs, action_idxs=None, training=True):
         # print('--> TRACING get_q_value_batch')
@@ -339,14 +357,7 @@ class SatTransformer(tf.keras.Model):
 
         return q_values
 
-    @tf.function(input_signature=[
-        tf.TensorSpec(shape=(32, 10, 4), dtype=tf.float32),
-        tf.TensorSpec(shape=(32, 10), dtype=tf.int32),
-        tf.TensorSpec(shape=(32,), dtype=tf.float32),
-        tf.TensorSpec(shape=(32,), dtype=tf.float32),
-        tf.TensorSpec(shape=(32, 10), dtype=tf.int32),
-        tf.TensorSpec(shape=(32, 10), dtype=tf.float32),
-    ])
+    @tf.function
     def train_step(self, batch_states, batch_actions, target_q_value, current_q_values, batch_action_indices, batch_action_mask):  # batch_action_indices replaces action_idxs_tensors
         print('--> TRACING TRAIN')
         # batch_states, batch_actions, target_q_value, current_q_values = inputs
@@ -395,7 +406,7 @@ class SatTransformer(tf.keras.Model):
         """
         Updates the weights of the current instance with the weights of the provided model instance.
         Args:
-            model_instance (SatTransformer): Instance of SatTransformer whose weights will be used.
+            model_instance (SatelliteTransformer): Instance of SatTransformer whose weights will be used.
         """
         for target_layer, source_layer in zip(self.layers, model_instance.layers):
             target_layer.set_weights(source_layer.get_weights())
@@ -424,15 +435,6 @@ class SatTransformer(tf.keras.Model):
             clips.append(clip)
         return clips  # shape = (batch_size, sequence_len, state_values:4)
 
-    # a function that slices a window of memory within a time window start and end time
-    def sample_memory_window(self, start_time, end_time):
-        window_samples = []
-        for experience in self.memory:
-            action_time = experience.state[0]  # Assuming the first state variable is the time
-            if start_time <= action_time <= end_time:
-                window_samples.append(experience)
-        return window_samples
-
     def get_memory_bounds(self):
         if len(self.memory) > 0:
             start_time = self.memory[0].state[0]
@@ -441,31 +443,12 @@ class SatTransformer(tf.keras.Model):
         else:
             return None, None
 
+    def get_memory_time_values(self):
+        return [experience.state[0] for experience in self.memory]
 
     # -------------------------------------------
-    # Not used
+    # Positional Encoding
     # -------------------------------------------
-
-    # def update_model(self, state, action_idx, reward, training=True):
-    #
-    #     # Expand to give batch dimension
-    #     state_tensor = self.get_state_tensor(state)
-    #
-    #     with tf.GradientTape() as tape:
-    #
-    #         probs = self.call(state_tensor, training=training)
-    #         probs = probs[0, :]
-    #         action_prob = tf.gather(probs, action_idx)
-    #
-    #         loss = -tf.math.log(action_prob) * reward
-    #
-    #     # Calculate gradients
-    #     gradients = tape.gradient(loss, self.trainable_variables)
-    #
-    #     # Apply gradients
-    #     self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
-    #
-    #     return loss
 
     def get_pos_encoding_matrix(self, max_len, d_emb):
         pos_enc = np.array(

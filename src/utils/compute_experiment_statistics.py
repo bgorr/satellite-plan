@@ -6,7 +6,6 @@ import multiprocessing
 from functools import partial
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count
-from planners.BaseRL import BaseRL
 import config
 
 from planners import utils
@@ -230,13 +229,13 @@ def compute_experiment_statistics(settings):
 
     print("Initial event observations")
     init_results = compute_statistics(events,all_initial_observations,settings)
-    print("Replan event observations")
-    replan_results = compute_statistics(events,all_replan_observations,settings)
+    # print("Replan event observations")
+    # replan_results = compute_statistics(events,all_replan_observations,settings)
     print("Potential observations (visibilities)")
     vis_results = compute_statistics(events,all_visibilities,settings)
     overall_results = {
         "init_results": init_results,
-        "replan_results": replan_results,
+        # "replan_results": replan_results,
         "vis_results": vis_results,
         "num_events": len(events),
         "num_obs_init": len(all_initial_observations),

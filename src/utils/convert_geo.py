@@ -6,7 +6,7 @@ from multiprocessing import Pool
 import config
 
 def convert_geo_cords(settings):
-    orbit_data_dir = settings["directory"] + 'orbit_data/'
+    orbit_data_dir = settings["directory"] + '/orbit_data/'
     compute_dirs = []
     for subdir in os.listdir(orbit_data_dir):
         if "comm" in subdir or ".json" in subdir:

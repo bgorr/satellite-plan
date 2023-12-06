@@ -7,7 +7,7 @@ def execute_mission(settings):
     print("Executing mission")
     
     scenario_dir = settings["directory"]
-    data_dir = settings["directory"] + 'orbit_data/'
+    data_dir = settings["directory"] + '/orbit_data/'
     if os.path.exists(data_dir+'comm/'):
         print("Skipping mission execution")
         return

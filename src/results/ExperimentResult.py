@@ -6,7 +6,6 @@ import multiprocessing
 from functools import partial
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count
-from planners.BaseRL import BaseRL
 import config
 from utils.compute_experiment_statistics import compute_statistics
 

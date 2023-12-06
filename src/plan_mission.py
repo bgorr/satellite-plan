@@ -7,6 +7,13 @@ from functools import partial
 from tqdm import tqdm
 from mcts_planner import monte_carlo_tree_search
 from dp_planner import graph_search, graph_search_events, graph_search_events_interval
+import config
+import json
+from copy import deepcopy
+from planners import utils
+
+
+slew_counter = 0
 
 def close_enough(lat0,lon0,lat1,lon1):
     if np.sqrt((lat0-lat1)**2+(lon0-lon1)**2) < 0.01:
@@ -78,14 +85,15 @@ def chop_obs_list(obs_list,start,end):
             chopped_list.append(obs)
     return chopped_list
 
-
 def greedy_lemaitre_planner(obs_list,settings):
+    print('--> INITIAL OBSERVATIONS', len(obs_list))
     """
     Based on the "greedy planner" from Lemaitre et al. Incorporates reward information and future options to decide observation plan.
     """
     estimated_reward = 100000
     rule_based_plan = []
     i = 0
+    action_count = 0
     while i < 5:
         rule_based_plan = []
         more_actions = True
@@ -97,9 +105,11 @@ def greedy_lemaitre_planner(obs_list,settings):
         while more_actions:
             best_obs = None
             maximum = 0.0
+            # print('OBS LIST:', len(obs_list))
             actions = get_action_space(curr_time,curr_angle,obs_list,last_obs,settings)
             if(len(actions) == 0):
                 break
+            action_count += 1
             for action in actions:
                 duration = 86400/settings["step_size"]
                 rho = (duration - action["end"])/duration
@@ -113,9 +123,17 @@ def greedy_lemaitre_planner(obs_list,settings):
             total_reward += best_obs["reward"]
             rule_based_plan.append(best_obs)
             last_obs = best_obs
+
+            action_index = actions.index(best_obs)
+            print('--> ACTION', action_count,' IDX', action_index, 'CURR TIME:', curr_time)
+
+
+
         i += 1
         estimated_reward = total_reward
         obs_list = obs_list_copy
+
+    exit(0)
     return rule_based_plan
 
 def greedy_lemaitre_planner_events(planner_inputs):
@@ -255,20 +273,43 @@ def greedy_lemaitre_planner_events_interval(planner_inputs):
                     }
     return planner_outputs
 
-def fifo_planner(obs_list,settings):
+
+
+def fifo_planner(obs_list,settings, sat_json={}, fifo_seen=0):
+    events_seen = 0
     fifo_plan = []
     curr_time = 0.0
     curr_angle = 0.0
     last_obs = None
+    action_count = 0
+    sat_json['action_count'] = 0
+    sat_json['obs_left'] = []
+    sat_json['timestamps'] = []
     while True:
-        actions = get_action_space(curr_time,curr_angle,obs_list,last_obs,settings)
-        if len(actions) == 0:
+        actions, obs_left = get_action_space_metrics(curr_time,curr_angle,obs_list,last_obs,settings)
+        if len(actions) == 0 or len(actions) < 6:
             break
-        next_obs = actions[0]
+
+        next_obs = actions[0]  # first action 2216 | 3rd action 1375 | 5th action 950
+
+        events_seen += utils.find_event_bool(next_obs, settings['events'])
+
+
+        action_count += 1
         fifo_plan.append(next_obs)
         curr_time = next_obs["soonest"]
         curr_angle = next_obs["angle"]
+        # print('--> ACTION', action_count, 'TIME', curr_time, 'ANGLE', curr_angle)
+
+        sat_json['action_count'] += 1
+        sat_json['obs_left'].append(deepcopy(obs_left))
+        sat_json['timestamps'].append(deepcopy(curr_time))
+
+    print('--> EVENTS SEEN', events_seen)
     return fifo_plan
+
+
+
 
 def fifo_planner_events(planner_inputs):
     events = planner_inputs["events"]
@@ -364,6 +405,26 @@ def get_action_space(curr_time,curr_angle,obs_list,last_obs,settings):
             break
     return feasible_actions
 
+def get_action_space_metrics(curr_time,curr_angle,obs_list,last_obs,settings):
+    feasible_actions = []
+    obs_left = None
+    for idx, obs in enumerate(obs_list):
+        if last_obs is not None and obs["location"]["lat"] == last_obs["location"]["lat"]:
+            continue
+        if obs["start"] > curr_time:
+            if obs_left is None:
+                obs_left = len(obs_list) - idx
+            feasible, transition_end_time = check_maneuver_feasibility(curr_angle,np.min(obs["angles"]),curr_time,obs["end"],settings)
+            if transition_end_time < obs["start"]:
+                obs["soonest"] = obs["start"]
+            else:
+                obs["soonest"] = transition_end_time
+            if feasible:
+                feasible_actions.append(obs)
+        if len(feasible_actions) > 10:  # THIS IS NOT A GOOD IDEA BUT SHOULD HELP RUNTIME TODO
+            break
+    return feasible_actions, obs_left
+
 def check_maneuver_feasibility(curr_angle,obs_angle,curr_time,obs_end_time,settings):
     """
     Checks to see if the specified angle change violates the maximum slew rate constraint.
@@ -372,15 +433,41 @@ def check_maneuver_feasibility(curr_angle,obs_angle,curr_time,obs_end_time,setti
     # TODO add back FOV free visibility
     if(obs_end_time==curr_time):
         return False, False
-    slew_rate = abs(obs_angle-curr_angle)/abs(obs_end_time-curr_time)/settings["step_size"]
-    max_slew_rate = settings["agility"] # deg / s
-    #slewTorque = 4 * abs(np.deg2rad(new_angle)-np.deg2rad(curr_angle))*0.05 / pow(abs(new_time-curr_time),2)
-    #maxTorque = 4e-3
-    transition_end_time = abs(obs_angle-curr_angle)/(max_slew_rate*settings["step_size"]) + curr_time
-    moved = True
-    return slew_rate < max_slew_rate, transition_end_time
+    # slew_rate = abs(obs_angle-curr_angle)/abs(obs_end_time-curr_time) / settings["step_size"] # deg / s/step
+    # # slew_rate = abs(obs_angle - curr_angle) / abs(obs_end_time - curr_time)  # deg / s
+    # max_slew_rate = settings["agility"] # deg / s
+    # #slewTorque = 4 * abs(np.deg2rad(new_angle)-np.deg2rad(curr_angle))*0.05 / pow(abs(new_time-curr_time),2)
+    # #maxTorque = 4e-3
+    # transition_end_time = abs(obs_angle-curr_angle)/(max_slew_rate*settings["step_size"]) + curr_time
+    # # transition_end_time = (abs(obs_angle - curr_angle) / max_slew_rate) + curr_time
+    # moved = True
+    # # print('--> SLEW RATES:', slew_rate, max_slew_rate)
+    # # if slew_rate < max_slew_rate:
+    # #     print('------------------------------------ INVALID SLEW RATE')
+    # return slew_rate <= max_slew_rate, transition_end_time
 
-def plan_satellite(satellite,settings):
+    # Determine if the maneuver is feasible
+
+    max_slew_rate = settings["agility"]
+    step_size = settings["step_size"]
+    slew_rate_steps = abs(obs_angle - curr_angle) / abs(obs_end_time - curr_time)  # deg / steps
+    slew_rate_secs = slew_rate_steps / step_size  # deg / sec
+    can_slew = True
+    if slew_rate_secs > max_slew_rate:
+        # print('--> SLEWING CONSTRAINT APPLIED')
+        # slew_counter += 1
+        can_slew = False
+
+    # Determine when the maneuver will end
+    max_slew_rate_steps = max_slew_rate * step_size  # deg / step
+    transition_time = abs(obs_angle - curr_angle) / max_slew_rate_steps  # steps
+    transition_end_time = transition_time + curr_time  # steps
+
+    return can_slew, transition_end_time
+
+
+def plan_satellite(satellite,settings, sat_idx=0, events_seen=0):
+    print('--> Planning satellite', satellite["orbitpy_id"], settings["planner"])
     obs_list = []
     i = 0
     visibilities = satellite["visibilities"]
@@ -429,10 +516,19 @@ def plan_satellite(satellite,settings):
         for cont_vis in continuous_visibilities:
             visibilities.remove(cont_vis)
         i = 0
+
+    print('--> SATELLITE', sat_idx, 'OBS LIST:', len(obs_list))
+    sat_json = {
+        'initial_obs': len(obs_list)
+    }
+
+
+
+
     if settings["planner"] == "heuristic":
         plan = greedy_lemaitre_planner(obs_list,settings)
     elif settings["planner"] == "fifo":
-        plan = fifo_planner(obs_list,settings)
+        plan = fifo_planner(obs_list,settings, sat_json, fifo_seen=events_seen)
     elif settings["planner"] == "dp":
         plan = graph_search(obs_list,settings)
     elif settings["planner"] == "mcts":
@@ -486,6 +582,17 @@ def plan_satellite(satellite,settings):
         return
     else:
         print("unsupported planner")
+
+
+
+    # print('--> TOTAL CONSTRAINED POINTS:', slew_counter)
+    # exit(0)
+
+    sat_file = os.path.join(config.results_dir, f"sat_{sat_idx}.json")
+    with open(sat_file, 'w') as f:
+        json.dump(sat_json, f, indent=4)
+
+
     satellite["plan"] = plan
     grid_locations = []
     with open(settings["point_grid"],'r') as csvfile:
@@ -493,9 +600,10 @@ def plan_satellite(satellite,settings):
         next(csvfile)
         for row in csvreader:
             grid_locations.append([float(row[0]),float(row[1])])
+
+
     with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_'+settings["planner"]+'.csv','w') as csvfile:
-        csvwriter = csv.writer(csvfile, delimiter=',',
-                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        csvwriter = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
         for obs in tqdm(plan):
             for loc in grid_locations:
                 if within_fov(loc,obs["location"],np.min([settings["cross_track_ffov"],settings["along_track_ffov"]]),500): # TODO fix hardcode
@@ -506,7 +614,7 @@ def plan_satellite(satellite,settings):
                 csvwriter.writerow(row)
 
 def plan_mission(settings):
-    print("Planning mission")
+    print("--> Planning mission")
     #directory = "./missions/test_mission/orbit_data/"
     directory = settings["directory"] + "orbit_data/"
 
@@ -541,10 +649,27 @@ def plan_mission(settings):
                 satellite["orbitpy_id"] = subdir
 
         satellites.append(satellite)
-    pool = multiprocessing.Pool()
-    pool.map(partial(plan_satellite, settings=settings), satellites)
-    # for satellite in satellites:
-    #     plan_satellite(satellite,settings)
+
+
+    # satellites_with_args = [(satellite, settings, idx) for idx, satellite in enumerate(satellites)]
+    # with multiprocessing.Pool(processes=36) as pool:
+    #     list(
+    #         tqdm(
+    #             pool.starmap(plan_satellite, satellites_with_args),
+    #             total=len(satellites),
+    #             desc='Planning Satellites'
+    #         )
+    #     )
+
+    # print('--> FINISHED PLANNING')
+    # exit(0)
+
+    # pool = multiprocessing.Pool(processes=config.cores)
+    # pool.map(partial(plan_satellite, settings=settings), satellites)
+    events_seen = 0
+    for satellite in satellites:
+        plan_satellite(satellite, settings, events_seen=events_seen)
+
         
     print("Planned mission!")
 

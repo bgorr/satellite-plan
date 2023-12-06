@@ -8,6 +8,7 @@ from create_mission import create_mission
 from execute_mission import execute_mission
 from process_mission import process_mission
 from planners.BaseRL import BaseRL
+from planners.TransformerRL import TransformerRL
 from plot_mission_cartopy import plot_mission
 from planners.utils import record_results, record_json_results
 
@@ -17,19 +18,19 @@ from results.ExperimentResult import ExperimentResult
 
 def run():
     default_settings = {
-        "name": "rl_default",
+        "name": "rl_default",  #rl_default_3day
         "ffor": 60,
         "ffov": 5,
         "constellation_size": 6,
-        "agility": 1,
+        "agility": 0.5,
         "event_duration": 6 * 3600,  # 6 hours event duration (seconds)
         "event_frequency": 0.01 / 3600,  # probability event gets created at each location per time-step
-        "event_density": 10,  # points consideresd per 10 deg lat/lon grid cell
+        "event_density": 10,  # points considered per 10 deg lat/lon grid cell
         "event_clustering": 4,  # specifies clustering of points in lat/lon grid cells (var of gaussian dist)
         "planner": "rl",
         "planner_options": {
             "reobserve": "encouraged",
-            "reobserve_reward": 2
+            "reobserve_reward": 1
         },
         "reward": 0
     }
@@ -66,7 +67,9 @@ def run_experiment(experiment_settings):
     event_frequency = experiment_settings["event_frequency"]
     event_duration = experiment_settings["event_duration"]
 
-    # Generate time steps
+    # Time Steps
+    # - 10 seconds apart
+    # - mission time = 1 day (86400 seconds)
     steps = np.arange(0, simulation_duration * seconds_per_day, simulation_step_size)
 
     # ------------------------------------------------------------
@@ -162,18 +165,15 @@ def run_experiment(experiment_settings):
     # ------------------------------------------------------------
     # Planning Step
     # ------------------------------------------------------------
-    num_epochs = 1
-    # planner = RLMissionPlanner(settings)
-    planner = BaseRL(settings)
-    planner.train_planners(num_epochs=num_epochs)
+    planner = TransformerRL(settings)
+    # planner = BaseRL(settings)
+    planner.train_planners()
 
-    # plan_mission(settings)  # must come before process as process expects a plan.csv in the orbit_data directory
-    # plan_mission_replan_interval(settings)
 
     # overall_results = compute_experiment_statistics(settings)
     epoch_results = []
     result_client = ExperimentResult(settings)
-    for epoch in range(num_epochs):
+    for epoch in range(1):
         epoch_result = result_client.run(epoch)
         epoch_results.append(epoch_result)
 

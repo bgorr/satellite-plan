@@ -1,36 +1,37 @@
 import csv
 import os
 import time
-
+import json
 from run_experiment import run_experiment
 
-ffor_levels = [10,20,40,60,80]
-ffov_levels = [20,10,5,2,1]
-constellation_size_levels = [2,4,6,8,10]
-agility_levels = [10,5,1,0.1,0.01]
-event_duration_levels = [24*3600,12*3600,6*3600,3*3600,1.5*3600]
-event_frequency_levels = [1/3600,0.1/3600,0.01/3600,0.001/3600,1e-4/3600]
-event_density_levels = [1,2,5,10]
-event_clustering_levels = [1,2,4,8,16]
-reward_levels = [0.5,1,2,5,10]
-planners = ["fifo","mcts","dp","heuristic"]
+ffor_levels = [60]
+ffov_levels = [5]
+constellation_size_levels = [6]
+agility_levels = [0.5]
+event_duration_levels = [6*3600]
+event_frequency_levels = [0.01/3600]
+event_density_levels = [10]
+event_clustering_levels = [4]
+reward_levels = [1]
+# planners = ["fifo","mcts","dp","heuristic"]
+planners = ["fifo"]
 
 default_settings = {
-    "name": "reward_comparison_default",
+    "name": "def-1day-1sat",  # rl_default_3day
     "ffor": 60,
     "ffov": 5,
     "constellation_size": 6,
-    "agility": 1,
+    "agility": 0.5,  # deg / sec
     "event_duration": 6*3600,
     "event_frequency": 0.01/3600,
     "event_density": 10,
     "event_clustering": 4,
-    "planner": "heuristic",
+    "planner": "fifo",  # 2216 fifo actions for sat 1
     "planner_options": {
         "reobserve": "encouraged",
         "reobserve_reward": 2
     },
-    "reward": 10
+    "reward": 1
 }
 
 parameters = {
@@ -51,7 +52,7 @@ settings_list = []
 settings_list.append(default_settings)
 for parameter in parameters:
     for level in parameters[parameter]:
-        experiment_name = 'planner_comparison_'+str(i)
+        # experiment_name = 'rl_default'
         # already_experimented = False
         # for f in os.listdir('./missions/'):
         #     if experiment_name in f:
@@ -63,7 +64,7 @@ for parameter in parameters:
         modified_settings[parameter] = level
         if modified_settings == default_settings:
             continue
-        modified_settings["name"] = experiment_name
+        # modified_settings["name"] = experiment_name
         settings_list.append(modified_settings)
         i = i+1
         
@@ -87,16 +88,19 @@ for settings in settings_list:
     overall_results = run_experiment(settings)
     end = time.time()
     elapsed_time = end-start
-    with open('./reward_comparison.csv','a') as csvfile:
-        csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
-        row = [settings["name"],settings["ffor"],settings["ffov"],settings["constellation_size"],settings["agility"],
-            settings["event_duration"],settings["event_frequency"],settings["event_density"],settings["event_clustering"],
-            settings["planner"],settings["planner_options"]["reobserve"], settings["reward"],
-            overall_results["num_events"],overall_results["num_obs_init"],overall_results["num_obs_replan"],overall_results["num_vis"],
-            overall_results["init_results"]["event_obs_count"],overall_results["init_results"]["events_seen_once"],
-            overall_results["replan_results"]["event_obs_count"],overall_results["replan_results"]["events_seen_once"],
-            overall_results["vis_results"]["event_obs_count"],overall_results["vis_results"]["events_seen_once"],
-            elapsed_time
-        ]
-        csvwriter.writerow(row)
-        csvfile.close()
+    # with open('./reward_comparison.csv','a') as csvfile:
+    #     csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
+    #     row = [settings["name"],settings["ffor"],settings["ffov"],settings["constellation_size"],settings["agility"],
+    #         settings["event_duration"],settings["event_frequency"],settings["event_density"],settings["event_clustering"],
+    #         settings["planner"],settings["planner_options"]["reobserve"], settings["reward"],
+    #         overall_results["num_events"],overall_results["num_obs_init"],overall_results["num_obs_replan"],overall_results["num_vis"],
+    #         overall_results["init_results"]["event_obs_count"],overall_results["init_results"]["events_seen_once"],
+    #         overall_results["replan_results"]["event_obs_count"],overall_results["replan_results"]["events_seen_once"],
+    #         overall_results["vis_results"]["event_obs_count"],overall_results["vis_results"]["events_seen_once"],
+    #         elapsed_time
+    #     ]
+    #     csvwriter.writerow(row)
+    #     csvfile.close()
+
+    with open('./reward_comparison_ben.json', 'w') as f:
+        json.dump(overall_results, f, indent=4)

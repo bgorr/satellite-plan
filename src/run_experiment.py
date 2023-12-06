@@ -17,7 +17,7 @@ def run_experiment(experiment_settings):
     seconds_per_day = 86400
 
     simulation_step_size = 10    # seconds
-    simulation_duration = 1      # days
+    simulation_duration = 5      # days
     mission_name = experiment_settings["name"]
     cross_track_ffor = experiment_settings["ffor"]
     along_track_ffor = experiment_settings["ffor"]
@@ -81,6 +81,17 @@ def run_experiment(experiment_settings):
             for event in events:
                 csvwriter.writerow(event)
 
+    rec_events = []
+    event_filename = "./events/"+mission_name+"/events.csv"
+    with open(event_filename, newline='') as csv_file:
+        csvreader = csv.reader(csv_file, delimiter=',', quotechar='|')
+        i = 0
+        for row in csvreader:
+            if i < 1:
+                i = i + 1
+                continue
+            rec_events.append(row)  # lat, lon, start, duration, severity
+
     # ------------------------------------------------------------
     # Update settings / paths
     # ------------------------------------------------------------
@@ -104,7 +115,8 @@ def run_experiment(experiment_settings):
         "process_obs_only": False,
         "planner": experiment_settings["planner"],
         "planner_options": experiment_settings["planner_options"],
-        "experiment_settings": experiment_settings
+        "experiment_settings": experiment_settings,
+        "events": rec_events
     }
     if not os.path.exists(settings["directory"]):
         os.mkdir(settings["directory"])
@@ -121,9 +133,14 @@ def run_experiment(experiment_settings):
     # ------------------------------------------------------------
     # Planning Step
     # ------------------------------------------------------------
+    print('--> PLANNING:', settings["planner"])
 
     plan_mission(settings) # must come before process as process expects a plan.csv in the orbit_data directory
-    plan_mission_replan_interval(settings)
+
+
+    # plan_mission_replan_interval(settings)
+
+
     overall_results = compute_experiment_statistics(settings)
     return overall_results
 
