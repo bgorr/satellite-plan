@@ -101,7 +101,8 @@ def run_experiment_het(experiment_settings):
         "planner": experiment_settings["planner"],
         "reward": experiment_settings["reward"],
         "reward_increment": experiment_settings["reward_increment"],
-        "time_horizon": experiment_settings["time_horizon"],
+        "sharing_horizon": experiment_settings["sharing_horizon"],
+        "planning_horizon": experiment_settings["planning_horizon"],
         "reobserve_reward": experiment_settings["reobserve_reward"],
         "experiment_settings": experiment_settings
     }
@@ -114,7 +115,7 @@ def run_experiment_het(experiment_settings):
             os.mkdir(settings["directory"]+'orbit_data/')
             create_mission_het(settings)
             execute_mission(settings)
-        plan_mission(settings) # must come before process as process expects a plan.csv in the orbit_data directory
+        #plan_mission(settings) # must come before process as process expects a plan.csv in the orbit_data directory
         plan_mission_replan_interval(settings)
         plan_mission_replan_interval_het(settings)
         overall_results = compute_experiment_statistics_het(settings)
@@ -125,41 +126,44 @@ def run_experiment_het(experiment_settings):
 
 if __name__ == "__main__":
 
-    # with open('./planner_test_111323.csv','w') as csvfile:
-    #     csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
-    #     first_row = ["name","for","fov","constellation_size","agility",
-    #                 "event_duration","event_frequency","event_density","event_clustering","num_meas_types",
-    #                 "planner","reobserve_reward", "reward",
-    #                 "events","init_obs_count","replan_obs_count","replan_het_obs_count","vis_count",
-    #                 "init_event_obs_count","init_events_seen","init_event_reward","init_planner_reward","init_perc_cov","init_max_rev","init_avg_rev","init_all_perc_cov","init_all_max_rev","init_all_avg_rev",
-    #                 "replan_event_obs_count","replan_events_seen","replan_event_reward","replan_planner_reward","replan_perc_cov","replan_max_rev","replan_avg_rev","replan_all_perc_cov","replan_all_max_rev","replan_all_avg_rev",
-    #                 "replan_het_event_obs_count","replan_het_events_seen","replan_het_event_reward","replan_het_planner_reward","replan_het_perc_cov","replan_het_max_rev","replan_het_avg_rev","replan_het_all_perc_cov","replan_het_all_max_rev","replan_het_all_avg_rev",
-    #                 "vis_event_obs_count","vis_events_seen","vis_event_reward","vis_planner_reward","vis_perc_cov","vis_max_rev","vis_avg_rev","vis_all_perc_cov","vis_all_max_rev","vis_all_avg_rev",
-    #                 "time"]
-    #     csvwriter.writerow(first_row)
-    #     csvfile.close()
+    with open('./milp_test.csv','w') as csvfile:
+        csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
+        first_row = ["name","for","fov","constellation_size","agility",
+                    "event_duration","event_frequency","event_density","event_clustering","num_meas_types",
+                    "planner","reobserve_reward", "reward",
+                    "events","init_obs_count","replan_obs_count","replan_het_obs_count","vis_count",
+                    "init_event_obs_count","init_events_seen","init_event_reward","init_planner_reward","init_perc_cov","init_max_rev","init_avg_rev","init_all_perc_cov","init_all_max_rev","init_all_avg_rev",
+                    "replan_event_obs_count","replan_events_seen","replan_event_reward","replan_planner_reward","replan_perc_cov","replan_max_rev","replan_avg_rev","replan_all_perc_cov","replan_all_max_rev","replan_all_avg_rev",
+                    "replan_het_event_obs_count","replan_het_events_seen","replan_het_event_reward","replan_het_planner_reward","replan_het_perc_cov","replan_het_max_rev","replan_het_avg_rev","replan_het_all_perc_cov","replan_het_all_max_rev","replan_het_all_avg_rev",
+                    "vis_event_obs_count","vis_events_seen","vis_event_reward","vis_planner_reward","vis_perc_cov","vis_max_rev","vis_avg_rev","vis_all_perc_cov","vis_all_max_rev","vis_all_avg_rev",
+                    "time"]
+        csvwriter.writerow(first_row)
+        csvfile.close()
 
     settings = {
-        "name": "planner_test_7",
-        "ffor": 60,
+        "name": "milp_test",
+        "ffor": 10,
         "ffov": 0,
         "constellation_size": 2,
-        "agility": 1,
-        "event_duration": 3600*4,
-        "event_frequency": 0.1/3600,
-        "event_density": 10,
-        "event_clustering": 1,
-        "planner": "dp",
+        "agility": 0.1,
+        "event_duration": 3600*6,
+        "event_frequency": 0.0001/3600,
+        "event_density": 1,
+        "event_clustering": 4,
+        "planner": "milp",
         "reobserve_reward": 2,
         "num_meas_types": 3,
-        "reward": 10
+        "reward": 10,
+        "reward_increment": 0.1,
+        "sharing_horizon": 500,
+        "planning_horizon": 1000
     }
     start = time.time()
     print(settings["name"])
     overall_results = run_experiment_het(settings)
     end = time.time()
     elapsed_time = end-start
-    with open('./planner_test_111323.csv','a') as csvfile:
+    with open('./milp_test.csv','a') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
         row = [settings["name"],settings["ffor"],settings["ffov"],settings["constellation_size"],settings["agility"],
             settings["event_duration"],settings["event_frequency"],settings["event_density"],settings["event_clustering"],settings["num_meas_types"],

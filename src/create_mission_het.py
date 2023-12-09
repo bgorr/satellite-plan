@@ -16,9 +16,9 @@ def create_mission_het(settings):
     new_instrument["fieldOfViewGeometry"]["angleWidth"] = settings["cross_track_ffor"]
     r = settings["num_planes"]; # number of planes
     s = settings["num_sats_per_plane"]; # number of satellites per plane
-    altitude = 500
+    altitude = 705
     ecc = 0.0001
-    inc = 90
+    inc = 45
     argper = 0.0
     f = 1
     #initial_datetime = datetime.datetime(2020,1,1,0,0,0)

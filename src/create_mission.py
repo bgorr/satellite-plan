@@ -18,7 +18,7 @@ def create_mission(settings):
     s = settings["num_sats_per_plane"]; # number of satellites per plane
     altitude = 705
     ecc = 0.0001
-    inc = 45
+    inc = 98.2
     argper = 0.0
     f = 1
     #initial_datetime = datetime.datetime(2020,1,1,0,0,0)
@@ -68,6 +68,7 @@ def create_mission(settings):
             grid_array = [{"@type": "autogrid", "@id": 1, "latUpper":50, "latLower":-50, "lonUpper":180, "lonLower":-180, "gridRes": 2}]
         elif settings["grid_type"] == "static":
             grid_array = [{"@type": "customGrid", "covGridFilePath": "./coverage_grids/xgrants_points.csv"}]
+            #grid_array = [{"@type": "customGrid", "covGridFilePath": "./src/utils/grwl_river_output.csv"}]
         elif settings["grid_type"] == "event":
             grid_array = [{"@type": "customGrid", "covGridFilePath": settings["point_grid"]}]
         else:

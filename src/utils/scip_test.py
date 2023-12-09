@@ -13,4 +13,7 @@ from pyscipopt import Model
 
 model = Model()
 file = open("./src/utils/MILP_slew.zpl","r")
-model.readProblem("file")
+model.readProblem("./src/utils/MILP_slew.zpl")
+model.optimize()
+sol = model.getBestSol()
+model.writeBestSol("MILP_slew.sol")

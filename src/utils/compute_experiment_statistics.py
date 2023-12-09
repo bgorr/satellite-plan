@@ -20,30 +20,36 @@ def chunks(xs, n):
     n = max(1, n)
     return (xs[i:i+n] for i in range(0, len(xs), n))
 
-def compute_max_revisit_time(observations,settings):
+def compute_max_revisit_time(start,end,observations,settings):
     # only computing based on starts so that I don't have to do start/stop tracking
     # TODO stop being lazy
     start_list = []
-    start_list.append(0)
-    start_list.append(86400)
+    start_list.append(start)
+    start_list.append(end)
     for obs in observations:
         start_list.append(obs[0]*settings["step_size"])
+    start_list = np.asarray(start_list)
+    start_list = np.sort(start_list)
     gaps = []
     for i in range(len(start_list)-1):
         gaps.append(start_list[i+1]-start_list[i])
+    gaps = np.asarray(gaps)
     return np.max(gaps)
 
-def compute_avg_revisit_time(observations,settings):
+def compute_avg_revisit_time(start,end,observations,settings):
     # only computing based on starts so that I don't have to do start/stop tracking
     # TODO stop being lazy
     start_list = []
-    start_list.append(0)
-    start_list.append(86400)
+    start_list.append(start)
+    start_list.append(end)
     for obs in observations:
         start_list.append(obs[0]*settings["step_size"])
+    start_list = np.asarray(start_list)
+    start_list = np.sort(start_list)
     gaps = []
     for i in range(len(start_list)-1):
         gaps.append(start_list[i+1]-start_list[i])
+    gaps = np.asarray(gaps)
     return np.average(gaps)
 
 def compute_statistics_pieces(input):
@@ -114,16 +120,21 @@ def compute_statistics(events,obs,grid_locations,settings):
     event_count = 0
     for event in tqdm(events):
         obs_per_event = []
+        event_start = float(event[2])
+        event_end = float(event[2])+float(event[3])
         for eop in event_obs_pairs:
             if eop["event"] == event:
                 obs_per_event.append(eop["obs"])
         if len(obs_per_event) != 0:
-            max_rev_time = compute_max_revisit_time(obs_per_event,settings)
-            avg_rev_time = compute_avg_revisit_time(obs_per_event,settings)
+            max_rev_time = compute_max_revisit_time(event_start,event_end,obs_per_event,settings)
+            avg_rev_time = compute_avg_revisit_time(event_start,event_end,obs_per_event,settings)
             max_rev_time_list.append(max_rev_time)
             avg_rev_time_list.append(avg_rev_time)
             event_count += 1
-    events_perc_cov = event_count / len(events)
+    if len(events) > 0:
+        events_perc_cov = event_count / len(events)
+    else:
+        events_perc_cov = 0.0
 
     all_max_rev_time_list = []
     all_avg_rev_time_list = []
@@ -133,19 +144,26 @@ def compute_statistics(events,obs,grid_locations,settings):
         for ob in obs:
             if close_enough(ob[2],ob[3],loc[0],loc[1]):
                 obs_per_loc.append(ob)
-        max_rev_time = compute_max_revisit_time(obs_per_loc,settings)
-        avg_rev_time = compute_avg_revisit_time(obs_per_loc,settings)
+        max_rev_time = compute_max_revisit_time(0,86400,obs_per_loc,settings)
+        avg_rev_time = compute_avg_revisit_time(0,86400,obs_per_loc,settings)
         all_max_rev_time_list.append(max_rev_time)
         all_avg_rev_time_list.append(avg_rev_time)
         loc_count += 1
     locations_perc_cov = loc_count / len(grid_locations)
 
-    print("Number of event observations: "+str(all_events_count))
+    print("Number of observations: "+str(len(obs)))
     print("Number of total events: "+str(len(events)))
+    print("Number of event co-observations: "+str(all_events_count))
     print("Number of events observed at least once: "+str(np.count_nonzero(obs_per_event_list)))
     #print("Percent of events observed at least once: "+str(np.count_nonzero(obs_per_event_list)/len(events)*100)+"%")
     obs_per_event_array = np.array(obs_per_event_list)
     print("Average obs per event seen once: "+str(obs_per_event_array[np.nonzero(obs_per_event_array)].mean()))
+    if len(max_rev_time_list) > 0:
+        event_max_revisit_time = np.max(max_rev_time_list)
+        event_avg_revisit_time = np.average(avg_rev_time_list)
+    else:
+        event_max_revisit_time = 86400 # TODO replace with simulation duration
+        event_avg_revisit_time = 86400 # TODO replace with simulation duration
     results = {
         "event_obs_count": all_events_count,
         "events_seen_once": np.count_nonzero(obs_per_event_list),
@@ -153,8 +171,8 @@ def compute_statistics(events,obs,grid_locations,settings):
         "event_reward": event_reward,
         "planner_reward": planner_reward,
         "percent_coverage": events_perc_cov,
-        "event_max_revisit_time": np.max(max_rev_time_list), # max of max
-        "event_avg_revisit_time": np.average(avg_rev_time_list), # average of average
+        "event_max_revisit_time": event_max_revisit_time, # max of max
+        "event_avg_revisit_time": event_avg_revisit_time, # average of average
         "all_percent_coverage": locations_perc_cov,
         "all_max_revisit_time": np.max(all_max_rev_time_list), # max of max
         "all_avg_revisit_time": np.average(all_avg_rev_time_list) # average of average
@@ -221,7 +239,7 @@ def compute_experiment_statistics(settings):
                         observations.append(row)
                 all_initial_observations.extend(observations)
 
-            if "replan" in f and settings["planner"] in f:
+            if "replan" in f and settings["planner"] in f and "het" not in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
                     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                     observations = []
@@ -284,7 +302,7 @@ def compute_experiment_statistics(settings):
                 num_steps = len(continuous_visibilities)
                 if i == len(visibilities)-1:
                     break
-            vis_window = [start,end,visibility[3],visibility[4],visibility[-1]]
+            vis_window = [start,end,visibility[3],visibility[4],0,0,visibility[-1]] # no reward or angle associated with visibilities
             vis_windows.append(vis_window)
             for cont_vis in continuous_visibilities:
                 visibilities.remove(cont_vis)

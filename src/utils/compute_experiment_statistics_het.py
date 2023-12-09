@@ -203,6 +203,15 @@ def compute_statistics(events,obs,grid_locations,settings):
         "all_max_revisit_time": np.max(all_max_rev_time_list), # max of max
         "all_avg_revisit_time": np.average(all_avg_rev_time_list) # average of average
     }
+    coobs_list = []
+    for event_obs_pair in event_obs_pairs:
+        event = [float(x) for x in event_obs_pair["event"][:-1]]
+        coobs_list.append(event)
+    with open(settings["directory"]+'coobs_obs.csv','w') as csvfile:
+        csvwriter = csv.writer(csvfile, delimiter=',',
+                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        for obs in coobs_list:
+            csvwriter.writerow(obs)
     return results
 
 def compute_experiment_statistics_het(settings):
@@ -368,19 +377,19 @@ def compute_experiment_statistics_het(settings):
         for row in csvreader:
             grid_locations.append([float(row[0]),float(row[1])])
 
-    print("Initial event observations")
-    init_results = compute_statistics(events,all_initial_observations,grid_locations,settings)
-    print("Replan event observations")
-    replan_results = compute_statistics(events,all_replan_observations,grid_locations,settings)
-    print("Replan het event observations")
-    replan_het_results = compute_statistics(events,all_replan_het_observations,grid_locations,settings)
+    # print("Initial event observations")
+    # init_results = compute_statistics(events,all_initial_observations,grid_locations,settings)
+    # print("Replan event observations")
+    # replan_results = compute_statistics(events,all_replan_observations,grid_locations,settings)
+    # print("Replan het event observations")
+    # replan_het_results = compute_statistics(events,all_replan_het_observations,grid_locations,settings)
     print("Potential observations (visibilities)")
     vis_results = compute_statistics(events,all_visibilities,grid_locations,settings)
     overall_results = {
-        "init_results": init_results,
-        "replan_results": replan_results,
-        "replan_het_results": replan_het_results,
-        "vis_results": vis_results,
+        # "init_results": init_results,
+        # "replan_results": replan_results,
+        # "replan_het_results": replan_het_results,
+        # "vis_results": vis_results,
         "num_events": len(events),
         "num_obs_init": len(all_initial_observations),
         "num_obs_replan": len(all_replan_observations),

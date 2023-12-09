@@ -22,9 +22,9 @@ def propagate_weights(obs_list,settings):
         for k in range(len(obs_list)):
             feasible, transition_end_time = check_maneuver_feasibility(obs_list[i]["angle"],obs_list[k]["angle"],obs_list[i]["start"],obs_list[k]["end"],settings)
             if transition_end_time < obs_list[i]["start"]:
-                obs_list[i]["soonest"] = obs_list[i]["start"]
+                obs_list[i]["soonest"] = obs_list[i]["end"]
             else:
-                obs_list[i]["soonest"] = transition_end_time
+                obs_list[i]["soonest"] = obs_list[i]["end"]
             if feasible and ((rewards[i]+obs_list[k]["reward"]) > rewards[k]) and obs_list[i]["soonest"] < obs_list[k]["start"]:
                 rewards[k] = rewards[i] + obs_list[k]["reward"]
                 node_indices[k] = i
@@ -56,6 +56,21 @@ def check_maneuver_feasibility(curr_angle,obs_angle,curr_time,obs_end_time,setti
     transition_end_time = abs(obs_angle-curr_angle)/(max_slew_rate*settings["step_size"]) + curr_time
     moved = True
     return slew_rate < max_slew_rate, transition_end_time
+
+def check_maneuver_feasibility_torque(curr_angle,obs_angle,curr_time,obs_end_time,settings):
+    """
+    Checks to see if the specified angle change violates the maximum slew rate constraint.
+    """
+    # TODO add back FOV free visibility
+    if(obs_end_time==curr_time):
+        return False, False
+    obs_end_time = obs_end_time*settings["step_size"]
+    curr_time = curr_time*settings["step_size"]
+    inertia = 2.66
+    slew_torque = 4 * abs(np.deg2rad(obs_angle)-np.deg2rad(curr_angle))*inertia / pow(abs(obs_end_time-curr_time),2)
+    max_torque = 3e-4
+    transition_end_time = (np.sqrt(4 * abs(np.deg2rad(obs_angle)-np.deg2rad(curr_angle))*inertia / max_torque) + curr_time)/settings["step_size"]
+    return slew_torque < max_torque, transition_end_time
 
 def graph_search(obs_list,settings):
     rewards, node_indices = propagate_weights(obs_list,settings)
@@ -107,6 +122,7 @@ def graph_search_events_interval(planner_inputs):
     obs_list = planner_inputs["obs_list"]
     plan_start = planner_inputs["plan_start"]
     plan_end = planner_inputs["plan_end"]
+    sharing_end = planner_inputs["sharing_end"]
     settings = planner_inputs["settings"]
     orbitpy_id = planner_inputs["orbitpy_id"]
     rewards, node_indices = propagate_weights(obs_list,settings)
@@ -126,7 +142,7 @@ def graph_search_events_interval(planner_inputs):
         not_in_event = True
         for event in events:
             if close_enough(next_obs["location"]["lat"],next_obs["location"]["lon"],event["location"]["lat"],event["location"]["lon"]):
-                if (event["start"] <= next_obs["start"] <= event["end"]) or (event["start"] <= next_obs["end"] <= event["end"]):
+                if (event["start"] <= next_obs["start"] <= event["end"]) or (event["start"] <= next_obs["end"] <= event["end"]) and next_obs["end"] < sharing_end:
                     updated_reward = { 
                         "reward": event["severity"]*settings["reward"],
                         "location": next_obs["location"],
@@ -135,7 +151,7 @@ def graph_search_events_interval(planner_inputs):
                     }
                     updated_rewards.append(updated_reward)
                     not_in_event = False
-        if not_in_event:
+        if not_in_event and next_obs["end"] < sharing_end:
             updated_reward = {
                 "reward": 0.0,
                 "location": next_obs["location"],

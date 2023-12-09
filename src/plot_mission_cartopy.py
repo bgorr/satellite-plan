@@ -15,6 +15,10 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from cartopy.feature.nightshade import Nightshade
 from multiprocessing import set_start_method
+from cartopy.mpl.ticker import (LongitudeFormatter, LatitudeFormatter,
+                                LatitudeLocator, LongitudeLocator)
+from cartopy.io.shapereader import Reader
+from cartopy.feature import ShapelyFeature
 
 
 def nearest(items, pivot):
@@ -30,11 +34,28 @@ def plot_step(step_num,b):
     plt.figure(figsize=(12, 6))
     ax = plt.axes(projection=data_crs)
     ax.set_global()
-    #ax.set_extent([-150, -30, 20, 70], crs=ccrs.PlateCarree())
+    ax.set_extent([-80, -40, -20, 10], crs=ccrs.PlateCarree())
     # ax.set_xlim([-150,-30])
     # ax.set_ylim([20,70])
     x0c, x1c, y0c, y1c = ax.properties()['extent']
     ax.coastlines()
+
+    fname = './grwl_files/GRWL_summaryStats.shp'
+    shape_feature = ShapelyFeature(Reader(fname).geometries(),
+                                    ccrs.PlateCarree(), edgecolor='lightskyblue', facecolor='None', linewidth=0.5)
+    ax.add_feature(shape_feature, edgecolor='lightskyblue', facecolor='None', linewidth=0.5)
+
+    ax.yaxis.tick_right()
+    ax.set_xticks([-80,-70,-60,-50,-40], crs=ccrs.PlateCarree())
+    ax.set_yticks([-20,-10,0,10], crs=ccrs.PlateCarree())
+    lon_formatter = LongitudeFormatter(zero_direction_label=True)
+    lat_formatter = LatitudeFormatter()
+    ax.xaxis.set_major_formatter(lon_formatter)
+    ax.yaxis.set_major_formatter(lat_formatter)
+
+    gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=False,
+                    linewidth=2, color='gray', alpha=0.5, linestyle='--')
+
     #ax.stock_img()
     pos_rows = []
     with open(b["directory"]+'sat_positions/step'+str(step_num)+'.csv','r') as csvfile:
@@ -49,10 +70,10 @@ def plot_step(step_num,b):
             vis_rows.append(row)
 
     obs_rows = []
-    with open(b["directory"]+'sat_observations/step'+str(step_num)+'.csv','r') as csvfile:
-        csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
-        for row in csvreader:
-            obs_rows.append(row)
+    # with open(b["directory"]+'sat_observations/step'+str(step_num)+'.csv','r') as csvfile:
+    #     csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+    #     for row in csvreader:
+    #         obs_rows.append(row)
 
     swath_rows = []
     with open(b["directory"]+'ground_swaths/step'+str(step_num)+'.csv','r') as csvfile:
@@ -100,7 +121,7 @@ def plot_step(step_num,b):
 
     time = b["initial_datetime"]
     time += datetime.timedelta(seconds=float(b["step_size"]*step_num))
-    ax.add_feature(Nightshade(time, alpha=0.2))
+    #ax.add_feature(Nightshade(time, alpha=0.1))
 
     #ax = plt.gca()
 
@@ -207,10 +228,10 @@ def plot_step(step_num,b):
 
 
     #x, y = ax(grid_lons,grid_lats)
-    ax.scatter(grid_lons,grid_lats,2,marker='o',color='blue',transform=data_crs)
+    ax.scatter(grid_lons,grid_lats,0.5,marker='o',color='blue',transform=data_crs)
     if b["grid_type"] == "event":
         for row in event_rows:
-            plt.scatter(float(row[1]),float(row[0]),int(np.min([4*float(row[2]),10])),marker='*',color='cyan',transform=data_crs)
+            plt.scatter(float(row[1]),float(row[0]),0.5,marker='*',color='cyan',transform=data_crs)
 
     #x, y = m(past_lons,past_lats)
     ax.scatter(past_lons,past_lats,3,marker='o',color='yellow',transform=data_crs)
@@ -237,12 +258,12 @@ def plot_step(step_num,b):
         ys = [float(row[3]),float(row[1])]
         plt.plot(xs,ys,linewidth=1,color='r',transform=data_crs)
 
-    for row in past_rows:
-        if int(row[0]) > 1:
-            #x, y = m(float(row[2]),float(row[1]))
-            transform = data_crs._as_mpl_transform(ax)
-            ax.annotate(row[0], xy=(float(row[2]), float(row[1])), xycoords=transform,
-                        ha='right', va='top',fontsize=5,annotation_clip=True)
+    # for row in past_rows:
+    #     if int(row[0]) > 1:
+    #         #x, y = m(float(row[2]),float(row[1]))
+    #         transform = data_crs._as_mpl_transform(ax)
+    #         ax.annotate(str(int(int(row[0])/2)), xy=(float(row[2]), float(row[1])), xycoords=transform,
+    #                     ha='right', va='top',fontsize=5,annotation_clip=True)
 
     # for row in crosslinks:
     #     #sat1_x, sat1_y = m(float(row[3]),float(row[2]))
@@ -288,16 +309,18 @@ def plot_step(step_num,b):
 
 
     # Put a legend to the right of the current axis
-    box = ax.get_position()
-    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    # box = ax.get_position()
+    # ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
     ax.legend(loc='center left', fontsize=5, bbox_to_anchor=(1, 0.5))
     # #m.imshow(precip, origin='upper', cmap='RdYlGn_r', vmin=1, vmax=200, zorder=3)
     if b["plot_clouds"]:
         ax.imshow(clouds,transform = img_proj, origin='upper', cmap='gray',alpha=0.5)
     if b["plot_rain"]:
-        ax.imshow(precip, origin='upper', extent=[x0c, x1c, y0c, y1c], cmap=cmap, vmin=0.01*25.4, vmax=762)
+        img_extent = (-179.95,179.95, -89.95,89.95)
+        ax.imshow(precip, origin='upper', extent=img_extent, cmap=cmap, vmin=0.1*25.4, vmax=752, transform=ccrs.PlateCarree())
     
-    plt.title('Simulation state at time t='+str(step_num)+' steps')
+    plt.title('Simulation state at time t='+str(np.round(step_num*b["step_size"]/3600,2))+' hours')
+    plt.tight_layout()
     plt.savefig(filename,dpi=200)
     plt.close()
     print("Step "+str(step_num)+" complete!")
@@ -308,12 +331,13 @@ def plot_mission(settings):
     pool = multiprocessing.Pool()
     # PLOTS THE LAST 1/4th OF THE SIMULATION
     # imageio gif creation kills itself if there are too many images, is there a fix or is it just a WSL issue?
-    start_frac = 0
+    start_frac = 0.35
     end_frac = settings["plot_duration"]
     num_skip = settings["plot_interval"]
     steps = np.arange(int(np.floor(settings["duration"]*start_frac*86400/settings["step_size"])),int(np.floor(settings["duration"]*end_frac*86400/settings["step_size"])),num_skip)
     print(steps)
-    pool.map(partial(plot_step, b=settings), steps)
+    #pool.map(partial(plot_step, b=settings), steps)
+    plot_missing(settings)
     filenames = []
     for step in steps:
         filenames.append(f'{settings["plot_location"]}/frame_{step}.png')
@@ -327,27 +351,42 @@ def plot_mission(settings):
             writer.append_data(image)
     print('Gif saved\n')
 
+def plot_missing(settings):
+    if not os.path.exists(settings["directory"]+'/'):
+        os.mkdir(settings["directory"]+'/')
+    # PLOTS THE LAST 1/4th OF THE SIMULATION
+    # imageio gif creation kills itself if there are too many images, is there a fix or is it just a WSL issue?
+    start_frac = 0.35
+    end_frac = settings["plot_duration"]
+    num_skip = settings["plot_interval"]
+    steps = np.arange(int(np.floor(settings["duration"]*start_frac*86400/settings["step_size"])),int(np.floor(settings["duration"]*end_frac*86400/settings["step_size"])),num_skip)
+    print(steps)
+    for step in steps:
+        if not os.path.exists(f'{settings["directory"]}plots/frame_{step}.png'):
+            plot_step(step,settings)
+
 if __name__ == "__main__":
-    cross_track_ffor = 7.5 # deg
-    along_track_ffor = 7.5 # deg
+    cross_track_ffor = 60 # deg
+    along_track_ffor = 60 # deg
     cross_track_ffov = 0 # deg
     along_track_ffov = 0 # deg
     agility = 1 # deg/s
-    num_planes = 10
-    num_sats_per_plane = 10
+    num_planes = 6
+    num_sats_per_plane = 6
     settings = {
-        "directory": "./missions/100_sats_prelim/",
+        "directory": "./missions/agu_rain/",
         "step_size": 10,
         "duration": 1,
-        "plot_interval": 5,
-        "plot_duration": 2/24,
-        "plot_location": ".",
+        "plot_interval": 100,
+        "plot_duration": 1,
+        "plot_location": "./missions/agu_rain/plots/",
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
-        "grid_type": "uniform", # can be "event" or "static"
+        "grid_type": "event", # can be "event" or "static"
         "preplanned_observations": None,
-        "event_csvs": [],
+        "event_csvs": ["./rain_events.csv"],
+        "point_grid": "./coverage_grids/agu_rain/event_locations.csv",
         "plot_clouds": False,
-        "plot_rain": False,
+        "plot_rain": True,
         "plot_obs": True,
         "cross_track_ffor": cross_track_ffor,
         "along_track_ffor": along_track_ffor,
@@ -357,6 +396,10 @@ if __name__ == "__main__":
         "num_sats_per_plane": num_sats_per_plane,
         "agility": agility,
         "planner": "dp",
-        "process_obs_only": False
+        "process_obs_only": False,
+        "reward": 10,
+        "reobserve_reward": 0.1,
+        "sharing_horizon": 1000,
+        "planning_horizon": 1000
     }
     plot_mission(settings)

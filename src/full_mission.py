@@ -8,26 +8,27 @@ from plan_mission import plan_mission
 from plot_mission_cartopy import plot_mission
 
 def main():
-    cross_track_ffor = 60 # deg
-    along_track_ffor = 60 # deg
+    cross_track_ffor = 15 # deg
+    along_track_ffor = 15 # deg
     cross_track_ffov = 0 # deg
     along_track_ffov = 0 # deg
     agility = 1 # deg/s
-    num_planes = 5
-    num_sats_per_plane = 5
+    num_planes = 1
+    num_sats_per_plane = 1
     settings = {
-        "directory": "./missions/25_sats_prelim/",
+        "directory": "./missions/landsat_rain/",
         "step_size": 10,
         "duration": 1,
-        "plot_interval": 5,
-        "plot_duration": 2/24,
-        "plot_location": ".",
+        "plot_interval": 25,
+        "plot_duration": 0.7,
+        "plot_location": "./missions/landsat_rain/plots/",
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
-        "grid_type": "uniform", # can be "event" or "static"
+        "grid_type": "event", # can be "event" or "static"
         "preplanned_observations": None,
-        "event_csvs": [],
+        "event_csvs": ["./rain_events.csv"],
+        "point_grid": "./coverage_grids/agu_rain/event_locations.csv",
         "plot_clouds": False,
-        "plot_rain": False,
+        "plot_rain": True,
         "plot_obs": True,
         "cross_track_ffor": cross_track_ffor,
         "along_track_ffor": along_track_ffor,
@@ -37,17 +38,21 @@ def main():
         "num_sats_per_plane": num_sats_per_plane,
         "agility": agility,
         "planner": "dp",
-        "process_obs_only": False
+        "process_obs_only": False,
+        "reward": 10,
+        "reobserve_reward": 0.1,
+        "sharing_horizon": 1000,
+        "planning_horizon": 1000
     }
-    if not os.path.exists(settings["directory"]):
-        os.mkdir(settings["directory"])
-    if not os.path.exists(settings["directory"]+'orbit_data/'):
-        os.mkdir(settings["directory"]+'orbit_data/')
-    create_mission(settings)
-    execute_mission(settings)
-    if settings["preplanned_observations"] is None:
-        plan_mission(settings) # must come before process as process expects a plan.csv in the orbit_data directory
-    process_mission(settings)
+    # if not os.path.exists(settings["directory"]):
+    #     os.mkdir(settings["directory"])
+    # if not os.path.exists(settings["directory"]+'orbit_data/'):
+    #     os.mkdir(settings["directory"]+'orbit_data/')
+    # create_mission(settings)
+    # execute_mission(settings)
+    # # if settings["preplanned_observations"] is None:
+    # #     plan_mission(settings) # must come before process as process expects a plan.csv in the orbit_data directory
+    # process_mission(settings)
     plot_mission(settings)
 
 
