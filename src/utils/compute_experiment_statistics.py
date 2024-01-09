@@ -237,6 +237,13 @@ def compute_experiment_statistics(settings):
                         row = [float(i) for i in row]
                         row.append(subdir)
                         observations.append(row)
+                    unique_observations = []
+                    obs_end_times = []
+                    for obs in observations:
+                        if obs[1] not in obs_end_times:
+                            obs_end_times.append(obs[1])
+                            unique_observations.append(obs)
+                    observations = unique_observations
                 all_initial_observations.extend(observations)
 
             if "replan" in f and settings["planner"] in f and "het" not in f:
@@ -251,6 +258,13 @@ def compute_experiment_statistics(settings):
                         row = [float(i) for i in row]
                         row.append(subdir)
                         observations.append(row)
+                    unique_observations = []
+                    obs_end_times = []
+                    for obs in observations:
+                        if obs[1] not in obs_end_times:
+                            obs_end_times.append(obs[1])
+                            unique_observations.append(obs)
+                    observations = unique_observations
                 all_replan_observations.extend(observations)
 
         if settings["preplanned_observations"] is not None:
@@ -331,12 +345,12 @@ def compute_experiment_statistics(settings):
     init_results = compute_statistics(events,all_initial_observations,grid_locations,settings)
     print("Replan event observations")
     replan_results = compute_statistics(events,all_replan_observations,grid_locations,settings)
-    print("Potential observations (visibilities)")
-    vis_results = compute_statistics(events,all_visibilities,grid_locations,settings)
+    # print("Potential observations (visibilities)")
+    # vis_results = compute_statistics(events,all_visibilities,grid_locations,settings)
     overall_results = {
         "init_results": init_results,
         "replan_results": replan_results,
-        "vis_results": vis_results,
+        #"vis_results": vis_results,
         "num_events": len(events),
         "num_obs_init": len(all_initial_observations),
         "num_obs_replan": len(all_replan_observations),

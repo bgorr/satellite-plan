@@ -118,7 +118,7 @@ def run_experiment(experiment_settings):
 
 if __name__ == "__main__":
 
-    with open('./milp_test_hom.csv','w') as csvfile:
+    with open('./milp_test_hom2.csv','w') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
         first_row = ["name","for","fov","constellation_size","agility",
                     "event_duration","event_frequency","event_density","event_clustering","num_meas_types",
@@ -133,8 +133,8 @@ if __name__ == "__main__":
         csvfile.close()
 
     settings = {
-        "name": "milp_test_hom",
-        "ffor": 10,
+        "name": "milp_test_hom2",
+        "ffor": 30,
         "ffov": 0,
         "constellation_size": 6,
         "agility": 0.1,
@@ -172,7 +172,7 @@ if __name__ == "__main__":
     overall_results = run_experiment(settings)
     end = time.time()
     elapsed_time = end-start
-    with open('./milp_test_hom.csv','a') as csvfile:
+    with open('./milp_test_hom2.csv','a') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
         row = [settings["name"],settings["ffor"],settings["ffov"],settings["constellation_size"],settings["agility"],
             settings["event_duration"],settings["event_frequency"],settings["event_density"],settings["event_clustering"],settings["num_meas_types"],

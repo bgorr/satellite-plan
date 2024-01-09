@@ -19,8 +19,8 @@ def main():
         "directory": "./missions/landsat_rain/",
         "step_size": 10,
         "duration": 1,
-        "plot_interval": 25,
-        "plot_duration": 0.7,
+        "plot_interval": 10,
+        "plot_duration": 0.2,
         "plot_location": "./missions/landsat_rain/plots/",
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
         "grid_type": "event", # can be "event" or "static"

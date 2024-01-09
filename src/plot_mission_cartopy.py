@@ -1,4 +1,5 @@
 import time, calendar, datetime
+import cv2
 from functools import partial
 from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
@@ -25,7 +26,7 @@ def nearest(items, pivot):
     return min([i for i in items if i <= pivot], key=lambda x: abs(x - pivot))
 
 def plot_step(step_num,b):
-    filename = f'{b["plot_location"]}/frame_{step_num}.png'
+    filename = b["directory"]+'plots/frame_'+str(step_num).zfill(4)+'.png'
     # m = Basemap(projection='merc',llcrnrlat=-75,urcrnrlat=75,\
     #         llcrnrlon=-180,urcrnrlon=180,resolution='c')
     data_crs = ccrs.PlateCarree()
@@ -231,10 +232,10 @@ def plot_step(step_num,b):
     ax.scatter(grid_lons,grid_lats,0.5,marker='o',color='blue',transform=data_crs)
     if b["grid_type"] == "event":
         for row in event_rows:
-            plt.scatter(float(row[1]),float(row[0]),0.5,marker='*',color='cyan',transform=data_crs)
+            plt.scatter(float(row[1]),float(row[0]),5,marker='^',color='cyan',transform=data_crs)
 
     #x, y = m(past_lons,past_lats)
-    ax.scatter(past_lons,past_lats,3,marker='o',color='yellow',transform=data_crs)
+    ax.scatter(past_lons,past_lats,10,marker='o',color='magenta',transform=data_crs)
     
     for row in pos_rows:
         #x, y = ax(float(row[2]),float(row[1]))
@@ -301,17 +302,18 @@ def plot_step(step_num,b):
 
     # legend stuff
     plt.scatter([], [], c='blue',marker='o', label='Grid location')
+    plt.scatter([], [], c='cyan',marker='^', label='Event')
     plt.scatter([], [], c='orange',marker='o', label='Point in view')
-    plt.scatter([], [], c='yellow',marker='o', label='Point observed')
+    plt.scatter([], [], c='magenta',marker='o', label='Point observed')
     plt.scatter([], [], c='black',marker='^', label='Satellite')
-    plt.plot([],[], c='black', linestyle='dashed', label='Crosslink')
+    #plt.plot([],[], c='black', linestyle='dashed', label='Crosslink')
     plt.plot([],[], c='red', label='Observation')
 
 
     # Put a legend to the right of the current axis
     # box = ax.get_position()
     # ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-    ax.legend(loc='center left', fontsize=5, bbox_to_anchor=(1, 0.5))
+    ax.legend(loc='center left', fontsize=12, bbox_to_anchor=(1, 0.5))
     # #m.imshow(precip, origin='upper', cmap='RdYlGn_r', vmin=1, vmax=200, zorder=3)
     if b["plot_clouds"]:
         ax.imshow(clouds,transform = img_proj, origin='upper', cmap='gray',alpha=0.5)
@@ -331,8 +333,8 @@ def plot_mission(settings):
     pool = multiprocessing.Pool()
     # PLOTS THE LAST 1/4th OF THE SIMULATION
     # imageio gif creation kills itself if there are too many images, is there a fix or is it just a WSL issue?
-    start_frac = 0.35
-    end_frac = settings["plot_duration"]
+    start_frac = 0.3
+    end_frac = start_frac+settings["plot_duration"]
     num_skip = settings["plot_interval"]
     steps = np.arange(int(np.floor(settings["duration"]*start_frac*86400/settings["step_size"])),int(np.floor(settings["duration"]*end_frac*86400/settings["step_size"])),num_skip)
     print(steps)
@@ -340,30 +342,51 @@ def plot_mission(settings):
     plot_missing(settings)
     filenames = []
     for step in steps:
-        filenames.append(f'{settings["plot_location"]}/frame_{step}.png')
-    # print('Charts saved\n')
-    gif_name = settings["plot_location"]+'animation'
-    # Build GIF
-    print('Creating gif\n')
-    with imageio.get_writer(f'{gif_name}.gif', mode='I') as writer:
-        for filename in filenames:
-            image = imageio.imread(filename)
-            writer.append_data(image)
-    print('Gif saved\n')
+        filenames.append(settings["directory"]+'plots/frame_'+str(step).zfill(4)+'.png')
+    print('Charts saved\n')
+    # gif_name = settings["directory"]+'animation'
+    # # Build GIF
+    # print('Creating gif\n')
+    # with imageio.get_writer(f'{gif_name}.gif', mode='I') as writer:
+    #     for filename in filenames:
+    #         image = imageio.imread(filename)
+    #         writer.append_data(image)
+    # print('Gif saved\n')
+
+    # os.system("ffmpeg -f image2 -r 1/5 -i ./images/swissGenevaLake%01d.jpg -vcodec mpeg4 -y ./videos/swissGenevaLake.mp4")
+
+    image_folder = settings["directory"]+"plots/"
+    video_name = settings["directory"]+'plots/animation.mp4'
+
+    images = [img for img in os.listdir(image_folder) if img.endswith(".png")]
+    images = sorted(images)
+    frame = cv2.imread(os.path.join(image_folder, images[0]))
+    height, width, layers = frame.shape
+    fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+    video = cv2.VideoWriter(video_name, fourcc, 5, (width,height))
+
+    for filename in filenames:
+        video.write(cv2.imread(filename))
+
+    cv2.destroyAllWindows()
+    video.release()
 
 def plot_missing(settings):
     if not os.path.exists(settings["directory"]+'/'):
         os.mkdir(settings["directory"]+'/')
     # PLOTS THE LAST 1/4th OF THE SIMULATION
     # imageio gif creation kills itself if there are too many images, is there a fix or is it just a WSL issue?
-    start_frac = 0.35
-    end_frac = settings["plot_duration"]
+    start_frac = 0.3
+    end_frac = start_frac+settings["plot_duration"]
     num_skip = settings["plot_interval"]
     steps = np.arange(int(np.floor(settings["duration"]*start_frac*86400/settings["step_size"])),int(np.floor(settings["duration"]*end_frac*86400/settings["step_size"])),num_skip)
     print(steps)
+    missing_steps = []
     for step in steps:
-        if not os.path.exists(f'{settings["directory"]}plots/frame_{step}.png'):
-            plot_step(step,settings)
+        if not os.path.exists(settings["directory"]+'plots/frame_'+str(step).zfill(4)+'.png'):
+            missing_steps.append(step)
+    pool = multiprocessing.Pool()
+    pool.map(partial(plot_step, b=settings), missing_steps)
 
 if __name__ == "__main__":
     cross_track_ffor = 60 # deg
@@ -377,8 +400,8 @@ if __name__ == "__main__":
         "directory": "./missions/agu_rain/",
         "step_size": 10,
         "duration": 1,
-        "plot_interval": 100,
-        "plot_duration": 1,
+        "plot_interval": 10,
+        "plot_duration": 0.2,
         "plot_location": "./missions/agu_rain/plots/",
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
         "grid_type": "event", # can be "event" or "static"

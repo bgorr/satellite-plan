@@ -22,9 +22,9 @@ def propagate_weights(obs_list,settings):
         for k in range(len(obs_list)):
             feasible, transition_end_time = check_maneuver_feasibility(obs_list[i]["angle"],obs_list[k]["angle"],obs_list[i]["start"],obs_list[k]["end"],settings)
             if transition_end_time < obs_list[i]["start"]:
-                obs_list[i]["soonest"] = obs_list[i]["end"]
+                obs_list[i]["soonest"] = obs_list[i]["start"]
             else:
-                obs_list[i]["soonest"] = obs_list[i]["end"]
+                obs_list[i]["soonest"] = transition_end_time
             if feasible and ((rewards[i]+obs_list[k]["reward"]) > rewards[k]) and obs_list[i]["soonest"] < obs_list[k]["start"]:
                 rewards[k] = rewards[i] + obs_list[k]["reward"]
                 node_indices[k] = i
@@ -66,9 +66,11 @@ def check_maneuver_feasibility_torque(curr_angle,obs_angle,curr_time,obs_end_tim
         return False, False
     obs_end_time = obs_end_time*settings["step_size"]
     curr_time = curr_time*settings["step_size"]
+    obs_angle = 5 * round(obs_angle/5)
+    curr_angle = 5 * round(curr_angle/5)
     inertia = 2.66
     slew_torque = 4 * abs(np.deg2rad(obs_angle)-np.deg2rad(curr_angle))*inertia / pow(abs(obs_end_time-curr_time),2)
-    max_torque = 3e-4
+    max_torque = settings["agility"]
     transition_end_time = (np.sqrt(4 * abs(np.deg2rad(obs_angle)-np.deg2rad(curr_angle))*inertia / max_torque) + curr_time)/settings["step_size"]
     return slew_torque < max_torque, transition_end_time
 

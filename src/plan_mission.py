@@ -119,6 +119,39 @@ def chop_obs_list(obs_list,start,end):
             chopped_list.append(obs)
     return chopped_list
 
+def update_reward_dict(reward_dict,events,time,reward):
+    for location in reward_dict.keys():
+        events_per_location = []
+        for event in events:
+            if close_enough(location[0],location[1],event["location"]["lat"],event["location"]["lon"]):
+                events_per_location.append(event)
+        event_occurring = False
+        for event in events_per_location:
+            if (event["start"] <= time <= event["end"]):
+                event_occurring = True
+        if event_occurring:
+            reward_dict[location]["reward"] = reward
+        else:
+            reward_dict[location]["reward"] = 0
+        reward_dict[location]["last_updated"] = time
+    return reward_dict
+
+def update_reward_dict_het(reward_dict,events,time,reward,num_meas_types):
+    for location in reward_dict.keys():
+        events_per_location = []
+        for event in events:
+            if close_enough(location[0],location[1],event["location"]["lat"],event["location"]["lon"]):
+                events_per_location.append(event)
+        event_occurring = False
+        for event in events_per_location:
+            if (event["start"] <= time <= event["end"]):
+                event_occurring = True
+        if event_occurring:
+            reward_dict[location]["rewards"] = [reward] * num_meas_types
+        else:
+            reward_dict[location]["rewards"] = [0] * num_meas_types
+        reward_dict[location]["last_updated"] = time
+    return reward_dict
 
 def greedy_lemaitre_planner(obs_list,settings):
     """
@@ -586,7 +619,7 @@ def plan_mission(settings):
         satellites.append(satellite)
     if settings["planner"] == "milp":
         full_plan = []
-        num_pieces = 10
+        num_pieces = 100
         for satellite in satellites:
             obs_list = []
             i = 0
@@ -1017,6 +1050,8 @@ def plan_mission_replan_interval(settings):
         plan_interval = settings["planning_horizon"]/settings["step_size"]
         sharing_interval = settings["sharing_horizon"]/settings["step_size"]
         planner_input_list = []
+        if settings["conops"] == "perfect_info":
+            reward_dict = update_reward_dict(reward_dict,events,elapsed_plan_time,settings["reward"])
         for satellite in satellites:
             plan_start = elapsed_plan_time
             plan_end = plan_start+plan_interval
@@ -1059,31 +1094,32 @@ def plan_mission_replan_interval(settings):
         for po in planner_output_list:
             if po["updated_rewards"] is not None:
                 updated_reward_list.extend(po["updated_rewards"])
-        for updated_reward in updated_reward_list:
-            key = (np.round(updated_reward["location"]["lat"],3),np.round(updated_reward["location"]["lon"],3))
-            if key in reward_dict:
-                if updated_reward["last_updated"] > reward_dict[key]["last_updated"]:
-                    reward_dict[key]["last_updated"] = updated_reward["last_updated"]
-                    reward_dict[key]["reward"] = updated_reward["reward"]
-            else:
-                reward_dict[key] = {
-                    "last_updated": updated_reward["last_updated"],
-                    "reward": updated_reward["reward"]
-                }
-        rewards = []
-        for location in reward_dict.keys():
-            rewards.append((location[0],location[1],reward_dict[location]["reward"]))
-            reward_dict[location]["reward"] += settings["reward_increment"]
-            if (reward_dict[location]["last_updated"] + settings["experiment_settings"]["event_duration"]/settings["step_size"]) < elapsed_plan_time:
-                reward_dict[location]["last_updated"] = elapsed_plan_time
-                reward_dict[location]["reward"] = 1
-        if not os.path.exists(settings["directory"]+'reward_grids/'):
-            os.mkdir(settings["directory"]+'reward_grids/')
-        with open(settings["directory"]+'reward_grids/step_'+str(elapsed_plan_time)+'.csv','w') as csvfile:
-            csvwriter = csv.writer(csvfile, delimiter=',',
-                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
-            for reward in rewards:
-                csvwriter.writerow(reward)
+        if settings["conops"] == "onboard_processing":
+            for updated_reward in updated_reward_list:
+                key = (np.round(updated_reward["location"]["lat"],3),np.round(updated_reward["location"]["lon"],3))
+                if key in reward_dict:
+                    if updated_reward["last_updated"] > reward_dict[key]["last_updated"]:
+                        reward_dict[key]["last_updated"] = updated_reward["last_updated"]
+                        reward_dict[key]["reward"] = updated_reward["reward"]
+                else:
+                    reward_dict[key] = {
+                        "last_updated": updated_reward["last_updated"],
+                        "reward": updated_reward["reward"]
+                    }
+            rewards = []
+            for location in reward_dict.keys():
+                rewards.append((location[0],location[1],reward_dict[location]["reward"]))
+                reward_dict[location]["reward"] += settings["reward_increment"]
+                if (reward_dict[location]["last_updated"] + settings["experiment_settings"]["event_duration"]/settings["step_size"]) < elapsed_plan_time:
+                    reward_dict[location]["last_updated"] = elapsed_plan_time
+                    reward_dict[location]["reward"] = 1
+            if not os.path.exists(settings["directory"]+'reward_grids/'):
+                os.mkdir(settings["directory"]+'reward_grids/')
+            with open(settings["directory"]+'reward_grids/step_'+str(elapsed_plan_time)+'.csv','w') as csvfile:
+                csvwriter = csv.writer(csvfile, delimiter=',',
+                                    quotechar='|', quoting=csv.QUOTE_MINIMAL)
+                for reward in rewards:
+                    csvwriter.writerow(reward)
         for i in range(len(satellites)):
             full_plan = planner_output_list[i]["plan"]
             trimmed_plan = chop_obs_list(full_plan,plan_start,sharing_end)
@@ -1275,6 +1311,8 @@ def plan_mission_replan_interval_het(settings):
         plan_interval = settings["planning_horizon"]/settings["step_size"]
         sharing_interval = settings["sharing_horizon"]/settings["step_size"]
         planner_input_list = []
+        if settings["conops"] == "perfect_info":
+            reward_dict = update_reward_dict_het(reward_dict,events,elapsed_plan_time,settings["reward"],settings["experiment_settings"]["num_meas_types"])
         for satellite in satellites:
             plan_start = elapsed_plan_time
             plan_end = plan_start+plan_interval
@@ -1317,47 +1355,49 @@ def plan_mission_replan_interval_het(settings):
         for po in planner_output_list:
             if po["updated_rewards"] is not None:
                 updated_reward_list.extend(po["updated_rewards"])
-        for updated_reward in updated_reward_list:
-            key = (np.round(updated_reward["location"]["lat"],3),np.round(updated_reward["location"]["lon"],3))
-            if key in reward_dict:
-                if updated_reward["last_updated"] > reward_dict[key]["last_updated"]:
-                    reward_dict[key]["last_updated"] = updated_reward["last_updated"]
-                    for i in range(settings["experiment_settings"]["num_meas_types"]):
-                        if updated_reward["reward"] == 0:
-                            reward_dict[key]["rewards"][i] = updated_reward["reward"]
-                        elif satellite_name_dict[updated_reward["orbitpy_id"]] == i:
-                            reward_dict[key]["rewards"][i] = 0
-                            #reward_dict[key]["obs_count"][i] += 1
-                        elif reward_dict[key]["obs_count"][i] == 0:
-                            reward_dict[key]["rewards"][i] = updated_reward["reward"]
-                        else:
-                            print("???")
-            else:
-                print("Error: trying to add a new location to the reward grid.")
-        rewards = []
-        for location in reward_dict.keys():
-            rewards.append((location[0],location[1],reward_dict[location]["rewards"]))
-            reward_dict[location]["rewards"] = [x+settings["reward_increment"] for x in reward_dict[location]["rewards"]]
-            if (reward_dict[location]["last_updated"] + settings["experiment_settings"]["event_duration"]/settings["step_size"]) < elapsed_plan_time:
-                reward_dict[location]["last_updated"] = elapsed_plan_time
-                reward_dict[location]["rewards"] = [1] * settings["experiment_settings"]["num_meas_types"]
-                reward_dict[location]["obs_count"] = [0] * settings["experiment_settings"]["num_meas_types"]
-            for i in range(settings["experiment_settings"]["num_meas_types"]):
-                count = 0
-                if reward_dict[location]["obs_count"][i] > 0:
-                    reward_dict[location]["rewards"][i] = 0
-                    count += 1
-            if count == settings["experiment_settings"]["num_meas_types"]:
-                reward_dict[location]["last_updated"] = elapsed_plan_time
-                reward_dict[location]["rewards"] = [1] * settings["experiment_settings"]["num_meas_types"]
-                reward_dict[location]["obs_count"] = [0] * settings["experiment_settings"]["num_meas_types"]
-        if not os.path.exists(settings["directory"]+'reward_grids_het/'):
-            os.mkdir(settings["directory"]+'reward_grids_het/')
-        with open(settings["directory"]+'reward_grids_het/step_'+str(elapsed_plan_time)+'.csv','w') as csvfile:
-            csvwriter = csv.writer(csvfile, delimiter=',',
-                                quotechar='|', quoting=csv.QUOTE_MINIMAL)
-            for reward in rewards:
-                csvwriter.writerow(reward)
+        if settings["conops"] == "onboard_processing":
+            for updated_reward in updated_reward_list:
+                key = (np.round(updated_reward["location"]["lat"],3),np.round(updated_reward["location"]["lon"],3))
+                if key in reward_dict:
+                    if updated_reward["last_updated"] > reward_dict[key]["last_updated"]:
+                        reward_dict[key]["last_updated"] = updated_reward["last_updated"]
+                        for i in range(settings["experiment_settings"]["num_meas_types"]):
+                            if updated_reward["reward"] == 0:
+                                reward_dict[key]["rewards"][i] = updated_reward["reward"]
+                            elif satellite_name_dict[updated_reward["orbitpy_id"]] == i:
+                                reward_dict[key]["rewards"][i] = 0
+                                #reward_dict[key]["obs_count"][i] += 1
+                            elif reward_dict[key]["obs_count"][i] == 0:
+                                reward_dict[key]["rewards"][i] = updated_reward["reward"]
+                            else:
+                                print("???")
+                else:
+                    print("Error: trying to add a new location to the reward grid.")
+
+            rewards = []
+            for location in reward_dict.keys():
+                rewards.append((location[0],location[1],reward_dict[location]["rewards"]))
+                reward_dict[location]["rewards"] = [x+settings["reward_increment"] for x in reward_dict[location]["rewards"]]
+                if (reward_dict[location]["last_updated"] + settings["experiment_settings"]["event_duration"]/settings["step_size"]) < elapsed_plan_time:
+                    reward_dict[location]["last_updated"] = elapsed_plan_time
+                    reward_dict[location]["rewards"] = [1] * settings["experiment_settings"]["num_meas_types"]
+                    reward_dict[location]["obs_count"] = [0] * settings["experiment_settings"]["num_meas_types"]
+                for i in range(settings["experiment_settings"]["num_meas_types"]):
+                    count = 0
+                    if reward_dict[location]["obs_count"][i] > 0:
+                        reward_dict[location]["rewards"][i] = 0
+                        count += 1
+                if count == settings["experiment_settings"]["num_meas_types"]:
+                    reward_dict[location]["last_updated"] = elapsed_plan_time
+                    reward_dict[location]["rewards"] = [1] * settings["experiment_settings"]["num_meas_types"]
+                    reward_dict[location]["obs_count"] = [0] * settings["experiment_settings"]["num_meas_types"]
+            if not os.path.exists(settings["directory"]+'reward_grids_het/'):
+                os.mkdir(settings["directory"]+'reward_grids_het/')
+            with open(settings["directory"]+'reward_grids_het/step_'+str(elapsed_plan_time)+'.csv','w') as csvfile:
+                csvwriter = csv.writer(csvfile, delimiter=',',
+                                    quotechar='|', quoting=csv.QUOTE_MINIMAL)
+                for reward in rewards:
+                    csvwriter.writerow(reward)
         for i in range(len(satellites)):
             full_plan = planner_output_list[i]["plan"]
             trimmed_plan = chop_obs_list(full_plan,plan_start,sharing_end)
@@ -1377,7 +1417,7 @@ def plan_mission_replan_interval_het(settings):
     print("Planned mission with replans at interval (het)!")
 
 if __name__ == "__main__":
-    mission_name = "oa_het_9"
+    mission_name = "milp_test"
     cross_track_ffor = 90 # deg
     along_track_ffor = 90 # deg
     cross_track_ffov = 1 # deg
@@ -1392,13 +1432,14 @@ if __name__ == "__main__":
     event_frequency = 1e-5 # events per second
     event_duration = 21600 # second
     experiment_settings = {
+        "name": "milp_test_120923",
         "event_duration": event_duration,
         "planner": "dp",
         "reobserve_reward": 2,
         "reward": 10
     }
     settings = {
-        "directory": "./missions/grid_search_0/",
+        "directory": "./missions/milp_test/",
         "step_size": simulation_step_size,
         "duration": simulation_duration,
         "initial_datetime": datetime.datetime(2020,1,1,0,0,0),

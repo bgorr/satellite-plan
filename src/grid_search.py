@@ -11,34 +11,33 @@ experiment_num = 0
 settings_list = []
 # rewards = [5,10,50]
 # reward_increments = [0.1,0.5,1.0]
-planning_horizons = [1000,5000,10000,20000]
-sharing_horizons = [1000,5000,10000,20000]
-for planning_horizon in planning_horizons:
-    for sharing_horizon in sharing_horizons:
-        settings = {
-            "name": "grid_search_horizon2_"+str(experiment_num),
-            "ffor": 30,
-            "ffov": 0,
-            "constellation_size": 2,
-            "agility": 0.1,
-            "event_duration": 3600*4,
-            "event_frequency": 0.1/3600,
-            "event_density": 5,
-            "event_clustering": 1,
-            "planner": "dp",
-            "reobserve_reward": 2,
-            "num_meas_types": 3,
-            "reward": 10,
-            "reward_increment": 0.1,
-            "sharing_horizon": sharing_horizon,
-            "planning_horizon": planning_horizon
-        }
-        settings_list.append(settings)
-        experiment_num += 1
+event_durations = [2*3600,4*3600]
+for event_duration in event_durations:
+    settings = {
+        "name": "grid_search_010624_"+str(experiment_num),
+        "ffor": 30,
+        "ffov": 0,
+        "constellation_size": 6,
+        "agility": 0.1,
+        "event_duration": event_duration,
+        "event_frequency": 0.1/3600,
+        "event_density": 5,
+        "event_clustering": 4,
+        "planner": "dp",
+        "reobserve_reward": 2,
+        "num_meas_types": 2,
+        "reward": 10,
+        "reward_increment": 0.1,
+        "sharing_horizon": 1000,
+        "planning_horizon": 1000,
+        "conops": "onboard_processing"
+    }
+    settings_list.append(settings)
+    experiment_num += 1
 
         
 
-with open('./grid_search_112823.csv','w') as csvfile:
+with open('./grid_search_010624.csv','w') as csvfile:
     csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
     first_row = ["name","for","fov","constellation_size","agility",
                 "event_duration","event_frequency","event_density","event_clustering","num_meas_types",
@@ -53,34 +52,34 @@ with open('./grid_search_112823.csv','w') as csvfile:
     csvfile.close()
 for settings in settings_list:
     print(settings["name"])
-    if settings["name"] != "grid_search_horizon2_0":
-        mission_src = "./missions/grid_search_horizon2_0/"
-        events_src = "./events/grid_search_horizon2_0/"
-        coverage_grids_src = "./coverage_grids/grid_search_horizon2_0/"
-        mission_dst = "./missions/"+settings["name"]+"/"
-        events_dst = "./events/"+settings["name"]+"/"
-        coverage_grids_dst = "./coverage_grids/"+settings["name"]+"/"
-        try:
-            # if not os.path.exists(mission_dst):
-            #     os.makedirs(mission_dst)
-            # if not os.path.exists(events_dst):
-            #     os.makedirs(events_dst)
-            # if not os.path.exists(coverage_grids_dst):
-            #     os.makedirs(coverage_grids_dst)
-            shutil.copytree(mission_src, mission_dst)
-            shutil.copytree(events_src, events_dst)
-            shutil.copytree(coverage_grids_src, coverage_grids_dst)
-        except OSError as exc: # python >2.5
-            if exc.errno in (errno.ENOTDIR, errno.EINVAL):
-                shutil.copy(mission_src, mission_dst)
-                shutil.copy(events_src, events_dst)
-                shutil.copy(coverage_grids_src, coverage_grids_dst)
-            else: raise
+    # if settings["name"] != "grid_search_122123_0":
+    #     mission_src = "./missions/grid_search_122123_0/"
+    #     events_src = "./events/grid_search_122123_0/"
+    #     coverage_grids_src = "./coverage_grids/grid_search_122123_0/"
+    #     mission_dst = "./missions/"+settings["name"]+"/"
+    #     events_dst = "./events/"+settings["name"]+"/"
+    #     coverage_grids_dst = "./coverage_grids/"+settings["name"]+"/"
+    #     try:
+    #         # if not os.path.exists(mission_dst):
+    #         #     os.makedirs(mission_dst)
+    #         # if not os.path.exists(events_dst):
+    #         #     os.makedirs(events_dst)
+    #         # if not os.path.exists(coverage_grids_dst):
+    #         #     os.makedirs(coverage_grids_dst)
+    #         shutil.copytree(mission_src, mission_dst)
+    #         shutil.copytree(events_src, events_dst)
+    #         shutil.copytree(coverage_grids_src, coverage_grids_dst)
+    #     except OSError as exc: # python >2.5
+    #         if exc.errno in (errno.ENOTDIR, errno.EINVAL):
+    #             shutil.copy(mission_src, mission_dst)
+    #             shutil.copy(events_src, events_dst)
+    #             shutil.copy(coverage_grids_src, coverage_grids_dst)
+    #         else: raise
     start = time.time()
     overall_results = run_experiment_het(settings)
     end = time.time()
     elapsed_time = end-start
-    with open('./grid_search_112823.csv','a') as csvfile:
+    with open('./grid_search_122123.csv','a') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
         row = [settings["name"],settings["ffor"],settings["ffov"],settings["constellation_size"],settings["agility"],
             settings["event_duration"],settings["event_frequency"],settings["event_density"],settings["event_clustering"],settings["num_meas_types"],

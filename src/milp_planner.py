@@ -58,24 +58,29 @@ def milp_planner(satellites,settings):
             newfile.write(line)
         elif "Smax" in line and not "set" in line:
             tokens = line.split(" ")
-            tokens[3] = str(36)
+            tokens[3] = str(9)+";"
             line = " ".join(tokens)
-            newfile.write(line+";")
+            newfile.write(line)
         elif "Pmax" in line and not "set" in line:
             tokens = line.split(" ")
-            tokens[3] = str(13)
+            tokens[3] = str(13)+";"
             line = " ".join(tokens)
-            newfile.write(line+";")
+            newfile.write(line)
         elif "Tmax" in line and not "set" in line:
             tokens = line.split(" ")
-            tokens[3] = str(len(times))
+            tokens[3] = str(len(times))+";"
             line = " ".join(tokens)
-            newfile.write(line+";")
+            newfile.write(line)
         elif "Imax" in line and not "set" in line:
             tokens = line.split(" ")
-            tokens[3] = str(len(locations))
+            tokens[3] = str(len(locations))+";"
             line = " ".join(tokens)
-            newfile.write(line+";")
+            newfile.write(line)
+        elif "max_torque := " in line:
+            tokens = line.split(" ")
+            tokens[3] = str(settings["experiment_settings"]["agility"])+";"
+            line = " ".join(tokens)
+            newfile.write(line)
         else:
             newfile.write(line)
     file.close()
@@ -140,24 +145,29 @@ def milp_planner_interval(planner_input_list):
             newfile.write(line)
         elif "Smax" in line and not "set" in line:
             tokens = line.split(" ")
-            tokens[3] = str(36)
+            tokens[3] = str(9)+";"
             line = " ".join(tokens)
-            newfile.write(line+";")
+            newfile.write(line)
         elif "Pmax" in line and not "set" in line:
             tokens = line.split(" ")
-            tokens[3] = str(13)
+            tokens[3] = str(13)+";"
             line = " ".join(tokens)
-            newfile.write(line+";")
+            newfile.write(line)
         elif "Tmax" in line and not "set" in line:
             tokens = line.split(" ")
-            tokens[3] = str(len(times))
+            tokens[3] = str(len(times))+";"
             line = " ".join(tokens)
-            newfile.write(line+";")
+            newfile.write(line)
         elif "Imax" in line and not "set" in line:
             tokens = line.split(" ")
-            tokens[3] = str(len(locations))
+            tokens[3] = str(len(locations))+";"
             line = " ".join(tokens)
-            newfile.write(line+";")
+            newfile.write(line)
+        elif "max_torque := " in line:
+            tokens = line.split(" ")
+            tokens[3] = str(settings["experiment_settings"]["agility"])+";"
+            line = " ".join(tokens)
+            newfile.write(line)
         else:
             newfile.write(line)
     file.close()

@@ -104,6 +104,7 @@ def run_experiment_het(experiment_settings):
         "sharing_horizon": experiment_settings["sharing_horizon"],
         "planning_horizon": experiment_settings["planning_horizon"],
         "reobserve_reward": experiment_settings["reobserve_reward"],
+        "conops":  experiment_settings["conops"],
         "experiment_settings": experiment_settings
     }
     just_recomputing = False
@@ -115,7 +116,7 @@ def run_experiment_het(experiment_settings):
             os.mkdir(settings["directory"]+'orbit_data/')
             create_mission_het(settings)
             execute_mission(settings)
-        #plan_mission(settings) # must come before process as process expects a plan.csv in the orbit_data directory
+        plan_mission(settings) # must come before process as process expects a plan.csv in the orbit_data directory
         plan_mission_replan_interval(settings)
         plan_mission_replan_interval_het(settings)
         overall_results = compute_experiment_statistics_het(settings)
