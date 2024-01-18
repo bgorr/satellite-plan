@@ -9,8 +9,6 @@ from run_experiment_het import run_experiment_het
 
 experiment_num = 0
 settings_list = []
-# rewards = [5,10,50]
-# reward_increments = [0.1,0.5,1.0]
 event_durations = [2*3600,4*3600]
 for event_duration in event_durations:
     settings = {
@@ -52,38 +50,15 @@ with open('./grid_search_010624.csv','w') as csvfile:
     csvfile.close()
 for settings in settings_list:
     print(settings["name"])
-    # if settings["name"] != "grid_search_122123_0":
-    #     mission_src = "./missions/grid_search_122123_0/"
-    #     events_src = "./events/grid_search_122123_0/"
-    #     coverage_grids_src = "./coverage_grids/grid_search_122123_0/"
-    #     mission_dst = "./missions/"+settings["name"]+"/"
-    #     events_dst = "./events/"+settings["name"]+"/"
-    #     coverage_grids_dst = "./coverage_grids/"+settings["name"]+"/"
-    #     try:
-    #         # if not os.path.exists(mission_dst):
-    #         #     os.makedirs(mission_dst)
-    #         # if not os.path.exists(events_dst):
-    #         #     os.makedirs(events_dst)
-    #         # if not os.path.exists(coverage_grids_dst):
-    #         #     os.makedirs(coverage_grids_dst)
-    #         shutil.copytree(mission_src, mission_dst)
-    #         shutil.copytree(events_src, events_dst)
-    #         shutil.copytree(coverage_grids_src, coverage_grids_dst)
-    #     except OSError as exc: # python >2.5
-    #         if exc.errno in (errno.ENOTDIR, errno.EINVAL):
-    #             shutil.copy(mission_src, mission_dst)
-    #             shutil.copy(events_src, events_dst)
-    #             shutil.copy(coverage_grids_src, coverage_grids_dst)
-    #         else: raise
     start = time.time()
     overall_results = run_experiment_het(settings)
     end = time.time()
     elapsed_time = end-start
     with open('./grid_search_122123.csv','a') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
-        row = [settings["name"],settings["ffor"],settings["ffov"],settings["constellation_size"],settings["agility"],
-            settings["event_duration"],settings["event_frequency"],settings["event_density"],settings["event_clustering"],settings["num_meas_types"],
-            settings["planner"],settings["reobserve_reward"], settings["reward"], settings["reward_increment"], settings["sharing_horizon"], settings["planning_horizon"],
+        row = [settings["name"],settings["instrument"]["ffor"],settings["instrument"]["ffov"],settings["constellation"]["num_planes"],settings["agility"]["max_slew_rate"],
+            settings["events"]["event_duration"],settings["events"]["event_frequency"],settings["events"]["event_density"],settings["events"]["event_clustering"],settings["num_meas_types"],
+            settings["planner"],settings["rewards"]["reobserve_reward"], settings["rewards"]["reward"], settings["rewards"]["reward_increment"], settings["sharing_horizon"], settings["planning_horizon"], 
             overall_results["num_events"],
             overall_results["init_results"]["event_obs_count"],overall_results["init_results"]["events_seen_once"],overall_results["init_results"]["event_reward"],overall_results["init_results"]["planner_reward"],overall_results["init_results"]["percent_coverage"],overall_results["init_results"]["event_max_revisit_time"],overall_results["init_results"]["event_avg_revisit_time"],overall_results["init_results"]["all_percent_coverage"],overall_results["init_results"]["all_max_revisit_time"],overall_results["init_results"]["all_avg_revisit_time"],
             overall_results["replan_results"]["event_obs_count"],overall_results["replan_results"]["events_seen_once"],overall_results["replan_results"]["event_reward"],overall_results["replan_results"]["planner_reward"],overall_results["replan_results"]["percent_coverage"],overall_results["replan_results"]["event_max_revisit_time"],overall_results["replan_results"]["event_avg_revisit_time"],overall_results["replan_results"]["all_percent_coverage"],overall_results["replan_results"]["all_max_revisit_time"],overall_results["replan_results"]["all_avg_revisit_time"],

@@ -14,7 +14,7 @@ def close_enough(lat0,lon0,lat1,lon1):
         return False
 
 def milp_planner(satellites,settings):
-    prefix = settings["experiment_settings"]["name"]
+    prefix = settings["name"]
     access_file = "./"+prefix+"_milp_accesses.csv"
     input_filename = "./"+prefix+"_milp_input.zpl"
     output_filename = "./"+prefix+"_milp_output.sol"
@@ -24,7 +24,7 @@ def milp_planner(satellites,settings):
     for satellite in satellites:
         for obs in satellite["obs_list"]:
             locations.add((obs["location"]["lat"]/180*np.pi,obs["location"]["lon"]/180*np.pi))
-            times.add(obs["end"]*settings["step_size"])
+            times.add(obs["end"]*settings["time"]["step_size"])
     times = list(times)
     locations = list(locations)
     rows = []
@@ -35,7 +35,7 @@ def milp_planner(satellites,settings):
             boundaries = np.linspace(0,30*np.pi/180,6)
             p = np.searchsorted(boundaries, abs(obs["angle"])/180*np.pi)+7
             i = locations.index((obs["location"]["lat"]/180*np.pi,obs["location"]["lon"]/180*np.pi))+1
-            t = times.index(obs["end"]*settings["step_size"])+1
+            t = times.index(obs["end"]*settings["time"]["step_size"])+1
             row = [satellite["orbitpy_id"], obs["location"]["lat"]/180*np.pi, obs["location"]["lon"]/180*np.pi, obs["start"], obs["end"], abs(obs["angle"])/180*np.pi, obs["reward"], s,p,i,t,obs2] # sat,lat,lon,rise_time,set_time,incidence_angle,reward,s,p,i,t,obs
             rows.append(row)
         s += 1
@@ -78,7 +78,7 @@ def milp_planner(satellites,settings):
             newfile.write(line)
         elif "max_torque := " in line:
             tokens = line.split(" ")
-            tokens[3] = str(settings["experiment_settings"]["agility"])+";"
+            tokens[3] = str(settings["agility"]["max_torque"])+";"
             line = " ".join(tokens)
             newfile.write(line)
         else:
@@ -94,7 +94,7 @@ def milp_planner(satellites,settings):
 
 def milp_planner_interval(planner_input_list):
     settings = planner_input_list[0]["settings"]
-    prefix = settings["experiment_settings"]["name"]
+    prefix = settings["name"]
     access_file = "./"+prefix+"_milp_accesses.csv"
     input_filename = "./"+prefix+"_milp_input.zpl"
     output_filename = "./"+prefix+"_milp_output.sol"
@@ -111,7 +111,7 @@ def milp_planner_interval(planner_input_list):
         sharing_end = planner_input["sharing_end"]
         for obs in planner_input["obs_list"]:
             locations.add((obs["location"]["lat"]/180*np.pi,obs["location"]["lon"]/180*np.pi))
-            times.add(obs["end"]*settings["step_size"])
+            times.add(obs["end"]*settings["time"]["step_size"])
     times = list(times)
     locations = list(locations)
     rows = []
@@ -122,7 +122,7 @@ def milp_planner_interval(planner_input_list):
             boundaries = np.linspace(0,30*np.pi/180,6)
             p = np.searchsorted(boundaries, abs(obs["angle"])/180*np.pi)+7
             i = locations.index((obs["location"]["lat"]/180*np.pi,obs["location"]["lon"]/180*np.pi))+1
-            t = times.index(obs["end"]*settings["step_size"])+1
+            t = times.index(obs["end"]*settings["time"]["step_size"])+1
             row = [planner_input["orbitpy_id"], obs["location"]["lat"]/180*np.pi, obs["location"]["lon"]/180*np.pi, obs["start"], obs["end"], abs(obs["angle"])/180*np.pi, obs["reward"], s,p,i,t,obs2] # sat,lat,lon,rise_time,set_time,incidence_angle,reward,s,p,i,t,obs
             rows.append(row)
         s += 1
@@ -165,7 +165,7 @@ def milp_planner_interval(planner_input_list):
             newfile.write(line)
         elif "max_torque := " in line:
             tokens = line.split(" ")
-            tokens[3] = str(settings["experiment_settings"]["agility"])+";"
+            tokens[3] = str(settings["agility"]["max_torque"])+";"
             line = " ".join(tokens)
             newfile.write(line)
         else:
@@ -205,7 +205,7 @@ def milp_planner_interval(planner_input_list):
                 if close_enough(next_obs["location"]["lat"],next_obs["location"]["lon"],event["location"]["lat"],event["location"]["lon"]):
                     if (event["start"] <= next_obs["start"] <= event["end"]) or (event["start"] <= next_obs["end"] <= event["end"]) and next_obs["end"] < sharing_end:
                         updated_reward = { 
-                            "reward": event["severity"]*settings["reward"],
+                            "reward": event["severity"]*settings["rewards"]["reward"],
                             "location": next_obs["location"],
                             "last_updated": curr_time,
                             "orbitpy_id": satellite

@@ -27,7 +27,7 @@ def compute_max_revisit_time(start,end,observations,settings):
     start_list.append(start)
     start_list.append(end)
     for obs in observations:
-        start_list.append(obs[0]*settings["step_size"])
+        start_list.append(obs[0]*settings["time"]["step_size"])
     start_list = np.asarray(start_list)
     start_list = np.sort(start_list)
     gaps = []
@@ -43,7 +43,7 @@ def compute_avg_revisit_time(start,end,observations,settings):
     start_list.append(start)
     start_list.append(end)
     for obs in observations:
-        start_list.append(obs[0]*settings["step_size"])
+        start_list.append(obs[0]*settings["time"]["step_size"])
     start_list = np.asarray(start_list)
     start_list = np.sort(start_list)
     gaps = []
@@ -62,8 +62,8 @@ def compute_statistics_pieces(input):
     cumulative_event_reward = 0
     cumulative_plan_reward = 0
     obs_per_event_list = []
-    event_duration = settings["experiment_settings"]["event_duration"]
-    ss = settings["step_size"]
+    event_duration = settings["events"]["event_duration"]
+    ss = settings["time"]["step_size"]
     for event in events:
         measurements_str : str = event[5]
         measurements_str = measurements_str.replace('[','')
@@ -81,7 +81,7 @@ def compute_statistics_pieces(input):
                 if ((float(event[2])/ss) < obs[0] < (float(event[2])/ss+float(event[3])/ss)) or ((float(event[2])/ss) < obs[1] < (float(event[2])/ss+float(event[3])/ss)):
                     obss.append(obs)
                     obs_per_event += 1
-                    cumulative_plan_reward += settings["experiment_settings"]["reward"]
+                    cumulative_plan_reward += settings["rewards"]["reward"]
                     if satellite_name_dict[obs[6]] in measurements:
                         measurements.remove(satellite_name_dict[obs[6]])
 
@@ -106,14 +106,14 @@ def compute_statistics_pieces(input):
 
 def compute_statistics(events,obs,grid_locations,settings):
     satellite_name_dict = {}
-    for i in range(settings["num_sats_per_plane"]*settings["num_planes"]):
-        if i < settings["num_sats_per_plane"]*settings["num_planes"]/settings["experiment_settings"]["num_meas_types"]:
+    for i in range(settings["constellation"]["num_sats_per_plane"]*settings["constellation"]["num_planes"]):
+        if i < settings["constellation"]["num_sats_per_plane"]*settings["constellation"]["num_planes"]/settings["num_meas_types"]:
             meas_type = "0"
-        elif i < 2*settings["num_sats_per_plane"]*settings["num_planes"]/settings["experiment_settings"]["num_meas_types"]:
+        elif i < 2*settings["constellation"]["num_sats_per_plane"]*settings["constellation"]["num_planes"]/settings["num_meas_types"]:
             meas_type = "1"
-        elif i < 3*settings["num_sats_per_plane"]*settings["num_planes"]/settings["experiment_settings"]["num_meas_types"]:
+        elif i < 3*settings["constellation"]["num_sats_per_plane"]*settings["constellation"]["num_planes"]/settings["num_meas_types"]:
             meas_type = "2"
-        elif i < 4*settings["num_sats_per_plane"]*settings["num_planes"]/settings["experiment_settings"]["num_meas_types"]:
+        elif i < 4*settings["constellation"]["num_sats_per_plane"]*settings["constellation"]["num_planes"]/settings["num_meas_types"]:
             meas_type = "3"
         satellite_name_dict["sat"+str(i)] = meas_type
     obs.sort(key=lambda obs: obs[0])
@@ -406,58 +406,53 @@ def compute_experiment_statistics_het(settings):
     return overall_results
 
 def main():
-    experiment_settings = {
-        "name": "grid_search_0",
-        "ffor": 30,
-        "ffov": 0,
-        "constellation_size": 2,
-        "agility": 0.1,
-        "event_duration": 3600*4,
-        "event_frequency": 0.1/3600,
-        "event_density": 5,
-        "event_clustering": 1,
-        "planner": "dp",
-        "reobserve_reward": 2,
-        "num_meas_types": 3,
-        "reward": 10,
-        "reward_increment": 0.1,
-        "time_horizon": 1000
-    }
-    mission_name = experiment_settings["name"]
-    cross_track_ffor = experiment_settings["ffor"]
-    along_track_ffor = experiment_settings["ffor"]
-    cross_track_ffov = experiment_settings["ffov"]
-    along_track_ffov = experiment_settings["ffov"] # TODO carefully consider this assumption
-    agility = experiment_settings["agility"]
-    num_planes = experiment_settings["constellation_size"]
-    num_sats_per_plane = experiment_settings["constellation_size"]
-    var = experiment_settings["event_clustering"]
-    num_points_per_cell = experiment_settings["event_density"]
-    event_frequency = experiment_settings["event_frequency"]
-    event_duration = experiment_settings["event_duration"]
-    num_meas_types = experiment_settings["num_meas_types"]
-    simulation_step_size = 10 # seconds
-    simulation_duration = 1 # days
+    name = "compute_exp_stats_het"
     settings = {
-        "directory": "./missions/"+mission_name+"/",
-        "step_size": simulation_step_size,
-        "duration": simulation_duration,
-        "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
+        "name": name,
+        "instrument": {
+            "ffor": 30,
+            "ffov": 0
+        },
+        "agility": {
+            "slew_constraint": "rate",
+            "max_slew_rate": 0.1
+        },
+        "orbit": {
+            "altitude": 705, # km
+            "inclination": 98.4, # deg
+            "eccentricity": 0.0001,
+            "argper": 0, # deg
+        },
+        "constellation": {
+            "num_sats_per_plane": 6,
+            "num_planes": 6,
+            "phasing_parameter": 1
+        },
+        "events": {
+            "event_duration": 3600*6,
+            "event_frequency": 0.01/3600,
+            "event_density": 2,
+            "event_clustering": 4
+        },
+        "time": {
+            "step_size": 10, # seconds
+            "duration": 1, # days
+            "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
+        },
+        "rewards": {
+            "reward": 10,
+            "reward_increment": 0.1,
+        },
+        "planner": "milp",
+        "num_meas_types": 3,
+        "sharing_horizon": 1000,
+        "planning_horizon": 1000,
+        "directory": "./missions/"+name+"/",
         "grid_type": "event", # can be "event" or "static"
-        "point_grid": "./coverage_grids/"+mission_name+"/event_locations.csv",
+        "point_grid": "./coverage_grids/"+name+"/event_locations.csv",
         "preplanned_observations": None,
-        "event_csvs": ["./events/"+mission_name+"/events.csv"],
-        "cross_track_ffor": cross_track_ffor,
-        "along_track_ffor": along_track_ffor,
-        "cross_track_ffov": cross_track_ffov,
-        "along_track_ffov": along_track_ffov,
-        "num_planes": num_planes,
-        "num_sats_per_plane": num_sats_per_plane,
-        "agility": agility,
+        "event_csvs": ["./events/"+name+"/events.csv"],
         "process_obs_only": False,
-        "planner": experiment_settings["planner"],
-        "reward": experiment_settings["reward"],
-        "experiment_settings": experiment_settings
     }
     overall_results = compute_experiment_statistics_het(settings)
     print(overall_results)

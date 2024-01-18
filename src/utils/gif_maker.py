@@ -42,7 +42,7 @@ settings = {
 }
 start_frac = 0
 num_skip = settings["plot_interval"]
-steps = np.arange(int(np.floor(settings["duration"]*start_frac*86400/settings["step_size"])),int(np.floor(settings["duration"]*86400*settings["plot_duration"]/settings["step_size"])),num_skip)
+steps = np.arange(int(np.floor(settings["time"]["duration"]*start_frac*86400/settings["time"]["step_size"])),int(np.floor(settings["time"]["duration"]*86400*settings["plot_duration"]/settings["time"]["step_size"])),num_skip)
 filenames = []
 for step in steps:
     filenames.append(f'{settings["plot_location"]}/frame_{step}.png')

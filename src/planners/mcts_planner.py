@@ -1,11 +1,6 @@
 import numpy as np
 import random
-
-def close_enough(lat0,lon0,lat1,lon1):
-    if np.sqrt((lat0-lat1)**2+(lon0-lon1)**2) < 0.01:
-        return True
-    else:
-        return False
+from utils.planning_utils import close_enough, get_action_space
 
 class monte_carlo_tree_search():
     def __init__(self):
@@ -58,7 +53,7 @@ class monte_carlo_tree_search():
             result_list.append(best_sap)
             state = self.transition_function(state,best_action)
             print(dict(state)["time"])
-            more_actions = len(self.get_action_space(settings,state,self.obs_list)) != 0
+            more_actions = len(get_action_space(settings,state,self.obs_list)) != 0
         planned_obs_list = []
         for result in result_list:
             result = dict(result[1])
@@ -110,7 +105,7 @@ class monte_carlo_tree_search():
                 if close_enough(next_obs["location"]["lat"],next_obs["location"]["lon"],event["location"]["lat"],event["location"]["lon"]):
                     if (event["start"] <= next_obs["start"] <= event["end"]) or (event["start"] <= next_obs["end"] <= event["end"]):
                         updated_reward = { 
-                            "reward": event["severity"]*sim_settings["reward"],
+                            "reward": event["severity"]*sim_settings["rewards"]["reward"],
                             "location": next_obs["location"],
                             "last_updated": state["time"]
                         }
@@ -120,7 +115,7 @@ class monte_carlo_tree_search():
                             "updated_reward": updated_reward
                         }
                         return planner_outputs
-            more_actions = len(self.get_action_space(settings,state,self.obs_list)) != 0
+            more_actions = len(get_action_space(settings,state,self.obs_list)) != 0
         planner_outputs = {
             "plan": mcts_plan,
             "end_time": plan_end,
@@ -184,12 +179,12 @@ class monte_carlo_tree_search():
                 if close_enough(next_obs["location"]["lat"],next_obs["location"]["lon"],event["location"]["lat"],event["location"]["lon"]):
                     if (event["start"] <= next_obs["start"] <= event["end"]) or (event["start"] <= next_obs["end"] <= event["end"]):
                         updated_reward = { 
-                            "reward": event["severity"]*settings["reward"],
+                            "reward": event["severity"]*settings["rewards"]["reward"],
                             "location": next_obs["location"],
                             "last_updated": dict(state)["time"]
                         }
                         updated_rewards.append(updated_reward)
-            more_actions = len(self.get_action_space(settings,state,self.obs_list)) != 0
+            more_actions = len(get_action_space(settings,state,self.obs_list)) != 0
             if dict(state)["time"] > plan_end:
                 break
         planner_outputs = {
@@ -198,39 +193,6 @@ class monte_carlo_tree_search():
             "updated_rewards": updated_rewards
         }
         return planner_outputs
-    
-    def check_maneuver_feasibility(self,curr_angle,obs_angle,curr_time,obs_end_time,settings):
-        """
-        Checks to see if the specified angle change violates the maximum slew rate constraint.
-        """
-        moved = False
-        # TODO add back FOV free visibility
-        if(obs_end_time==curr_time):
-            return False, False
-        slew_rate = abs(obs_angle-curr_angle)/abs(obs_end_time-curr_time)/self.sim_settings["step_size"]
-        max_slew_rate = self.sim_settings["agility"] # deg / s
-        #slewTorque = 4 * abs(np.deg2rad(new_angle)-np.deg2rad(curr_angle))*0.05 / pow(abs(new_time-curr_time),2)
-        #maxTorque = 4e-3
-        transition_end_time = abs(obs_angle-curr_angle)/(max_slew_rate*self.sim_settings["step_size"]) + curr_time
-        moved = True
-        return slew_rate < max_slew_rate, transition_end_time
-
-    def get_action_space(self,settings,state,obs_list):
-        action_list = []
-        i = 0
-        state = dict(state)
-        while len(action_list) < settings["action_space_size"] and i < len(obs_list):
-            feasible = False
-            if obs_list[i]["start"] > state["time"]:
-                feasible, transition_end_time = self.check_maneuver_feasibility(state["angle"],obs_list[i]["angle"],state["time"],obs_list[i]["end"],settings)
-                if transition_end_time < obs_list[i]["start"]:
-                    obs_list[i]["soonest"] = obs_list[i]["start"]
-                else:
-                    obs_list[i]["soonest"] = transition_end_time
-            if feasible:
-                action_list.append(obs_list[i])
-            i = i+1
-        return action_list
 
     def transition_function(self,state,action):
         action = dict(action)
@@ -252,7 +214,7 @@ class monte_carlo_tree_search():
             selected_action = dict(selected_action)
             reward = selected_action["reward"]
             new_state = self.transition_function(state,selected_action)
-            return (reward + self.rollout(settings,new_state,self.get_action_space(settings,new_state,obs_list),obs_list,(d-1)) * np.power(settings["gamma"],selected_action["start"]-state["time"]))
+            return (reward + self.rollout(settings,new_state,get_action_space(settings,new_state,obs_list),obs_list,(d-1)) * np.power(settings["gamma"],selected_action["start"]-state["time"]))
 
     def simulate(self,settings,state,d,obs_list):
         if d == 0:
@@ -262,7 +224,7 @@ class monte_carlo_tree_search():
             if state == v[0]:
                 state_in_v = True
         if not state_in_v:
-            action_space = self.get_action_space(settings,state,obs_list)
+            action_space = get_action_space(settings,state,obs_list)
             if action_space is None:
                 return 0
             for action in action_space:
@@ -276,7 +238,7 @@ class monte_carlo_tree_search():
         max = 0.0
         best_action = None
         n_sum = 0
-        for action in self.get_action_space(settings,state,obs_list):
+        for action in get_action_space(settings,state,obs_list):
             sap = (state, tuple(sorted(action.items())))
             n_sum += self.NQ[sap]["n_val"]
         for sap in self.NQ.keys():

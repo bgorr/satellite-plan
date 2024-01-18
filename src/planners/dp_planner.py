@@ -1,7 +1,7 @@
 import numpy as np
 import random
 from tqdm import tqdm
-
+from utils.planning_utils import check_maneuver_feasibility
 
 V = []
 NQ = []
@@ -41,39 +41,6 @@ def extract_path(obs_list,rewards,node_indices):
     plan = reversed(reverse_plan)
     return plan
 
-def check_maneuver_feasibility(curr_angle,obs_angle,curr_time,obs_end_time,settings):
-    """
-    Checks to see if the specified angle change violates the maximum slew rate constraint.
-    """
-    moved = False
-    # TODO add back FOV free visibility
-    if(obs_end_time==curr_time):
-        return False, False
-    slew_rate = abs(obs_angle-curr_angle)/abs(obs_end_time-curr_time)/settings["step_size"]
-    max_slew_rate = settings["agility"] # deg / s
-    #slewTorque = 4 * abs(np.deg2rad(new_angle)-np.deg2rad(curr_angle))*0.05 / pow(abs(new_time-curr_time),2)
-    #maxTorque = 4e-3
-    transition_end_time = abs(obs_angle-curr_angle)/(max_slew_rate*settings["step_size"]) + curr_time
-    moved = True
-    return slew_rate < max_slew_rate, transition_end_time
-
-def check_maneuver_feasibility_torque(curr_angle,obs_angle,curr_time,obs_end_time,settings):
-    """
-    Checks to see if the specified angle change violates the maximum slew rate constraint.
-    """
-    # TODO add back FOV free visibility
-    if(obs_end_time==curr_time):
-        return False, False
-    obs_end_time = obs_end_time*settings["step_size"]
-    curr_time = curr_time*settings["step_size"]
-    obs_angle = 5 * round(obs_angle/5)
-    curr_angle = 5 * round(curr_angle/5)
-    inertia = 2.66
-    slew_torque = 4 * abs(np.deg2rad(obs_angle)-np.deg2rad(curr_angle))*inertia / pow(abs(obs_end_time-curr_time),2)
-    max_torque = settings["agility"]
-    transition_end_time = (np.sqrt(4 * abs(np.deg2rad(obs_angle)-np.deg2rad(curr_angle))*inertia / max_torque) + curr_time)/settings["step_size"]
-    return slew_torque < max_torque, transition_end_time
-
 def graph_search(obs_list,settings):
     rewards, node_indices = propagate_weights(obs_list,settings)
     plan = extract_path(obs_list,rewards,node_indices)
@@ -102,7 +69,7 @@ def graph_search_events(planner_inputs):
             if close_enough(next_obs["location"]["lat"],next_obs["location"]["lon"],event["location"]["lat"],event["location"]["lon"]):
                 if (event["start"] <= next_obs["start"] <= event["end"]) or (event["start"] <= next_obs["end"] <= event["end"]):
                     updated_reward = { 
-                        "reward": event["severity"]*settings["reward"],
+                        "reward": event["severity"]*settings["rewards"]["reward"],
                         "location": next_obs["location"],
                         "last_updated": curr_time 
                     }
@@ -146,7 +113,7 @@ def graph_search_events_interval(planner_inputs):
             if close_enough(next_obs["location"]["lat"],next_obs["location"]["lon"],event["location"]["lat"],event["location"]["lon"]):
                 if (event["start"] <= next_obs["start"] <= event["end"]) or (event["start"] <= next_obs["end"] <= event["end"]) and next_obs["end"] < sharing_end:
                     updated_reward = { 
-                        "reward": event["severity"]*settings["reward"],
+                        "reward": event["severity"]*settings["rewards"]["reward"],
                         "location": next_obs["location"],
                         "last_updated": curr_time,
                         "orbitpy_id": orbitpy_id

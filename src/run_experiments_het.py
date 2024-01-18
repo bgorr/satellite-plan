@@ -49,12 +49,6 @@ settings_list.append(default_settings)
 for parameter in parameters:
     for level in parameters[parameter]:
         experiment_name = 'het_experiment_fixed_num_'+str(i)
-        # already_experimented = False
-        # for f in os.listdir('./missions/'):
-        #     if experiment_name in f:
-        #         already_experimented = True
-        # if already_experimented:
-        #     continue
         modified_settings = default_settings.copy()
         modified_settings[parameter] = level
         if modified_settings == default_settings:
@@ -63,9 +57,6 @@ for parameter in parameters:
         settings_list.append(modified_settings)
         i = i+1
         
-
-
-#overall_results = run_experiment(default_settings)
 with open('./experiment_results_het_101023.csv','w') as csvfile:
     csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
     first_row = ["name","for","fov","constellation_size","agility",
@@ -86,9 +77,9 @@ for settings in settings_list:
     elapsed_time = end-start
     with open('./experiment_results_het_101023.csv','a') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
-        row = [settings["name"],settings["ffor"],settings["ffov"],settings["constellation_size"],settings["agility"],
-            settings["event_duration"],settings["event_frequency"],settings["event_density"],settings["event_clustering"],settings["num_event_types"],
-            settings["planner"],settings["reobserve_reward"],settings["reward"],
+        row = [settings["name"],settings["instrument"]["ffor"],settings["instrument"]["ffov"],settings["constellation"]["num_planes"],settings["agility"]["max_slew_rate"],
+            settings["events"]["event_duration"],settings["events"]["event_frequency"],settings["events"]["event_density"],settings["events"]["event_clustering"],settings["num_meas_types"],
+            settings["planner"],settings["rewards"]["reobserve_reward"], settings["rewards"]["reward"],
             overall_results["num_events"],overall_results["num_obs_init"],overall_results["num_obs_replan"],overall_results["num_vis"],
             overall_results["init_results"]["event_obs_count"],overall_results["init_results"]["events_seen_once"],overall_results["init_results"]["event_reward"],overall_results["init_results"]["planner_reward"],overall_results["init_results"]["percent_coverage"],overall_results["init_results"]["event_max_revisit_time"],overall_results["init_results"]["event_avg_revisit_time"],overall_results["init_results"]["all_percent_coverage"],overall_results["init_results"]["all_max_revisit_time"],overall_results["init_results"]["all_avg_revisit_time"],
             overall_results["replan_results"]["event_obs_count"],overall_results["replan_results"]["events_seen_once"],overall_results["replan_results"]["event_reward"],overall_results["replan_results"]["planner_reward"],overall_results["replan_results"]["percent_coverage"],overall_results["replan_results"]["event_max_revisit_time"],overall_results["replan_results"]["event_avg_revisit_time"],overall_results["replan_results"]["all_percent_coverage"],overall_results["replan_results"]["all_max_revisit_time"],overall_results["replan_results"]["all_avg_revisit_time"],

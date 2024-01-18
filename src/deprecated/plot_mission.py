@@ -263,7 +263,7 @@ def plot_mission(settings):
     # PLOTS THE LAST 1/4th OF THE SIMULATION
     # imageio gif creation kills itself if there are too many images, is there a fix or is it just a WSL issue?
     start_frac = 0
-    steps = np.arange(int(np.floor(settings["duration"]*start_frac*86400/settings["step_size"])),int(np.floor(settings["duration"]*86400/settings["step_size"])),2)
+    steps = np.arange(int(np.floor(settings["time"]["duration"]*start_frac*86400/settings["time"]["step_size"])),int(np.floor(settings["time"]["duration"]*86400/settings["time"]["step_size"])),2)
     pool.map(partial(plot_step, b=settings), steps)
     filenames = []
     for step in steps:

@@ -4,39 +4,20 @@ import numpy as np
 import csv
 import time
 
-from create_mission_het import create_mission_het
+from create_mission import create_mission
 from execute_mission import execute_mission
 from plan_mission import plan_mission, plan_mission_replan_interval, plan_mission_replan_interval_het
 from utils.compute_experiment_statistics_het import compute_experiment_statistics_het
 
-def run_experiment_het(experiment_settings):
-    # mission_name = "experiment2"
-    # cross_track_ffor = 60 # deg
-    # along_track_ffor = 60 # deg
-    # cross_track_ffov = 10 # deg
-    # along_track_ffov = 10 # deg
-    # agility = 1 # deg/s
-    # num_planes = 4
-    # num_sats_per_plane = 4
-    # var = 5 # deg lat/lon
-    # num_points_per_cell = 10
-    simulation_step_size = 10 # seconds
-    simulation_duration = 1 # days
-    # event_frequency = 0.001/3600 # events per hour
-    # event_duration = 3600*6 # second
-    mission_name = experiment_settings["name"]
-    cross_track_ffor = experiment_settings["ffor"]
-    along_track_ffor = experiment_settings["ffor"]
-    cross_track_ffov = experiment_settings["ffov"]
-    along_track_ffov = experiment_settings["ffov"] # TODO carefully consider this assumption
-    agility = experiment_settings["agility"]
-    num_planes = 6
-    num_sats_per_plane = 6
-    var = experiment_settings["event_clustering"]
-    num_points_per_cell = experiment_settings["event_density"]
-    event_frequency = experiment_settings["event_frequency"]
-    event_duration = experiment_settings["event_duration"]
-    num_meas_types = experiment_settings["num_meas_types"]
+def run_experiment_het(settings):
+    simulation_duration = settings["time"]["duration"]
+    simulation_step_size= settings["time"]["step_size"]
+    mission_name = settings["name"]
+    var = settings["events"]["event_clustering"]
+    num_points_per_cell = settings["events"]["event_density"]
+    event_frequency = settings["events"]["event_frequency"]
+    event_duration = settings["events"]["event_duration"]
+    num_meas_types = settings["num_meas_types"]
     steps = np.arange(0,simulation_duration*86400,simulation_step_size)
     if not os.path.exists("./coverage_grids/"+mission_name+"/event_locations.csv"):
         event_locations = []
@@ -81,53 +62,22 @@ def run_experiment_het(experiment_settings):
             for event in events:
                 csvwriter.writerow(event)
 
-    settings = {
-        "directory": "./missions/"+mission_name+"/",
-        "step_size": simulation_step_size,
-        "duration": simulation_duration,
-        "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
-        "grid_type": "event", # can be "event" or "static"
-        "point_grid": "./coverage_grids/"+mission_name+"/event_locations.csv",
-        "preplanned_observations": None,
-        "event_csvs": ["./events/"+mission_name+"/events.csv"],
-        "cross_track_ffor": cross_track_ffor,
-        "along_track_ffor": along_track_ffor,
-        "cross_track_ffov": cross_track_ffov,
-        "along_track_ffov": along_track_ffov,
-        "num_planes": num_planes,
-        "num_sats_per_plane": num_sats_per_plane,
-        "agility": agility,
-        "process_obs_only": False,
-        "planner": experiment_settings["planner"],
-        "reward": experiment_settings["reward"],
-        "reward_increment": experiment_settings["reward_increment"],
-        "sharing_horizon": experiment_settings["sharing_horizon"],
-        "planning_horizon": experiment_settings["planning_horizon"],
-        "reobserve_reward": experiment_settings["reobserve_reward"],
-        "conops":  experiment_settings["conops"],
-        "experiment_settings": experiment_settings
-    }
-    just_recomputing = False
-    if not just_recomputing:
-        if not os.path.exists(settings["directory"]):
-            os.mkdir(settings["directory"])
-            
-        if not os.path.exists(settings["directory"]+'orbit_data/'):
-            os.mkdir(settings["directory"]+'orbit_data/')
-            create_mission_het(settings)
-            execute_mission(settings)
-        plan_mission(settings) # must come before process as process expects a plan.csv in the orbit_data directory
-        plan_mission_replan_interval(settings)
-        plan_mission_replan_interval_het(settings)
-        overall_results = compute_experiment_statistics_het(settings)
-    else:
-        overall_results = compute_experiment_statistics_het(settings)
+    if not os.path.exists(settings["directory"]):
+        os.mkdir(settings["directory"])
+    if not os.path.exists(settings["directory"]+'orbit_data/'):
+        os.mkdir(settings["directory"]+'orbit_data/')
+        create_mission(settings)
+        execute_mission(settings)
+    plan_mission(settings) # must come before process as process expects a plan.csv in the orbit_data directory
+    plan_mission_replan_interval(settings)
+    plan_mission_replan_interval_het(settings)
+    overall_results = compute_experiment_statistics_het(settings)
     return overall_results
 
 
 if __name__ == "__main__":
 
-    with open('./milp_test.csv','w') as csvfile:
+    with open('./test_het.csv','w') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
         first_row = ["name","for","fov","constellation_size","agility",
                     "event_duration","event_frequency","event_density","event_clustering","num_meas_types",
@@ -141,34 +91,68 @@ if __name__ == "__main__":
         csvwriter.writerow(first_row)
         csvfile.close()
 
+    name = "test_het"
     settings = {
-        "name": "milp_test",
-        "ffor": 10,
-        "ffov": 0,
-        "constellation_size": 2,
-        "agility": 0.1,
-        "event_duration": 3600*6,
-        "event_frequency": 0.0001/3600,
-        "event_density": 1,
-        "event_clustering": 4,
-        "planner": "milp",
-        "reobserve_reward": 2,
+        "name": name,
+        "instrument": {
+            "ffor": 30,
+            "ffov": 0
+        },
+        "agility": {
+            "slew_constraint": "rate",
+            "max_slew_rate": 0.1,
+            "inertia": 2.66,
+            "max_torque": 4e-3
+        },
+        "orbit": {
+            "altitude": 705, # km
+            "inclination": 98.4, # deg
+            "eccentricity": 0.0001,
+            "argper": 0, # deg
+        },
+        "constellation": {
+            "num_sats_per_plane": 3,
+            "num_planes": 3,
+            "phasing_parameter": 1
+        },
+        "events": {
+            "event_duration": 3600*6,
+            "event_frequency": 0.01/3600,
+            "event_density": 2,
+            "event_clustering": 4
+        },
+        "time": {
+            "step_size": 10, # seconds
+            "duration": 0.1, # days
+            "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
+        },
+        "rewards": {
+            "reward": 10,
+            "reward_increment": 0.1,
+            "reobserve_reward": 2
+        },
+        "planner": "dp",
         "num_meas_types": 3,
-        "reward": 10,
-        "reward_increment": 0.1,
-        "sharing_horizon": 500,
-        "planning_horizon": 1000
+        "sharing_horizon": 1000,
+        "planning_horizon": 1000,
+        "directory": "./missions/"+name+"/",
+        "grid_type": "custom", # can be "uniform" or "custom"
+        "point_grid": "./coverage_grids/"+name+"/event_locations.csv",
+        "preplanned_observations": None,
+        "event_csvs": ["./events/"+name+"/events.csv"],
+        "process_obs_only": False,
+        "conops": "onboard_processing"
     }
     start = time.time()
     print(settings["name"])
     overall_results = run_experiment_het(settings)
     end = time.time()
     elapsed_time = end-start
-    with open('./milp_test.csv','a') as csvfile:
+    with open('./test_het.csv','a') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
-        row = [settings["name"],settings["ffor"],settings["ffov"],settings["constellation_size"],settings["agility"],
-            settings["event_duration"],settings["event_frequency"],settings["event_density"],settings["event_clustering"],settings["num_meas_types"],
-            settings["planner"],settings["reobserve_reward"], settings["reward"],
+        row = [settings["name"],settings["instrument"]["ffor"],settings["instrument"]["ffov"],settings["constellation"]["num_planes"],settings["agility"]["max_slew_rate"],
+            settings["events"]["event_duration"],settings["events"]["event_frequency"],settings["events"]["event_density"],settings["events"]["event_clustering"],settings["num_meas_types"],
+            settings["planner"],settings["rewards"]["reobserve_reward"], settings["rewards"]["reward"],
             overall_results["num_events"],overall_results["num_obs_init"],overall_results["num_obs_replan"],overall_results["num_obs_replan_het"],overall_results["num_vis"],
             overall_results["init_results"]["event_obs_count"],overall_results["init_results"]["events_seen_once"],overall_results["init_results"]["event_reward"],overall_results["init_results"]["planner_reward"],overall_results["init_results"]["percent_coverage"],overall_results["init_results"]["event_max_revisit_time"],overall_results["init_results"]["event_avg_revisit_time"],overall_results["init_results"]["all_percent_coverage"],overall_results["init_results"]["all_max_revisit_time"],overall_results["init_results"]["all_avg_revisit_time"],
             overall_results["replan_results"]["event_obs_count"],overall_results["replan_results"]["events_seen_once"],overall_results["replan_results"]["event_reward"],overall_results["replan_results"]["planner_reward"],overall_results["replan_results"]["percent_coverage"],overall_results["replan_results"]["event_max_revisit_time"],overall_results["replan_results"]["event_avg_revisit_time"],overall_results["replan_results"]["all_percent_coverage"],overall_results["replan_results"]["all_max_revisit_time"],overall_results["replan_results"]["all_avg_revisit_time"],

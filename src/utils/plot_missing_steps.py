@@ -15,7 +15,7 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from cartopy.feature.nightshade import Nightshade
 from multiprocessing import set_start_method
-from src.plot_mission_cartopy import plot_step
+from src.plot_mission import plot_step
 
 def plot_missing(settings):
     if not os.path.exists(settings["directory"]+'/'):
@@ -24,7 +24,7 @@ def plot_missing(settings):
     # imageio gif creation kills itself if there are too many images, is there a fix or is it just a WSL issue?
     start_frac = 0
     num_skip = settings["plot_interval"]
-    steps = np.arange(int(np.floor(settings["duration"]*start_frac*86400/settings["step_size"])),int(np.floor(settings["duration"]*86400*settings["plot_duration"]/settings["step_size"])),num_skip)
+    steps = np.arange(int(np.floor(settings["time"]["duration"]*start_frac*86400/settings["time"]["step_size"])),int(np.floor(settings["time"]["duration"]*86400*settings["plot_duration"]/settings["time"]["step_size"])),num_skip)
     for step in steps:
         if not os.path.exists(f'{settings["plot_location"]}/frame_{step}.png'):
             plot_step(step,settings)

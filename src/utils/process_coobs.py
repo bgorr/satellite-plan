@@ -17,8 +17,8 @@ def process_coobs(settings):
             row = [float(i) for i in row[0:6]]
             coobs.append(row)
 
-    timestep = settings["step_size"]
-    duration = settings["duration"]*86400
+    timestep = settings["time"]["step_size"]
+    duration = settings["time"]["duration"]*86400
     steps = np.arange(0,duration,timestep,dtype=int)
     if not os.path.exists(base_directory+'coobs'):
         os.mkdir(base_directory+'coobs')
@@ -81,21 +81,5 @@ if __name__ == "__main__":
         "reobserve_reward": 2,
         "sharing_horizon": 1000,
         "planning_horizon": 1000,
-        "experiment_settings": {
-            "ffor": 60,
-            "ffov": 0,
-            "constellation_size": 6,
-            "agility": 1,
-            "event_duration": 4*3600,
-            "event_frequency": 0.1/3600,
-            "event_density": 10,
-            "event_clustering": 16,
-            "planner": "dp",
-            "reobserve_reward": 2,
-            "num_meas_types": 3,
-            "reward": 10,
-            "reward_increment": 0.1,
-            "time_horizon": 1000
-        }
     }
     process_coobs(settings)

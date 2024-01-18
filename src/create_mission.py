@@ -12,21 +12,21 @@ def create_mission(settings):
 
     ### SETTINGS ### TODO: move to a config json?
 
-    new_instrument["fieldOfViewGeometry"]["angleHeight"] = settings["along_track_ffor"]
-    new_instrument["fieldOfViewGeometry"]["angleWidth"] = settings["cross_track_ffor"]
-    r = settings["num_planes"]; # number of planes
-    s = settings["num_sats_per_plane"]; # number of satellites per plane
-    altitude = 705
-    ecc = 0.0001
-    inc = 98.2
-    argper = 0.0
-    f = 1
+    new_instrument["fieldOfViewGeometry"]["angleHeight"] = settings["instrument"]["ffor"]
+    new_instrument["fieldOfViewGeometry"]["angleWidth"] = settings["instrument"]["ffor"]
+    r = settings["constellation"]["num_planes"]; # number of planes
+    s = settings["constellation"]["num_sats_per_plane"]; # number of satellites per plane
+    altitude = settings["orbit"]["altitude"]
+    ecc = settings["orbit"]["eccentricity"]
+    inc = settings["orbit"]["inclination"]
+    argper = settings["orbit"]["argper"]
+    f = settings["constellation"]["phasing_parameter"]
     #initial_datetime = datetime.datetime(2020,1,1,0,0,0)
     #duration = 0.1 # days
     #step_size = 10 # seconds
-    initial_datetime = settings["initial_datetime"]
-    step_size = settings["step_size"]
-    duration = settings["duration"]
+    initial_datetime = settings["time"]["initial_datetime"]
+    step_size = settings["time"]["step_size"]
+    duration = settings["time"]["duration"]
     directory = settings["directory"]
 
     ### END SETTINGS ###
@@ -66,10 +66,7 @@ def create_mission(settings):
         mission_dict = json.load(scenario_specs)
         if settings["grid_type"] == "uniform":
             grid_array = [{"@type": "autogrid", "@id": 1, "latUpper":50, "latLower":-50, "lonUpper":180, "lonLower":-180, "gridRes": 2}]
-        elif settings["grid_type"] == "static":
-            grid_array = [{"@type": "customGrid", "covGridFilePath": "./coverage_grids/xgrants_points.csv"}]
-            #grid_array = [{"@type": "customGrid", "covGridFilePath": "./src/utils/grwl_river_output.csv"}]
-        elif settings["grid_type"] == "event":
+        elif settings["grid_type"] == "custom":
             grid_array = [{"@type": "customGrid", "covGridFilePath": settings["point_grid"]}]
         else:
             print("Invalid grid type")

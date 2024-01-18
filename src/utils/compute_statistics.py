@@ -360,8 +360,8 @@ with open(event_filename,newline='') as csv_file:
         if i < 1:
             i=i+1
             continue
-        row[2] = float(row[2])/settings["step_size"]
-        row[3] = float(row[3])/settings["step_size"]
+        row[2] = float(row[2])/settings["time"]["step_size"]
+        row[3] = float(row[3])/settings["time"]["step_size"]
         events.append(row)
 
 print("Actual observations")

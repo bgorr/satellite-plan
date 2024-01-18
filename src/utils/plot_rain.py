@@ -178,7 +178,7 @@ def plot_mission(settings):
     # imageio gif creation kills itself if there are too many images, is there a fix or is it just a WSL issue?
     start_frac = 0
     num_skip = 100
-    steps = np.arange(int(np.floor(settings["duration"]*start_frac*86400/settings["step_size"])),int(np.floor(settings["duration"]*86400/settings["step_size"])),num_skip)
+    steps = np.arange(int(np.floor(settings["time"]["duration"]*start_frac*86400/settings["time"]["step_size"])),int(np.floor(settings["time"]["duration"]*86400/settings["time"]["step_size"])),num_skip)
     # print(steps)
     #pool.map(partial(plot_step, b=settings), steps)
     plot_missing(settings)
@@ -202,7 +202,7 @@ def plot_missing(settings):
     # imageio gif creation kills itself if there are too many images, is there a fix or is it just a WSL issue?
     start_frac = 0
     num_skip = 100
-    steps = np.arange(int(np.floor(settings["duration"]*start_frac*86400/settings["step_size"])),int(np.floor(settings["duration"]*86400/settings["step_size"])),num_skip)
+    steps = np.arange(int(np.floor(settings["time"]["duration"]*start_frac*86400/settings["time"]["step_size"])),int(np.floor(settings["time"]["duration"]*86400/settings["time"]["step_size"])),num_skip)
     print(steps)
     for step in steps:
         if not os.path.exists(f'{settings["directory"]}plots/frame_{step}.png'):
@@ -211,8 +211,8 @@ def plot_missing(settings):
 
 def process_mission(settings):
     base_directory = settings["directory"]
-    timestep = settings["step_size"]
-    duration = settings["duration"]*86400
+    timestep = settings["time"]["step_size"]
+    duration = settings["time"]["duration"]*86400
     steps = np.arange(0,duration,timestep,dtype=int)
     if not os.path.exists(base_directory+'events'):
         os.mkdir(base_directory+'events')
@@ -230,7 +230,7 @@ def process_mission(settings):
                     events.append(row)
         for i in range(len(steps)):            
             events_per_step = []
-            step_time = i*settings["step_size"] 
+            step_time = i*settings["time"]["step_size"] 
             for event in events:
                 if event[2] <= step_time and step_time <= (event[2]+event[3]):
                     event_per_step = [event[0],event[1],event[4]] # lat, lon, start, duration, severity
