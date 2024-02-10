@@ -17,6 +17,24 @@ def get_action_space(curr_time,curr_angle,obs_list,last_obs,settings):
             break
     return feasible_actions
 
+def get_action_space_kg(curr_time,curr_angle,obs_list,last_obs,settings,):
+    feasible_actions = []
+    for obs in obs_list:
+        if last_obs is not None and obs["location"]["lat"] == last_obs["location"]["lat"]:
+            continue
+        if obs["start"] > curr_time:
+            feasible, transition_end_time = check_maneuver_feasibility(curr_angle,np.min(obs["angles"]),curr_time,obs["end"],settings)
+            if transition_end_time < obs["start"]:
+                obs["soonest"] = obs["start"]
+            else:
+                obs["soonest"] = transition_end_time
+            if feasible:
+                feasible_actions.append(obs)
+        if len(feasible_actions) > 10: # THIS IS NOT A GOOD IDEA BUT SHOULD HELP RUNTIME TODO
+            break
+    return feasible_actions
+
+
 def check_maneuver_feasibility(curr_angle,obs_angle,curr_time,obs_end_time,settings):
     """
     Checks to see if the specified angle change violates the maximum slew rate constraint.

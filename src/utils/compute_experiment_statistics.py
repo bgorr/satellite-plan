@@ -41,7 +41,7 @@ def compute_avg_revisit_time(start,end,observations,settings):
     # TODO stop being lazy
     start_list = []
     start_list.append(start)
-    start_list.append(end)
+    start_list.append(end)  
     for obs in observations:
         start_list.append(obs[0]*settings["time"]["step_size"])
     start_list = np.asarray(start_list)
@@ -166,7 +166,11 @@ def compute_statistics(events,obs,grid_locations,settings):
         event_avg_revisit_time = 86400 # TODO replace with simulation duration
     results = {
         "event_obs_count": all_events_count,
-        "events_seen_once": np.count_nonzero(obs_per_event_list),
+        "events_seen_at_least_once": np.count_nonzero(obs_per_event_list),
+        "events_seen_once": np.count_nonzero(np.asarray(obs_per_event_list) == 1),
+        "events_seen_twice": np.count_nonzero(np.asarray(obs_per_event_list) == 2),
+        "events_seen_thrice": np.count_nonzero(np.asarray(obs_per_event_list) == 3),
+        "events_seen_fourplus": np.count_nonzero(np.asarray(obs_per_event_list) > 3),
         "events_seen_once_average": obs_per_event_array[np.nonzero(obs_per_event_array)].mean(),
         "event_reward": event_reward,
         "planner_reward": planner_reward,
@@ -185,7 +189,8 @@ def compute_experiment_statistics(settings):
     satellites = []
     all_initial_observations = []
     all_replan_observations = []
-    all_visibilities = []
+    all_oracle_observations = []
+    #all_visibilities = []
 
 
     for subdir in os.listdir(directory):
@@ -227,15 +232,11 @@ def compute_experiment_statistics(settings):
                 satellite["visibilities"] = visibilities
                 #all_visibilities.extend(visibilities)
 
-            if "plan" in f and not "replan" in f and settings["planner"] in f:
+            if "init" in f and settings["planner"] in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
                     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                     observations = []
-                    i = 0
                     for row in spamreader:
-                        if i < 1:
-                            i=i+1
-                            continue
                         row = [float(i) for i in row]
                         row.append(subdir)
                         observations.append(row)
@@ -248,15 +249,11 @@ def compute_experiment_statistics(settings):
                     observations = unique_observations
                 all_initial_observations.extend(observations)
 
-            if "replan" in f and settings["planner"] in f and "het" not in f:
+            if "replan" in f and settings["planner"] in f and "het" not in f and "oracle" not in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
                     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                     observations = []
-                    i = 0
                     for row in spamreader:
-                        if i < 1:
-                            i=i+1
-                            continue
                         row = [float(i) for i in row]
                         row.append(subdir)
                         observations.append(row)
@@ -269,6 +266,22 @@ def compute_experiment_statistics(settings):
                     observations = unique_observations
                 all_replan_observations.extend(observations)
 
+            if "oracle" in f and settings["planner"] in f and "het" not in f:
+                with open(directory+subdir+"/"+f,newline='') as csv_file:
+                    spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
+                    observations = []
+                    for row in spamreader:
+                        row = [float(i) for i in row]
+                        row.append(subdir)
+                        observations.append(row)
+                    unique_observations = []
+                    obs_end_times = []
+                    for obs in observations:
+                        if obs[1] not in obs_end_times:
+                            obs_end_times.append(obs[1])
+                            unique_observations.append(obs)
+                    observations = unique_observations
+                all_oracle_observations.extend(observations)
         if settings["preplanned_observations"] is not None:
             with open(settings["preplanned_observations"],newline='') as csv_file:
                 csvreader = csv.reader(csv_file, delimiter=',', quotechar='|')
@@ -286,44 +299,43 @@ def compute_experiment_statistics(settings):
 
         if "orbitpy_id" in satellite:
             satellites.append(satellite)
-
-    all_visibilities = []
-    for satellite in satellites:
-        vis_windows = []
-        i = 0
-        visibilities = satellite["visibilities"]
-        while i < len(visibilities):
-            continuous_visibilities = []
-            visibility = visibilities[i]
-            continuous_visibilities.append(visibility)
-            start = visibility[0]
-            end = visibility[0]
-            while(i < len(visibilities)-1 and visibilities[i+1][0] == start):
-                i += 1
-            vis_done = False
-            if i == len(visibilities)-1:
-                break
-            while not vis_done:
-                vis_done = True
-                num_steps = len(continuous_visibilities)
-                while visibilities[i+1][0] == start+num_steps:
-                    if visibilities[i+1][1] == visibility[1]:
-                        continuous_visibilities.append(visibilities[i+1])
-                        end = visibilities[i+1][0]
-                        vis_done = False
-                    if i == len(visibilities)-2:
-                        break
-                    else:
-                        i += 1
-                num_steps = len(continuous_visibilities)
-                if i == len(visibilities)-1:
-                    break
-            vis_window = [start,end,visibility[3],visibility[4],0,0,visibility[-1]] # no reward or angle associated with visibilities
-            vis_windows.append(vis_window)
-            for cont_vis in continuous_visibilities:
-                visibilities.remove(cont_vis)
-            i = 0
-        all_visibilities.extend(vis_windows)
+    # all_visibilities = []
+    # for satellite in satellites:
+    #     vis_windows = []
+    #     i = 0
+    #     visibilities = satellite["visibilities"]
+    #     while i < len(visibilities):
+    #         continuous_visibilities = []
+    #         visibility = visibilities[i]
+    #         continuous_visibilities.append(visibility)
+    #         start = visibility[0]
+    #         end = visibility[0]
+    #         while(i < len(visibilities)-1 and visibilities[i+1][0] == start):
+    #             i += 1
+    #         vis_done = False
+    #         if i == len(visibilities)-1:
+    #             break
+    #         while not vis_done:
+    #             vis_done = True
+    #             num_steps = len(continuous_visibilities)
+    #             while visibilities[i+1][0] == start+num_steps:
+    #                 if visibilities[i+1][1] == visibility[1]:
+    #                     continuous_visibilities.append(visibilities[i+1])
+    #                     end = visibilities[i+1][0]
+    #                     vis_done = False
+    #                 if i == len(visibilities)-2:
+    #                     break
+    #                 else:
+    #                     i += 1
+    #             num_steps = len(continuous_visibilities)
+    #             if i == len(visibilities)-1:
+    #                 break
+    #         vis_window = [start,end,visibility[3],visibility[4],0,0,visibility[-1]] # no reward or angle associated with visibilities
+    #         vis_windows.append(vis_window)
+    #         for cont_vis in continuous_visibilities:
+    #             visibilities.remove(cont_vis)
+    #         i = 0
+    #     all_visibilities.extend(vis_windows)
 
     events = []
     event_filename = settings["event_csvs"][0]
@@ -347,16 +359,18 @@ def compute_experiment_statistics(settings):
     init_results = compute_statistics(events,all_initial_observations,grid_locations,settings)
     print("Replan event observations")
     replan_results = compute_statistics(events,all_replan_observations,grid_locations,settings)
-    print("Potential observations (visibilities)")
-    vis_results = compute_statistics(events,all_visibilities,grid_locations,settings)
+    print("Oracle event observations")
+    oracle_results = compute_statistics(events,all_oracle_observations,grid_locations,settings)
+    # print("Potential observations (visibilities)")
+    # vis_results = compute_statistics(events,all_visibilities,grid_locations,settings)
     overall_results = {
         "init_results": init_results,
         "replan_results": replan_results,
-        "vis_results": vis_results,
+        "oracle_results": oracle_results,
         "num_events": len(events),
         "num_obs_init": len(all_initial_observations),
         "num_obs_replan": len(all_replan_observations),
-        "num_vis": len(all_visibilities)
+        "num_obs_oracle": len(all_oracle_observations)
     }
     return overall_results
 

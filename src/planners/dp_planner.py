@@ -1,10 +1,88 @@
 import numpy as np
 import random
+import sys
 from tqdm import tqdm
 from utils.planning_utils import check_maneuver_feasibility
 
+sys.path.append('/home/ben/repos/UKGE/UKGE')
+sys.path.append('/home/ben/repos/UKGE/UKGE/src')
+import testers
+
 V = []
 NQ = []
+
+def filter_obs_list_kg(obs_list,sat_id):
+    print("Filtering obs list with kg")
+    instruments = ['AIRS','OLI','OLCI','DORIS-NG','DESIS','EMIT','NIRST','POSEIDON-3C Altimeter','PSA']
+    instrument = instruments[int(sat_id[3:])]
+    filtered_obs_list = []
+    for obs in tqdm(obs_list):
+        parameter = obs["parameter"]
+        if query_KG(instrument,parameter):
+            filtered_obs_list.append(obs)
+    return filtered_obs_list
+
+def filter_obs_list_ukge(obs_list,sat_id,settings):
+    print("Filtering obs list with ukge")
+    instruments = ['AIRS','OLI','OLCI','DORIS-NG','DESIS','EMIT','NIRST','POSEIDON-3C Altimeter','PSA']
+    instrument = instruments[int(sat_id[3:])]
+    filtered_obs_list = []
+    for obs in tqdm(obs_list):
+        parameter = obs["parameter"]
+        print(settings["ukge_threshold"])
+        if query_UKGE(instrument,parameter) > settings["ukge_threshold"]:
+            filtered_obs_list.append(obs)
+    return filtered_obs_list
+
+def query_KG(instrument, parameter):
+    in_kg = False
+    with open("/home/ben/repos/UKGE/KG raw data/prob_kg.csv", "r") as kg_file:
+        for line in kg_file.readlines():
+            line.rstrip()
+            tokens = line.split(",")
+            if instrument == tokens[0] and "OBSERVES" == tokens[1] and parameter == tokens[2]:
+                in_kg = True
+                break
+    return in_kg
+
+def query_UKGE(instrument, parameter):
+    model_dir = '/home/ben/repos/UKGE/UKGE/trained_models/3D_CHESS/rect_1030/'
+    data_filename = 'data.bin'
+    model_filename = 'model.bin'
+    validator = testers.UKGE_rect_Tester()
+    relation_name = 'OBSERVES'
+    instrument_id = None
+    parameter_id = None
+    relation_id = None
+    with open("/home/ben/repos/UKGE/KG processed data/en2id.txt", "r") as entity_file:
+        for line in entity_file.readlines():
+            line.rstrip()
+            tokens = line.split("\t")
+            if instrument == tokens[0]:
+                instrument_id = tokens[1].rstrip()
+            if parameter == tokens[0]:
+                parameter_id = tokens[1].rstrip()
+    with open("/home/ben/repos/UKGE/KG processed data/rel2id.txt", "r") as relation_file:
+        for line in relation_file:
+            line.rstrip()
+            tokens = line.split("\t")
+            if relation_name == tokens[0]:
+                relation_id = tokens[1].rstrip()
+    if instrument_id is None or parameter_id is None or relation_id is None:
+        print(instrument_id)
+        print(parameter_id)
+        print(relation_id)
+        print("invalid query")
+        exit()
+    new_query_filename = 'new_query.tsv'
+    with open(new_query_filename, "w") as query_file:
+        query_file.write(instrument_id + "\t" + relation_id + "\t" + parameter_id + "\t" + "1.00000" + "\n")
+        query_file.write(instrument_id + "\t" + relation_id + "\t" + parameter_id + "\t" + "1.00000" + "\n")
+
+    validator.build_by_file(new_query_filename, model_dir, model_filename, data_filename)
+    scores = validator.get_val()
+    return scores[0]
+        
 
 def close_enough(lat0,lon0,lat1,lon1):
     if np.sqrt((lat0-lat1)**2+(lon0-lon1)**2) < 0.01:
@@ -44,6 +122,18 @@ def extract_path(obs_list,rewards,node_indices):
 def graph_search(obs_list,settings):
     rewards, node_indices = propagate_weights(obs_list,settings)
     plan = extract_path(obs_list,rewards,node_indices)
+    return list(plan)
+
+def graph_search_kg(obs_list,sat_id,settings):
+    filtered_obs_list = filter_obs_list_kg(obs_list,sat_id)
+    rewards, node_indices = propagate_weights(filtered_obs_list,settings)
+    plan = extract_path(filtered_obs_list,rewards,node_indices)
+    return list(plan)
+
+def graph_search_ukge(obs_list,sat_id,settings):
+    filtered_obs_list = filter_obs_list_ukge(obs_list,sat_id,settings)
+    rewards, node_indices = propagate_weights(filtered_obs_list,settings)
+    plan = extract_path(filtered_obs_list,rewards,node_indices)
     return list(plan)
 
 def graph_search_events(planner_inputs):

@@ -17,3 +17,5 @@ coverage_grids/het_experiment*
 *.zpl
 *.csv
 *.sol
+trmm_download/
+*.pyc

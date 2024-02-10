@@ -78,7 +78,7 @@ def fifo_planner_events_interval(planner_inputs):
             if close_enough(next_obs["location"]["lat"],next_obs["location"]["lon"],event["location"]["lat"],event["location"]["lon"]):
                 if (event["start"] <= next_obs["start"] <= event["end"]) or (event["start"] <= next_obs["end"] <= event["end"]):
                     updated_reward = { 
-                            "reward": event["severity"]*settings["experiment_settings"]["reward"],
+                            "reward": event["severity"]*settings["rewards"]["reward"],
                             "location": next_obs["location"],
                             "last_updated": curr_time 
                         }
