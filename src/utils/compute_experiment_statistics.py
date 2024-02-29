@@ -11,7 +11,7 @@ def unique(lakes):
     return np.unique(lakes,axis=0)
 
 def close_enough(lat0,lon0,lat1,lon1):
-    if np.sqrt((lat0-lat1)**2+(lon0-lon1)**2) < 0.01:
+    if np.sqrt((lat0-lat1)**2+(lon0-lon1)**2) < 0.0001:
         return True
     else:
         return False
@@ -59,27 +59,41 @@ def compute_statistics_pieces(input):
     event_obs_pairs = []
     num_event_obs = 0
     obs_per_event_list = []
-    event_duration = settings["events"]["event_duration"]
+    #event_duration = settings["events"]["event_duration"]
     ss = settings["time"]["step_size"]
     cumulative_event_reward = 0
     cumulative_plan_reward = 0
     for event in events:
         obs_per_event = 0
+        last_obs_time = None
         event_reward = float(event[4])
         for obs in observations:
-            if obs[0] > ((float(event[2])/ss+float(event[3])/ss) + event_duration/ss):
+            if obs[0] > (float(event[2])/ss+float(event[3])/ss):
                 break
             if close_enough(obs[2],obs[3],float(event[0]),float(event[1])):
                 if ((float(event[2])/ss) < obs[0] < (float(event[2])/ss+float(event[3])/ss)) or ((float(event[2])/ss) < obs[1] < (float(event[2])/ss+float(event[3])/ss)):
-                    event_obs_pair = {
-                        "event": event,
-                        "obs": obs
-                    }
-                    event_obs_pairs.append(event_obs_pair)
-                    cumulative_event_reward += event_reward
-                    cumulative_plan_reward += settings["rewards"]["reward"]
-                    obs_per_event += 1
-                    num_event_obs += 1
+                    if last_obs_time is None:
+                        event_obs_pair = {
+                            "event": event,
+                            "obs": obs
+                        }
+                        event_obs_pairs.append(event_obs_pair)
+                        cumulative_event_reward += event_reward
+                        cumulative_plan_reward += settings["rewards"]["reward"]
+                        obs_per_event += 1
+                        num_event_obs += 1
+                        last_obs_time = obs[0]
+                    elif obs[0] - last_obs_time > 2:
+                        event_obs_pair = {
+                            "event": event,
+                            "obs": obs
+                        }
+                        event_obs_pairs.append(event_obs_pair)
+                        cumulative_event_reward += event_reward
+                        cumulative_plan_reward += settings["rewards"]["reward"]
+                        obs_per_event += 1
+                        num_event_obs += 1
+                        last_obs_time = obs[0]
         obs_per_event_list.append(obs_per_event)
 
     output = {}
@@ -92,17 +106,19 @@ def compute_statistics_pieces(input):
 
 def compute_statistics(events,obs,grid_locations,settings):
     obs.sort(key=lambda obs: obs[0])
-    event_chunks = list(chunks(events,1))
+    event_chunks = list(chunks(events,25))
     pool = multiprocessing.Pool()
     input_list = []
+    output_list = []
     for i in range(len(event_chunks)):
-        input = {}
+        input = dict()
         input["events"] = event_chunks[i]
         input["observations"] = obs
         input["settings"] = settings
-        input_list.append(input)
+        output_list.append(compute_statistics_pieces(input))
     #output_list = pool.map(compute_statistics_pieces, input_list)
-    output_list = list(tqdm(pool.imap(compute_statistics_pieces, input_list)))
+    #print("right before map")
+    #output_list = list(tqdm(pool.map(compute_statistics_pieces, input_list)))
     all_events_count = 0
     planner_reward = 0
     event_reward = 0
@@ -172,6 +188,7 @@ def compute_statistics(events,obs,grid_locations,settings):
         "events_seen_thrice": np.count_nonzero(np.asarray(obs_per_event_list) == 3),
         "events_seen_fourplus": np.count_nonzero(np.asarray(obs_per_event_list) > 3),
         "events_seen_once_average": obs_per_event_array[np.nonzero(obs_per_event_array)].mean(),
+        "obs_per_event_list": obs_per_event_list,
         "event_reward": event_reward,
         "planner_reward": planner_reward,
         "percent_coverage": events_perc_cov,
@@ -243,13 +260,13 @@ def compute_experiment_statistics(settings):
                     unique_observations = []
                     obs_end_times = []
                     for obs in observations:
-                        if obs[1] not in obs_end_times:
-                            obs_end_times.append(obs[1])
+                        if obs[1:4] not in obs_end_times:
+                            obs_end_times.append(obs[1:4])
                             unique_observations.append(obs)
                     observations = unique_observations
                 all_initial_observations.extend(observations)
 
-            if "replan" in f and settings["planner"] in f and "het" not in f and "oracle" not in f:
+            if "replan" in f and settings["planner"] in f and "het" not in f and "oracle" not in f and "init" not in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
                     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                     observations = []
@@ -260,8 +277,8 @@ def compute_experiment_statistics(settings):
                     unique_observations = []
                     obs_end_times = []
                     for obs in observations:
-                        if obs[1] not in obs_end_times:
-                            obs_end_times.append(obs[1])
+                        if obs[1:4] not in obs_end_times:
+                            obs_end_times.append(obs[1:4])
                             unique_observations.append(obs)
                     observations = unique_observations
                 all_replan_observations.extend(observations)
@@ -277,8 +294,8 @@ def compute_experiment_statistics(settings):
                     unique_observations = []
                     obs_end_times = []
                     for obs in observations:
-                        if obs[1] not in obs_end_times:
-                            obs_end_times.append(obs[1])
+                        if obs[1:4] not in obs_end_times:
+                            obs_end_times.append(obs[1:4])
                             unique_observations.append(obs)
                     observations = unique_observations
                 all_oracle_observations.extend(observations)
@@ -375,7 +392,7 @@ def compute_experiment_statistics(settings):
     return overall_results
 
 def main():
-    name = "compute_exp_stats"
+    name = "agu_rain"
     settings = {
         "name": name,
         "instrument": {
@@ -412,15 +429,15 @@ def main():
             "reward": 10,
             "reward_increment": 0.1,
         },
-        "planner": "milp",
+        "planner": "dp",
         "num_meas_types": 3,
         "sharing_horizon": 1000,
         "planning_horizon": 1000,
-        "directory": "./missions/"+name+"/",
+        "directory": "./missions/agu_rain/",
         "grid_type": "event", # can be "event" or "static"
-        "point_grid": "./coverage_grids/"+name+"/event_locations.csv",
+        "point_grid": "./coverage_grids/agu_rain/event_locations.csv",
         "preplanned_observations": None,
-        "event_csvs": ["./events/"+name+"/events.csv"],
+        "event_csvs": ["./rain_events.csv"],
         "process_obs_only": False,
     }
     overall_results = compute_experiment_statistics(settings)

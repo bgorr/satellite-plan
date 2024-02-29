@@ -2,11 +2,11 @@ import numpy as np
 import random
 import sys
 from tqdm import tqdm
-from utils.planning_utils import check_maneuver_feasibility
+from src.utils.planning_utils import check_maneuver_feasibility
 
-sys.path.append('/home/ben/repos/UKGE/UKGE')
-sys.path.append('/home/ben/repos/UKGE/UKGE/src')
-import testers
+#sys.path.append('/home/ben/repos/UKGE/UKGE')
+#sys.path.append('/home/ben/repos/UKGE/UKGE/src')
+#import testers
 
 V = []
 NQ = []

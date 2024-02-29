@@ -5,12 +5,12 @@ import datetime
 import multiprocessing
 from functools import partial
 from tqdm import tqdm
-from planners.mcts_planner import monte_carlo_tree_search
-from planners.dp_planner import graph_search, graph_search_events, graph_search_events_interval
-from planners.milp_planner import milp_planner, milp_planner_interval
-from planners.heuristic_planner import greedy_lemaitre_planner, greedy_lemaitre_planner_events, greedy_lemaitre_planner_events_interval
-from planners.fifo_planner import fifo_planner, fifo_planner_events, fifo_planner_events_interval
-from utils.planning_utils import close_enough
+from src.planners.mcts_planner import monte_carlo_tree_search
+from src.planners.dp_planner import graph_search, graph_search_events, graph_search_events_interval
+from src.planners.milp_planner import milp_planner, milp_planner_interval
+from src.planners.heuristic_planner import greedy_lemaitre_planner, greedy_lemaitre_planner_events, greedy_lemaitre_planner_events_interval
+from src.planners.fifo_planner import fifo_planner, fifo_planner_events, fifo_planner_events_interval
+from src.utils.planning_utils import close_enough
     
 def unique(lakes):
     lakes = np.asarray(lakes)
@@ -181,7 +181,7 @@ def decompose_plan(full_plan,satellites,settings):
                     csvwriter.writerow(row)
                     continue
                 for loc in grid_locations:
-                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                         row = [obs["end"],obs["end"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
                 
@@ -206,7 +206,7 @@ def save_plan_w_fov(satellite,settings,grid_locations,flag):
                 rows.append(row)
                 continue
             for loc in grid_locations:
-                if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                     row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                     rows.append(row)
             
@@ -242,6 +242,12 @@ def chop_obs_list(obs_list,start,end):
     for obs in obs_list:
         if obs["start"] > start and obs["end"] < end:
             chopped_list.append(obs)
+        elif obs["start"] > start and obs["start"] < end:
+            obs["end"] = end
+            chopped_list.append(obs)
+        elif obs["end"] < end and obs["end"] > start:
+            obs["start"] = start
+            chopped_list.append(obs)
     return chopped_list
 
 def update_reward_dict(reward_dict,events,time,reward):
@@ -261,19 +267,28 @@ def update_reward_dict(reward_dict,events,time,reward):
         reward_dict[location]["last_updated"] = time
     return reward_dict
 
-def update_reward_dict_oracle(reward_dict,events_per_location,location_seen_count,time,reward):
+def update_reward_dict_oracle(reward_dict,events_per_location,location_seen_count,time,reward,no_event_reward,oracle_reobs):
     for location in reward_dict.keys():
         event_occurring = False
         for event in events_per_location[location]:
             if (event["start"] <= time <= event["end"]):
                 event_occurring = True
         if event_occurring:
-            if location in location_seen_count:
-                reward_dict[location]["reward"] = reward*(location_seen_count[location]+1)
+            if oracle_reobs == "true":
+                if location in location_seen_count:
+                    reward_dict[location]["reward"] = reward*(location_seen_count[location]+1)
+                else:
+                    reward_dict[location]["reward"] = reward
             else:
-                reward_dict[location]["reward"] = reward
+                if location in location_seen_count:
+                    reward_dict[location]["reward"] = 0
+                else:
+                    reward_dict[location]["reward"] = reward
         else:
-            reward_dict[location]["reward"] = 1
+            if oracle_reobs == "true":
+                reward_dict[location]["reward"] = no_event_reward
+            else:
+                reward_dict[location]["reward"] = 0
         reward_dict[location]["last_updated"] = time
     return reward_dict
 
@@ -370,7 +385,7 @@ def plan_satellite(satellite,settings):
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
             for obs in tqdm(heuristic_plan):
                 for loc in grid_locations:
-                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                         row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
         with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_dp.csv','w') as csvfile:
@@ -378,7 +393,7 @@ def plan_satellite(satellite,settings):
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
             for obs in tqdm(dp_plan):
                 for loc in grid_locations:
-                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                         row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
         with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_fifo.csv','w') as csvfile:
@@ -386,7 +401,7 @@ def plan_satellite(satellite,settings):
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
             for obs in tqdm(fifo_plan):
                 for loc in grid_locations:
-                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                         row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
         with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_mcts.csv','w') as csvfile:
@@ -394,7 +409,7 @@ def plan_satellite(satellite,settings):
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
             for obs in tqdm(mcts_plan):
                 for loc in grid_locations:
-                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                         row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
         return
@@ -418,7 +433,7 @@ def plan_satellite(satellite,settings):
                 csvwriter.writerow(row)
                 continue
             for loc in grid_locations:
-                if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                     row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                     csvwriter.writerow(row)
             
@@ -799,9 +814,9 @@ def plan_mission_replan_interval(settings):
         for row in csvreader:
             grid_locations.append([np.round(float(row[0]),3),np.round(float(row[1]),3)])
     for loc in grid_locations:
-        reward_dict[(np.round(loc[0],3),np.round(loc[1],3))] = {
+        reward_dict[(loc[0],loc[1])] = {
             "last_updated": 0,
-            "reward": 1
+            "reward": settings["rewards"]["initial_reward"]
         }
     events_per_location = {}
     for event in events:
@@ -863,46 +878,55 @@ def plan_mission_replan_interval(settings):
         if settings["conops"] == "onboard_processing":
             for updated_reward in updated_reward_list:
                 key = (np.round(updated_reward["location"]["lat"],3),np.round(updated_reward["location"]["lon"],3))
-                if key in reward_dict:
-                    if updated_reward["last_updated"] > reward_dict[key]["last_updated"]:
-                        location = (updated_reward["location"]["lat"],updated_reward["location"]["lon"])
-                        if location in event_seen_counts:
-                            num_times_seen = event_seen_counts[location]
-                        else:
-                            num_times_seen = 0
-                        reward_dict[key]["last_updated"] = updated_reward["last_updated"]
-                        if settings["rewards"]["reobserve_conops"] == "linear_increase":
-                            reward_dict[key]["reward"] = updated_reward["reward"]*(num_times_seen+1)
-                        elif settings["rewards"]["reobserve_conops"] == "linear_decrease":
-                            max_obs = 4
-                            reward_dict[key]["reward"] = updated_reward["reward"]*np.max((max_obs-num_times_seen)/max_obs,0)
-                        elif settings["rewards"]["reobserve_conops"] == "decaying_increase":
-                            reward_dict[key]["reward"] = updated_reward["reward"]*(np.log(num_times_seen)+1)
-                        elif settings["rewards"]["reobserve_conops"] == "decaying_decrease":
-                            reward_dict[key]["reward"] = updated_reward["reward"]*np.exp(1-num_times_seen)
-
-                else:
-                    print("how are you inventing a new location?")
-                    reward_dict[key] = {
-                        "last_updated": updated_reward["last_updated"],
-                        "reward": updated_reward["reward"]
-                    }
+                if key not in reward_dict:
+                    new_key = None
+                    for loc in grid_locations:
+                        if close_enough(loc[0],loc[1],key[0],key[1]):
+                            new_key = (loc[0],loc[1])
+                    if new_key is not None:
+                        key = new_key
+                    else:
+                        print("ahhhh panic")
+                if updated_reward["last_updated"] > reward_dict[key]["last_updated"]:
+                    location = (updated_reward["location"]["lat"],updated_reward["location"]["lon"])
+                    if location in event_seen_counts.keys(): 
+                        num_times_seen = event_seen_counts[location]+1
+                    else:
+                        num_times_seen = 1
+                    reward_dict[key]["last_updated"] = updated_reward["last_updated"]
+                    if settings["rewards"]["reobserve_conops"] == "linear_increase":
+                        reward_dict[key]["reward"] = updated_reward["reward"]*(num_times_seen)
+                    elif settings["rewards"]["reobserve_conops"] == "linear_decrease":
+                        max_obs = 4
+                        reward_dict[key]["reward"] = updated_reward["reward"]*np.max((max_obs-num_times_seen)/max_obs,0)
+                    elif settings["rewards"]["reobserve_conops"] == "decaying_increase":
+                        reward_dict[key]["reward"] = updated_reward["reward"]*(np.log(num_times_seen)+1)
+                    elif settings["rewards"]["reobserve_conops"] == "decaying_decrease":
+                        reward_dict[key]["reward"] = updated_reward["reward"]*np.exp(1-num_times_seen)
+                    elif settings["rewards"]["reobserve_conops"] == "immediate_decrease":
+                        reward_dict[key]["reward"] = 0
+                    elif settings["rewards"]["reobserve_conops"] == "no_change":
+                        reward_dict[key]["reward"] = updated_reward["reward"]
+                
             rewards = []
             for location in reward_dict.keys():
                 rewards.append((location[0],location[1],reward_dict[location]["reward"]))
                 if location not in event_seen_counts:
                     reward_dict[location]["reward"] += settings["rewards"]["reward_increment"]
-                if reward_dict[location]["reward"] > 1:
+                if reward_dict[location]["reward"] > 1 and location in event_seen_counts:
                     if settings["rewards"]["event_duration_decay"] == "linear":
-                        steps = settings["events"]["event_duration"]/settings["time"]["step_size"]/sharing_interval
+                        steps = settings["events"]["event_duration"]/settings["time"]["step_size"]/(sharing_interval/settings["time"]["step_size"])
                         full_reward = settings["rewards"]["reward"]
-                        reward_decrement = full_reward/steps
+                        reward_decrement = (full_reward-1)/steps
                         reward_dict[location]["last_updated"] = elapsed_plan_time
                         reward_dict[location]["reward"] -= reward_decrement
                     elif settings["rewards"]["event_duration_decay"] == "step": 
                         if (reward_dict[location]["last_updated"] + settings["events"]["event_duration"]/settings["time"]["step_size"]) < elapsed_plan_time:
                             reward_dict[location]["last_updated"] = elapsed_plan_time
                             reward_dict[location]["reward"] = 1
+                if reward_dict[location]["reward"] < 1:
+                    reward_dict[location]["last_updated"] = elapsed_plan_time
+                    reward_dict[location]["reward"] = 1
             if not os.path.exists(settings["directory"]+'reward_grids/'):
                 os.mkdir(settings["directory"]+'reward_grids/')
             with open(settings["directory"]+'reward_grids/step_'+str(elapsed_plan_time)+'.csv','w') as csvfile:
@@ -919,8 +943,8 @@ def plan_mission_replan_interval(settings):
                 satellites[i]["plan"] = trimmed_plan
             for obs in trimmed_plan:
                 location = (obs["location"]["lat"],obs["location"]["lon"])
-                if len(events_per_location[location]) != 0:
-                    if location in event_seen_counts:
+                if location in events_per_location and len(events_per_location[location]) != 0:
+                    if location in event_seen_counts.keys():
                         event_seen_counts[location] += 1
                     else:
                         event_seen_counts[location] = 1
@@ -953,9 +977,9 @@ def plan_mission_replan_oracle(settings):
         csvreader = csv.reader(csvfile,delimiter=',')
         next(csvfile)
         for row in csvreader:
-            grid_locations.append([float(row[0]),float(row[1])])
+            grid_locations.append([np.round(float(row[0]),3),np.round(float(row[1]),3)])
     for loc in grid_locations:
-        reward_dict[(np.round(loc[0],3),np.round(loc[1],3))] = {
+        reward_dict[(loc[0],loc[1])] = {
             "last_updated": 0,
             "reward": 1
         }
@@ -971,7 +995,7 @@ def plan_mission_replan_oracle(settings):
         plan_interval = settings["planning_horizon"]/settings["time"]["step_size"]
         sharing_interval = settings["sharing_horizon"]/settings["time"]["step_size"]
         planner_input_list = []
-        reward_dict = update_reward_dict_oracle(reward_dict,events_per_location,event_seen_counts,elapsed_plan_time,settings["rewards"]["reward"])
+        reward_dict = update_reward_dict_oracle(reward_dict,events_per_location,event_seen_counts,elapsed_plan_time,settings["rewards"]["reward"],settings["rewards"]["no_event_reward"],settings["rewards"]["oracle_reobs"])
         for satellite in satellites:
             plan_start = elapsed_plan_time
             plan_end = plan_start+plan_interval
@@ -1020,8 +1044,8 @@ def plan_mission_replan_oracle(settings):
                 satellites[i]["plan"] = trimmed_plan
             for obs in trimmed_plan:
                 location = (obs["location"]["lat"],obs["location"]["lon"])
-                if len(events_per_location[location]) != 0:
-                    if location in event_seen_counts:
+                if location in events_per_location and len(events_per_location[location]) != 0:
+                    if location in event_seen_counts.keys():
                         event_seen_counts[location] += 1
                     else:
                         event_seen_counts[location] = 1
@@ -1050,14 +1074,7 @@ def plan_mission_replan_interval_het(settings):
         satellite = {}
         satellite_name_dict = {}
         for i in range(settings["constellation"]["num_sats_per_plane"]*settings["constellation"]["num_planes"]):
-            if i < settings["constellation"]["num_sats_per_plane"]*settings["constellation"]["num_planes"]/settings["num_meas_types"]:
-                meas_type = 0
-            elif i < 2*settings["constellation"]["num_sats_per_plane"]*settings["constellation"]["num_planes"]/settings["num_meas_types"]:
-                meas_type = 1
-            elif i < 3*settings["constellation"]["num_sats_per_plane"]*settings["constellation"]["num_planes"]/settings["num_meas_types"]:
-                meas_type = 2
-            elif i < 4*settings["constellation"]["num_sats_per_plane"]*settings["constellation"]["num_planes"]/settings["num_meas_types"]:
-                meas_type = 3
+            meas_type = i % settings["num_meas_types"]
             satellite_name_dict["sat"+str(i)] = meas_type
         for f in os.listdir(directory+subdir):
             if "datametrics" in f:
@@ -1087,13 +1104,23 @@ def plan_mission_replan_interval_het(settings):
         csvreader = csv.reader(csvfile,delimiter=',')
         next(csvfile)
         for row in csvreader:
-            grid_locations.append([float(row[0]),float(row[1])])
+            grid_locations.append([np.round(float(row[0]),3),np.round(float(row[1]),3)])
     for loc in grid_locations:
-        reward_dict[(np.round(loc[0],3),np.round(loc[1],3))] = {
+        reward_dict[(loc[0],loc[1])] = {
             "last_updated": 0,
             "rewards": [1] * settings["num_meas_types"],
             "obs_count": [0] * settings["num_meas_types"]
         }
+    events_per_location = {}
+    for event in events:
+        location = (np.round(event["location"]["lat"],3),np.round(event["location"]["lon"],3))
+        if location in events_per_location:
+            events_per_location[location]["events"].append(event)
+        else:
+            events_per_location[location] = {}
+            events_per_location[location]["events"] = [event]
+            events_per_location[location]["obs_counts"] = [0]*settings["num_meas_types"]
+    event_seen_counts = {}
     while elapsed_plan_time < float(settings["time"]["duration"])*86400/settings["time"]["step_size"]:
         updated_reward_list = []
         plan_interval = settings["planning_horizon"]/settings["time"]["step_size"]
@@ -1146,39 +1173,92 @@ def plan_mission_replan_interval_het(settings):
         if settings["conops"] == "onboard_processing":
             for updated_reward in updated_reward_list:
                 key = (np.round(updated_reward["location"]["lat"],3),np.round(updated_reward["location"]["lon"],3))
-                if key in reward_dict:
-                    if updated_reward["last_updated"] > reward_dict[key]["last_updated"]:
-                        reward_dict[key]["last_updated"] = updated_reward["last_updated"]
-                        for i in range(settings["num_meas_types"]):
-                            if updated_reward["reward"] == 0:
-                                reward_dict[key]["rewards"][i] = updated_reward["reward"]
-                            elif satellite_name_dict[updated_reward["orbitpy_id"]] == i:
-                                reward_dict[key]["rewards"][i] = 0
-                                #reward_dict[key]["obs_count"][i] += 1
-                            elif reward_dict[key]["obs_count"][i] == 0:
-                                reward_dict[key]["rewards"][i] = updated_reward["reward"]
-                            else:
-                                print("???")
-                else:
-                    print("Error: trying to add a new location to the reward grid.")
+                if key not in reward_dict:
+                    for loc in grid_locations:
+                        if close_enough(loc[0],loc[1],key[0],key[1]):
+                            new_key = (loc[0],loc[1])
+                    if new_key is not None:
+                        key = new_key
+                    else:
+                        print("ahhhh panic")
+                if updated_reward["last_updated"] > reward_dict[key]["last_updated"]:
+                    reward_dict[key]["last_updated"] = updated_reward["last_updated"]
+                    for i in range(settings["num_meas_types"]):
+                        # if updated_reward["reward"] == 0:
+                        #     reward_dict[key]["rewards"][i] = updated_reward["reward"]
+                        # elif satellite_name_dict[updated_reward["orbitpy_id"]] == i:
+                        #     reward_dict[key]["rewards"][i] = 0
+                        #     #reward_dict[key]["obs_count"][i] += 1
+                        # elif reward_dict[key]["obs_count"][i] == 0:
+                        #     reward_dict[key]["rewards"][i] = updated_reward["reward"]
+                        # else:
+                        #     print("???")
+                        if key in event_seen_counts.keys():
+                            num_times_seen = event_seen_counts[key][i]+1
+                            coobs_gap = 0
+                            for j in range(len(event_seen_counts[key])):
+                                if i == j:
+                                    continue
+                                else:
+                                    if event_seen_counts[key][j] > num_times_seen:
+                                        coobs_gap += (event_seen_counts[key][j] - num_times_seen)
+                            coobs_multiplier = np.max([1,coobs_gap])
+                            print(event_seen_counts[key])
+                            print(i)
+                            print(num_times_seen)
+                            print(coobs_multiplier)
+                        else:
+                            num_times_seen = 1
+                            coobs_multiplier = 1
+                        if settings["rewards"]["reobserve_conops"] == "linear_increase":
+                            reward_dict[key]["rewards"][i] = updated_reward["reward"]*(num_times_seen)*coobs_multiplier
+                        elif settings["rewards"]["reobserve_conops"] == "linear_decrease":
+                            max_obs = 4
+                            reward_dict[key]["rewards"][i] = updated_reward["reward"]*np.max((max_obs-num_times_seen)/max_obs,0)*coobs_multiplier
+                        elif settings["rewards"]["reobserve_conops"] == "decaying_increase":
+                            reward_dict[key]["rewards"][i] = updated_reward["reward"]*(np.log(num_times_seen)+1)*coobs_multiplier
+                        elif settings["rewards"]["reobserve_conops"] == "decaying_decrease":
+                            reward_dict[key]["rewards"][i] = updated_reward["reward"]*np.exp(1-num_times_seen)*coobs_multiplier
+                        elif settings["rewards"]["reobserve_conops"] == "immediate_decrease":
+                            reward_dict[key]["rewards"][i] = 0
+                        elif settings["rewards"]["reobserve_conops"] == "no_change":
+                            reward_dict[key]["rewards"][i] = updated_reward["reward"]*coobs_multiplier
 
             rewards = []
             for location in reward_dict.keys():
                 rewards.append((location[0],location[1],reward_dict[location]["rewards"]))
-                reward_dict[location]["rewards"] = [x+settings["rewards"]["reward_increment"] for x in reward_dict[location]["rewards"]]
-                if (reward_dict[location]["last_updated"] + settings["events"]["event_duration"]/settings["time"]["step_size"]) < elapsed_plan_time:
-                    reward_dict[location]["last_updated"] = elapsed_plan_time
-                    reward_dict[location]["rewards"] = [1] * settings["num_meas_types"]
-                    reward_dict[location]["obs_count"] = [0] * settings["num_meas_types"]
                 for i in range(settings["num_meas_types"]):
-                    count = 0
-                    if reward_dict[location]["obs_count"][i] > 0:
-                        reward_dict[location]["rewards"][i] = 0
-                        count += 1
-                if count == settings["num_meas_types"]:
-                    reward_dict[location]["last_updated"] = elapsed_plan_time
-                    reward_dict[location]["rewards"] = [1] * settings["num_meas_types"]
-                    reward_dict[location]["obs_count"] = [0] * settings["num_meas_types"]
+                    if location not in event_seen_counts or event_seen_counts[location][i] == 0:
+                        reward_dict[location]["rewards"][i] += settings["rewards"]["reward_increment"]
+
+                for i in range(settings["num_meas_types"]):
+                    if location in event_seen_counts and event_seen_counts[location][i] != 0 and reward_dict[location]["rewards"][i] > 1:
+                        if settings["rewards"]["event_duration_decay"] == "linear":
+                            steps = settings["events"]["event_duration"]/settings["time"]["step_size"]/(sharing_interval/settings["time"]["step_size"])
+                            full_reward = settings["rewards"]["reward"]
+                            reward_decrement = full_reward/steps
+                            reward_dict[location]["last_updated"] = elapsed_plan_time
+                            reward_dict[location]["rewards"][i] -= reward_decrement
+                        elif settings["rewards"]["event_duration_decay"] == "step": 
+                            if (reward_dict[location]["last_updated"] + settings["events"]["event_duration"]/settings["time"]["step_size"]) < elapsed_plan_time:
+                                reward_dict[location]["last_updated"] = elapsed_plan_time
+                                reward_dict[location]["rewards"][i] = 1
+                    if reward_dict[location]["rewards"][i] < 1:
+                        reward_dict[location]["last_updated"] = elapsed_plan_time
+                        reward_dict[location]["rewards"][i] = 1
+                # if (reward_dict[location]["last_updated"] + settings["events"]["event_duration"]/settings["time"]["step_size"]) < elapsed_plan_time:
+                #     reward_dict[location]["last_updated"] = elapsed_plan_time
+                #     reward_dict[location]["rewards"] = [1] * settings["num_meas_types"]
+                #     reward_dict[location]["obs_count"] = [0] * settings["num_meas_types"]
+                # for i in range(settings["num_meas_types"]):
+                #     count = 0
+                #     if reward_dict[location]["obs_count"][i] > 0:
+                #         reward_dict[location]["rewards"][i] = 0
+                #         count += 1
+                # if count == settings["num_meas_types"]:
+                #     reward_dict[location]["last_updated"] = elapsed_plan_time
+                #     reward_dict[location]["rewards"] = [1] * settings["num_meas_types"]
+                #     reward_dict[location]["obs_count"] = [0] * settings["num_meas_types"]
             if not os.path.exists(settings["directory"]+'reward_grids_het/'):
                 os.mkdir(settings["directory"]+'reward_grids_het/')
             with open(settings["directory"]+'reward_grids_het/step_'+str(elapsed_plan_time)+'.csv','w') as csvfile:
@@ -1193,6 +1273,15 @@ def plan_mission_replan_interval_het(settings):
                 satellites[i]["plan"].extend(trimmed_plan)
             else:
                 satellites[i]["plan"] = trimmed_plan
+            for obs in trimmed_plan:
+                location = (obs["location"]["lat"],obs["location"]["lon"])
+                meas_type = satellite_name_dict[satellites[i]["orbitpy_id"]]
+                if location in events_per_location and len(events_per_location[location]["events"]) != 0:
+                    if location in event_seen_counts.keys():
+                        event_seen_counts[location][meas_type] += 1
+                    else:
+                        event_seen_counts[location] = [0] * settings["num_meas_types"]
+                        event_seen_counts[location][meas_type] = 1
         elapsed_plan_time += sharing_interval
         print("Elapsed planning time: "+str(elapsed_plan_time))
     grid_locations = []
@@ -1205,44 +1294,61 @@ def plan_mission_replan_interval_het(settings):
     print("Planned mission with replans at interval (het)!")
 
 if __name__ == "__main__":
-    mission_name = "milp_test"
-    cross_track_ffor = 90 # deg
-    along_track_ffor = 90 # deg
-    cross_track_ffov = 1 # deg
-    along_track_ffov = 1 # deg
-    agility = 0.01 # deg/s
-    num_planes = 4
-    num_sats_per_plane = 4
-    var = 4 # deg lat/lon
-    num_points_per_cell = 10
-    simulation_step_size = 10 # seconds
-    simulation_duration = 1 # days
-    event_frequency = 1e-5 # events per second
-    event_duration = 21600 # second
-
     settings = {
-        "directory": "./missions/milp_test/",
-        "step_size": simulation_step_size,
-        "duration": simulation_duration,
-        "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
+        "name": "agu_rain",
+        "instrument": {
+            "ffor": 60,
+            "ffov": 0
+        },
+        "agility": {
+            "slew_constraint": "rate",
+            "max_slew_rate": 1
+        },
+        "orbit": {
+            "altitude": 705, # km
+            "inclination": 98.4, # deg
+            "eccentricity": 0.0001,
+            "argper": 0, # deg
+        },
+        "constellation": {
+            "num_sats_per_plane": 6,
+            "num_planes": 6,
+            "phasing_parameter": 1
+        },
+        "events": {
+            "event_duration": 3600*6,
+            "event_frequency": 0.01/3600,
+            "event_density": 2,
+            "event_clustering": 4
+        },
+        "time": {
+            "step_size": 10, # seconds
+            "duration": 1, # days
+            "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
+        },
+        "rewards": {
+            "reward": 10,
+            "reward_increment": 1,
+            "reobserve_conops": "linear_increase",
+            "event_duration_decay": "step",
+            "no_event_reward": 5,
+            "oracle_reobs": "true",
+            "initial_reward": 5
+        },
+        "planner": "dp",
+        "num_meas_types": 3,
+        "sharing_horizon": 500,
+        "planning_horizon": 500,
+        "directory": "./missions/agu_rain/",
         "grid_type": "event", # can be "event" or "static"
-        "point_grid": "./coverage_grids/"+mission_name+"/event_locations.csv",
+        "point_grid": "./coverage_grids/agu_rain/event_locations.csv",
         "preplanned_observations": None,
-        "event_csvs": ["./events/"+mission_name+"/events.csv"],
-        "cross_track_ffor": 30,
-        "along_track_ffor": 30,
-        "cross_track_ffov": 0,
-        "along_track_ffov": 0,
-        "num_planes": num_planes,
-        "num_sats_per_plane": num_sats_per_plane,
-        "agility": agility,
+        "event_csvs": ["./rain_events.csv"],
         "process_obs_only": False,
-        "planner": "milp",
-        "reward": 10,
-        "reobserve_reward": 2,
+        "conops": "onboard_processing"
     }
-    plan_mission(settings)
-    #plan_mission_replan_interval(settings)
+    #plan_mission_horizon(settings)
+    plan_mission_replan_interval(settings)
     #plan_mission_mcts(settings)
     #plan_mission_dp(settings)
     #plan_mission_fifo(settings)

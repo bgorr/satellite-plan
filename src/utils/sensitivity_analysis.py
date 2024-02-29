@@ -116,12 +116,14 @@ def sobol_first_std(Y, X, m, num_resamples, conf_level, y_resamples):
         r_i = r[i, :]
         s[i] = sobol_first(Y[r_i], X[r_i], m)
     return s.std()
-directory = "./src/utils/photos/grid_search_112623/"
+directory = "./src/utils/photos/experiments_021324/"
 boxplot_directory = directory+"boxplots/"
 if not os.path.exists(directory):
     os.mkdir(directory)
 if not os.path.exists(boxplot_directory):
     os.mkdir(boxplot_directory)
+
+# old formulation
 # names = ['FOR', 'FOV', 'agility', 'event_duration', 'event_frequency', 'event_density', 'event_clustering', 'num_event_types']
 # detailed_names = ['FOR (deg)', 'FOV (deg)', 'agility (deg/s)', 'event_duration (hrs)', 'event_frequency (events/hr/location)', 'event_density (events per 10 deg lat/lon)', 'event_clustering', 'num_event_types']
 # feature_levels = [[5,10,30,60],
@@ -131,12 +133,23 @@ if not os.path.exists(boxplot_directory):
 #                   [2.78e-8,2.78e-7,2.78e-6,2.78e-5],
 #                   [1,2,5,10],
 #                   [1,4,8,16],
-#                   [2,2,3,4]]
+#                   [2,2,3,4]] 
 
-names = ['event_frequency', 'event_density']
-detailed_names = ['event_frequency (events/hr/location)', 'event_density (events per 10 deg lat/lon)']
-feature_levels = [[2.78e-8,2.78e-7,2.78e-6,2.78e-5],
-                  [1,2,5,10]]
+names = ['FOR', 'FOV', 'Constellation', 'Agility', 'Event\nduration', 'Num\nevents', 'Event\nclustering']
+detailed_names = ['FOR (deg)', 'FOV (deg)', 'constellation ID', 'agility (deg/s)', 'event_duration (hrs)', 'Num\nevents', 'Event\nclustering']
+feature_levels = [[30,60],
+                  [1,5,10],
+                  [0,1,2,3],
+                  [0.1,1,10],
+                  [900,3600,3*3600,6*3600],
+                  [1000,10000],
+                  [0,1]
+                  ]
+
+# names = ['event_frequency', 'event_density']
+# detailed_names = ['event_frequency (events/hr/location)', 'event_density (events per 10 deg lat/lon)']
+# feature_levels = [[2.78e-8,2.78e-7,2.78e-6,2.78e-5],
+#                   [1,2,5,10]]
 
 # metric_dict = {
 #     "Difference in co-obs percent coverage (all events)": 48,
@@ -157,29 +170,47 @@ feature_levels = [[2.78e-8,2.78e-7,2.78e-6,2.78e-5],
 #     "Difference in hom-het planning, percent coverage (possible events)": 54,
 # }
 
-metric_dict = {
-    "Difference in co-obs percent coverage (all events)": 48,
-    "Difference in co-obs percent coverage (possible events)": 55,
-    "Difference in co-obs count": 49,
-    "Difference in average revisit": 50,
-    "Init percent coverage (all events)": 22,
-    "Replan percent coverage (all events)": 32,
-    "Init percent coverage (possible events)": 51,
-    "Replan percent coverage (possible events)": 52,
-    "Init co-obs count": 18,
-    "Replan co-obs count": 28,
-    "Init event maximum revisit": 23,
-    "Replan event maximum revisit": 33,
-    "Init event average revisit": 24,
-    "Replan event average revisit": 34,
-    "Difference in hom-het planning, co-obs count": 57,
-    "Difference in hom-het planning, percent coverage (possible events)": 54,
+# metric_dict = {
+#     "Difference in co-obs percent coverage (all events)": 48,
+#     "Difference in co-obs percent coverage (possible events)": 55,
+#     "Difference in co-obs count": 49,
+#     "Difference in average revisit": 50,
+#     "Init percent coverage (all events)": 22,
+#     "Replan percent coverage (all events)": 32,
+#     "Init percent coverage (possible events)": 51,
+#     "Replan percent coverage (possible events)": 52,
+#     "Init co-obs count": 18,
+#     "Replan co-obs count": 28,
+#     "Init event maximum revisit": 23,
+#     "Replan event maximum revisit": 33,
+#     "Init event average revisit": 24,
+#     "Replan event average revisit": 34,
+#     "Difference in hom-het planning, co-obs count": 57,
+#     "Difference in hom-het planning, percent coverage (possible events)": 54,
+# }
+
+# metric_dict = { # new update
+#     "Difference in reobs reward, oracle-replan": 63,
+#     "Difference in reobs reward, replan-init": 64,
+#     "Difference in event count, oracle-replan": 65,
+#     "Difference in event count, replan-init": 66,
+#     "Difference in obs event count, oracle-replan": 67,
+#     "Difference in obs event count, replan-init": 68
+# }
+
+metric_dict = { # new update, normalized
+    "Difference in reobs reward, oracle-replan": 72,
+    "Difference in reobs reward, replan-init": 73,
+    "Difference in event count, oracle-replan": 74,
+    "Difference in event count, replan-init": 75,
+    "Difference in obs event count, oracle-replan": 76,
+    "Difference in obs event count, replan-init": 77
 }
 
 for metric in metric_dict.keys():
     rows = []
     ys = []
-    with open("./grid_search_112623.csv",newline='') as csv_file:
+    with open("./updated_experiment.csv",newline='') as csv_file:
         spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
         i = 0
         for row in spamreader:
@@ -187,20 +218,19 @@ for metric in metric_dict.keys():
                 i=i+1
                 continue
             ys.append(float(row[metric_dict[metric]]))
-            row = [float(i) for i in row[6:8]]
+            row = [float(i) for i in row[1:8]]
             rows.append(row)
-
     X = np.asarray(rows)
 
     # Run model (example)
     Y = np.transpose(np.asarray(ys))
 
     S = {
-        'names': ['Event\nduration', 'Event\nfreq.'],
-        "ME": np.zeros(shape=(2,1)),
-        "S1": np.zeros(shape=(2,1)),
-        "S1_conf": np.zeros(shape=(2,1)),
-        "S1_std": np.zeros(shape=(2,1))
+        'names': ['FOR', 'FOV', 'Constellation', 'Agility', 'Event\nduration', 'Num\nevents', 'Event\nclustering'],
+        "ME": np.zeros(shape=(7,1)),
+        "S1": np.zeros(shape=(7,1)),
+        "S1_conf": np.zeros(shape=(7,1)),
+        "S1_std": np.zeros(shape=(7,1))
     }
     num_resamples = 100
     y_resamples = Y.size
@@ -226,7 +256,7 @@ for metric in metric_dict.keys():
         for j in range(len(feature_levels)):
             X_j = X[:,j]
             if i != j:
-                if sobol_second_levels(Y, X_i, X_j, feature_levels[i], feature_levels[j]) > 0.4:
+                if sobol_second_levels(Y, X_i, X_j, feature_levels[i], feature_levels[j]) > 0.1:
                     print(metric)
                     print(names[i]+", "+names[j]+": "+str(sobol_second_levels(Y, X_i, X_j, feature_levels[i], feature_levels[j])))
 
@@ -238,7 +268,7 @@ for metric in metric_dict.keys():
 
     # add some
     ax.set_ylabel('Main effect')
-    ax.set_title('Main effects on '+metric)
+    #ax.set_title('Main effects on '+metric)
     ax.set_xticks(ind)
     ax.set_xticklabels( S["names"] )
 
@@ -348,109 +378,109 @@ def heatmaps(var1_ind,var2_ind,var1_name,var2_name,metric_ind,metric_name,xscale
     plt.savefig(directory+var1_name+"_"+var2_name+"_"+metric_name+"_heatmap.png")
     plt.close()
     #plt.show()
-for metric in metric_dict.keys():
-    for i in range(len(feature_levels)):
-        for j in range(len(feature_levels)):
-            if i > j:
-                if names[i] in ['agility', 'event_frequency', 'event_density']:
-                    xscale_type = "log"
-                else:
-                    xscale_type = "linear"
-                if names[j] in ['agility', 'event_frequency', 'event_density']:
-                    yscale_type = "log"
-                else:
-                    yscale_type = "linear"
-                heatmaps(i,j,names[i],names[j],metric_dict[metric],metric,xscale_type,yscale_type)
+# for metric in metric_dict.keys():
+#     for i in range(len(feature_levels)):
+#         for j in range(len(feature_levels)):
+#             if i > j:
+#                 if names[i] in ['agility', 'event_frequency', 'event_density']:
+#                     xscale_type = "log"
+#                 else:
+#                     xscale_type = "linear"
+#                 if names[j] in ['agility', 'event_frequency', 'event_density']:
+#                     yscale_type = "log"
+#                 else:
+#                     yscale_type = "linear"
+#                 heatmaps(i,j,names[i],names[j],metric_dict[metric],metric,xscale_type,yscale_type)
 
-init_metric_ind = metric_dict['Init co-obs count']
-replan_metric_ind = metric_dict['Replan co-obs count']
-rows = []
-init_metrics = []
-replan_metrics = []
-with open("./grid_search_112623.csv",newline='') as csv_file:
-    spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
+# init_metric_ind = metric_dict['Init co-obs count']
+# replan_metric_ind = metric_dict['Replan co-obs count']
+# rows = []
+# init_metrics = []
+# replan_metrics = []
+# with open("./grid_search_112623.csv",newline='') as csv_file:
+#     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
 
-    i = 0
-    for row in spamreader:
-        if i < 1:
-            i=i+1
-            continue
-        init_metrics.append(float(row[init_metric_ind]))
-        replan_metrics.append(float(row[replan_metric_ind]))
-        row = [float(i) for i in row[6:8]]
-        row[0] = np.round(row[0]*3600,4)
-        rows.append(row)
-for j in range(len(names)):
-    X = np.asarray(rows)
-    vars = X[:, j]
-    results = {}
-    for var in np.unique(vars):
-        init_metric_list = []
-        replan_metric_list = []
-        for i in range(len(X[:,0])):
-            if X[i, j] == var:
-                init_metric_list.append(init_metrics[i])
-                replan_metric_list.append(replan_metrics[i])
-        results[var] = {"init_metric_list": init_metric_list, "replan_metric_list": replan_metric_list}
+#     i = 0
+#     for row in spamreader:
+#         if i < 1:
+#             i=i+1
+#             continue
+#         init_metrics.append(float(row[init_metric_ind]))
+#         replan_metrics.append(float(row[replan_metric_ind]))
+#         row = [float(i) for i in row[6:8]]
+#         row[0] = np.round(row[0]*3600,4)
+#         rows.append(row)
+# for j in range(len(names)):
+#     X = np.asarray(rows)
+#     vars = X[:, j]
+#     results = {}
+#     for var in np.unique(vars):
+#         init_metric_list = []
+#         replan_metric_list = []
+#         for i in range(len(X[:,0])):
+#             if X[i, j] == var:
+#                 init_metric_list.append(init_metrics[i])
+#                 replan_metric_list.append(replan_metrics[i])
+#         results[var] = {"init_metric_list": init_metric_list, "replan_metric_list": replan_metric_list}
 
-    fig, ax = plt.subplots()
-    box_results = []
-    box_replan_results = []
-    box_labels = []
-    box_replan_labels = []
-    for result in results.keys():
-        box_results.append(results[result]["init_metric_list"])
-        box_labels.append(str(result)+"_init")
-        box_results.append(results[result]["replan_metric_list"])
-        box_labels.append(str(result)+"_replan")
-    plt.xlabel(detailed_names[j]+", init and replan")
-    plt.ylabel("Co-obs count")
-    plt.ylim([0,1000])
-    plt.boxplot(box_results,labels=box_labels)
-    plt.savefig(boxplot_directory+"coobs_count_limited_"+str(names[j])+".png")
-    plt.close()
-    #plt.show()
+#     fig, ax = plt.subplots()
+#     box_results = []
+#     box_replan_results = []
+#     box_labels = []
+#     box_replan_labels = []
+#     for result in results.keys():
+#         box_results.append(results[result]["init_metric_list"])
+#         box_labels.append(str(result)+"_init")
+#         box_results.append(results[result]["replan_metric_list"])
+#         box_labels.append(str(result)+"_replan")
+#     plt.xlabel(detailed_names[j]+", init and replan")
+#     plt.ylabel("Co-obs count")
+#     plt.ylim([0,1000])
+#     plt.boxplot(box_results,labels=box_labels)
+#     plt.savefig(boxplot_directory+"coobs_count_limited_"+str(names[j])+".png")
+#     plt.close()
+#     #plt.show()
 
-total_results = []
-total_results.append(init_metrics)
-total_results.append(replan_metrics)
-total_labels = ['Init','Replan']
-plt.xlabel("Init and replan")
-plt.ylabel("Co-obs count")
-plt.ylim([0,1000])
-plt.boxplot(total_results,labels=total_labels)
-plt.savefig(boxplot_directory+"coobs_count_limited_all.png")
-plt.close()
-#plt.show()
+# total_results = []
+# total_results.append(init_metrics)
+# total_results.append(replan_metrics)
+# total_labels = ['Init','Replan']
+# plt.xlabel("Init and replan")
+# plt.ylabel("Co-obs count")
+# plt.ylim([0,1000])
+# plt.boxplot(total_results,labels=total_labels)
+# plt.savefig(boxplot_directory+"coobs_count_limited_all.png")
+# plt.close()
+# #plt.show()
 
-for metric in metric_dict.keys():
-    rows = []
-    diff_metric = []
-    with open("./grid_search_112623.csv",newline='') as csv_file:
-        spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
+# for metric in metric_dict.keys():
+#     rows = []
+#     diff_metric = []
+#     with open("./grid_search_112623.csv",newline='') as csv_file:
+#         spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
 
-        i = 0
-        for row in spamreader:
-            if i < 1:
-                i=i+1
-                continue
-            diff_metric.append(float(row[metric_dict[metric]]))
-            row = [float(i) for i in row[6:8]]
-            row[0] = np.round(row[0]*3600,4)
-            rows.append(row)
+#         i = 0
+#         for row in spamreader:
+#             if i < 1:
+#                 i=i+1
+#                 continue
+#             diff_metric.append(float(row[metric_dict[metric]]))
+#             row = [float(i) for i in row[6:8]]
+#             row[0] = np.round(row[0]*3600,4)
+#             rows.append(row)
 
-    fig, ax = plt.subplots()
-    num_bins = 20
-    n, bins, patches = ax.hist(diff_metric, num_bins, density=True,label="Histogram")
-    print(np.mean(diff_metric))
-    print(np.median(diff_metric))
-    sigma = np.std(diff_metric)
-    mu = np.average(diff_metric)
-    y = ((1 / (np.sqrt(2 * np.pi) * sigma)) *
-        np.exp(-0.5 * (1 / sigma * (bins - mu))**2))
-    #plt.plot(bins,y,label="Fitted Gaussian")
-    sns.kdeplot(data=diff_metric,label="Kernel Density Estimation")
-    plt.ylabel("Density")
-    plt.xlabel(metric)
-    plt.legend()
-    plt.savefig(directory+metric+"_histogram.png")
+#     fig, ax = plt.subplots()
+#     num_bins = 20
+#     n, bins, patches = ax.hist(diff_metric, num_bins, density=True,label="Histogram")
+#     print(np.mean(diff_metric))
+#     print(np.median(diff_metric))
+#     sigma = np.std(diff_metric)
+#     mu = np.average(diff_metric)
+#     y = ((1 / (np.sqrt(2 * np.pi) * sigma)) *
+#         np.exp(-0.5 * (1 / sigma * (bins - mu))**2))
+#     #plt.plot(bins,y,label="Fitted Gaussian")
+#     sns.kdeplot(data=diff_metric,label="Kernel Density Estimation")
+#     plt.ylabel("Density")
+#     plt.xlabel(metric)
+#     plt.legend()
+#     plt.savefig(directory+metric+"_histogram.png")

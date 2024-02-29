@@ -19,3 +19,4 @@ coverage_grids/het_experiment*
 *.sol
 trmm_download/
 *.pyc
+*.xlsx

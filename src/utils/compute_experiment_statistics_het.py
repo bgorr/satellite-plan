@@ -64,37 +64,49 @@ def compute_statistics_pieces(input):
     obs_per_event_list = []
     event_duration = settings["events"]["event_duration"]
     ss = settings["time"]["step_size"]
+    strict_coobs_list = []
+    loose_coobs_list = []
     for event in events:
-        measurements_str : str = event[5]
-        measurements_str = measurements_str.replace('[','')
-        measurements_str = measurements_str.replace(']','')
-        measurements_str = measurements_str.replace(' ','')
-        measurements_str = measurements_str.replace('\'','')
-        measurements = measurements_str.split(',')
+        # measurements_str : str = event[5]
+        # measurements_str = measurements_str.replace('[','')
+        # measurements_str = measurements_str.replace(']','')
+        # measurements_str = measurements_str.replace(' ','')
+        # measurements_str = measurements_str.replace('\'','')
+        # measurements = measurements_str.split(',')
+        #num_meas_required = len(measurements)
+        num_meas_required = settings["num_meas_types"]
         obs_per_event = 0
+        last_obs_time = None
         event_reward = float(event[4])
-        obss = []
+        measurements_made = []
         for obs in observations:
-            if obs[0] > ((float(event[2])/ss+float(event[3])/ss) + event_duration/ss):
+            if obs[0] > (float(event[2])/ss+float(event[3])/ss):
                 break
             if close_enough(obs[2],obs[3],float(event[0]),float(event[1])):
                 if ((float(event[2])/ss) < obs[0] < (float(event[2])/ss+float(event[3])/ss)) or ((float(event[2])/ss) < obs[1] < (float(event[2])/ss+float(event[3])/ss)):
-                    obss.append(obs)
-                    obs_per_event += 1
-                    cumulative_plan_reward += settings["rewards"]["reward"]
-                    if satellite_name_dict[obs[6]] in measurements:
-                        measurements.remove(satellite_name_dict[obs[6]])
-
-        if len(measurements) == 0:
-            event_obss_pair = {
-                "event": event,
-                "obs": obss
-            }
-            event_obs_pairs.append(event_obss_pair)
-            cumulative_event_reward += event_reward
-            num_event_obs += 1
+                    if last_obs_time is None or (obs[0] - last_obs_time > 2):
+                        event_obs_pair = {
+                            "event": event,
+                            "obs": obs
+                        }
+                        measurements_made.append(int(satellite_name_dict[obs[6]]))
+                        event_obs_pairs.append(event_obs_pair)
+                        cumulative_event_reward += event_reward
+                        cumulative_plan_reward += settings["rewards"]["reward"]
+                        obs_per_event += 1
+                        num_event_obs += 1
+                        last_obs_time = obs[0]
         obs_per_event_list.append(obs_per_event)
-
+        obs_per_meas_type = []
+        for i in range(num_meas_required):
+            obs_per_meas_type.append(measurements_made.count(i))
+        strict_coobs = np.min(obs_per_meas_type)
+        strict_coobs_list.append(strict_coobs)
+        if np.min(obs_per_meas_type) >= 1:
+            loose_coobs = len(measurements_made)-1
+        else:
+            loose_coobs = 0
+        loose_coobs_list.append(loose_coobs)
 
     output = {}
     output["event_obs_pairs"] = event_obs_pairs
@@ -102,19 +114,14 @@ def compute_statistics_pieces(input):
     output["obs_per_event_list"] = obs_per_event_list
     output["cumulative_event_reward"] = cumulative_event_reward
     output["cumulative_plan_reward"] = cumulative_plan_reward
+    output["strict_coobs_list"] = strict_coobs_list
+    output["loose_coobs_list"] = loose_coobs_list
     return output
 
 def compute_statistics(events,obs,grid_locations,settings):
     satellite_name_dict = {}
     for i in range(settings["constellation"]["num_sats_per_plane"]*settings["constellation"]["num_planes"]):
-        if i < settings["constellation"]["num_sats_per_plane"]*settings["constellation"]["num_planes"]/settings["num_meas_types"]:
-            meas_type = "0"
-        elif i < 2*settings["constellation"]["num_sats_per_plane"]*settings["constellation"]["num_planes"]/settings["num_meas_types"]:
-            meas_type = "1"
-        elif i < 3*settings["constellation"]["num_sats_per_plane"]*settings["constellation"]["num_planes"]/settings["num_meas_types"]:
-            meas_type = "2"
-        elif i < 4*settings["constellation"]["num_sats_per_plane"]*settings["constellation"]["num_planes"]/settings["num_meas_types"]:
-            meas_type = "3"
+        meas_type = str(i % settings["num_meas_types"])
         satellite_name_dict["sat"+str(i)] = meas_type
     obs.sort(key=lambda obs: obs[0])
     event_chunks = list(chunks(events,1))
@@ -134,13 +141,17 @@ def compute_statistics(events,obs,grid_locations,settings):
     event_reward = 0
     event_obs_pairs = []
     obs_per_event_list = []
+    strict_coobs_list = []
+    loose_coobs_list = []
 
     for output in output_list:
         event_reward += output["cumulative_event_reward"]
         planner_reward += output["cumulative_plan_reward"] 
         all_events_count += output["num_event_obs"]
         event_obs_pairs.extend(output["event_obs_pairs"])
-        obs_per_event_list.extend(output["obs_per_event_list"])    
+        obs_per_event_list.extend(output["obs_per_event_list"])
+        strict_coobs_list.extend(output["strict_coobs_list"])
+        loose_coobs_list.extend(output["loose_coobs_list"])
     max_rev_time_list = []
     avg_rev_time_list = []
     event_count = 0
@@ -150,7 +161,7 @@ def compute_statistics(events,obs,grid_locations,settings):
         event_end = float(event[2])+float(event[3])
         for eop in event_obs_pairs:
             if eop["event"] == event:
-                obs_per_event.extend(eop["obs"])
+                obs_per_event.append(eop["obs"])
         if len(obs_per_event) != 0:
             max_rev_time = compute_max_revisit_time(event_start,event_end,obs_per_event,settings)
             avg_rev_time = compute_avg_revisit_time(event_start,event_end,obs_per_event,settings)
@@ -192,8 +203,24 @@ def compute_statistics(events,obs,grid_locations,settings):
         event_avg_revisit_time = 86400 # TODO replace with simulation duration
     results = {
         "event_obs_count": all_events_count,
-        "events_seen_once": np.count_nonzero(obs_per_event_list),
-        "events_seen_once_average": obs_per_event_array[np.nonzero(obs_per_event_array)].mean(),
+        "events_seen_at_least_once": np.count_nonzero(obs_per_event_list),
+        "events_seen_once": np.count_nonzero(np.asarray(obs_per_event_list) == 1),
+        "events_seen_twice": np.count_nonzero(np.asarray(obs_per_event_list) == 2),
+        "events_seen_thrice": np.count_nonzero(np.asarray(obs_per_event_list) == 3),
+        "events_seen_fourplus": np.count_nonzero(np.asarray(obs_per_event_list) > 3),
+        # "coobs_seen_at_least_once_loose": np.count_nonzero(loose_coobs_list),
+        # "coobs_seen_once_loose": np.count_nonzero(np.asarray(loose_coobs_list) == 1),
+        # "coobs_seen_twice_loose": np.count_nonzero(np.asarray(loose_coobs_list) == 2),
+        # "coobs_seen_thrice_loose": np.count_nonzero(np.asarray(loose_coobs_list) == 3),
+        # "coobs_seen_fourplus_loose": np.count_nonzero(np.asarray(loose_coobs_list) > 3),
+        # "coobs_seen_at_least_once_strict": np.count_nonzero(strict_coobs_list),
+        # "coobs_seen_once_strict": np.count_nonzero(np.asarray(strict_coobs_list) == 1),
+        # "coobs_seen_twice_strict": np.count_nonzero(np.asarray(strict_coobs_list) == 2),
+        # "coobs_seen_thrice_strict": np.count_nonzero(np.asarray(strict_coobs_list) == 3),
+        # "coobs_seen_fourplus_strict": np.count_nonzero(np.asarray(strict_coobs_list) > 3),
+        "loose_coobs_list": loose_coobs_list,
+        "strict_coobs_list": strict_coobs_list,
+        "coobs_seen_once_average": obs_per_event_array[np.nonzero(obs_per_event_array)].mean(),
         "event_reward": event_reward,
         "planner_reward": planner_reward,
         "percent_coverage": events_perc_cov,
@@ -203,21 +230,21 @@ def compute_statistics(events,obs,grid_locations,settings):
         "all_max_revisit_time": np.max(all_max_rev_time_list), # max of max
         "all_avg_revisit_time": np.average(all_avg_rev_time_list) # average of average
     }
-    coobs_list = []
-    for event_obs_pair in event_obs_pairs:
-        obss = event_obs_pair["obs"]
-        end_times = []
-        for obs in obss:
-            end_times.append(obs[1])
-        end_times = sorted(end_times)
-        event = [float(x) for x in event_obs_pair["event"][:-1]]
-        event[3] = end_times[-1]
-        coobs_list.append(event)
-    with open(settings["directory"]+'coobs_obs.csv','w') as csvfile:
-        csvwriter = csv.writer(csvfile, delimiter=',',
-                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        for obs in coobs_list:
-            csvwriter.writerow(obs)
+    # coobs_list = []
+    # for event_obs_pair in event_obs_pairs:
+    #     obss = event_obs_pair["obs"]
+    #     end_times = []
+    #     for obs in obss:
+    #         end_times.append(obs[1])
+    #     end_times = sorted(end_times)
+    #     event = [float(x) for x in event_obs_pair["event"][:-1]]
+    #     event[3] = end_times[-1]
+    #     coobs_list.append(event)
+    # with open(settings["directory"]+'coobs_obs.csv','w') as csvfile:
+    #     csvwriter = csv.writer(csvfile, delimiter=',',
+    #                         quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    #     for obs in coobs_list:
+    #         csvwriter.writerow(obs)
     return results
 
 def compute_experiment_statistics_het(settings):
@@ -227,7 +254,8 @@ def compute_experiment_statistics_het(settings):
     all_initial_observations = []
     all_replan_observations = []
     all_replan_het_observations = []
-    all_visibilities = []
+    all_oracle_observations = []
+    #all_visibilities = []
 
 
     for subdir in os.listdir(directory):
@@ -235,6 +263,8 @@ def compute_experiment_statistics_het(settings):
         if "comm" in subdir:
             continue
         if ".json" in subdir:
+            continue
+        if ".csv" in subdir:
             continue
         for f in os.listdir(directory+subdir):
             if "state_cartesian" in f:
@@ -267,7 +297,7 @@ def compute_experiment_statistics_het(settings):
                 satellite["visibilities"] = visibilities
                 #all_visibilities.extend(visibilities)
 
-            if "plan" in f and not "replan" in f and settings["planner"] in f:
+            if "init" in f and settings["planner"] in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
                     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                     observations = []
@@ -279,20 +309,30 @@ def compute_experiment_statistics_het(settings):
                         row = [float(i) for i in row]
                         row.append(subdir)
                         observations.append(row)
+                    unique_observations = []
+                    obs_end_times = []
+                    for obs in observations:
+                        if obs[1:4] not in obs_end_times:
+                            obs_end_times.append(obs[1:4])
+                            unique_observations.append(obs)
+                    observations = unique_observations
                 all_initial_observations.extend(observations)
 
-            if "replan" in f and settings["planner"] in f and "het" not in f:
+            if "replan" in f and settings["planner"] in f and "het" not in f and "init" not in f and "oracle" not in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
                     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                     observations = []
-                    i = 0
                     for row in spamreader:
-                        if i < 1:
-                            i=i+1
-                            continue
                         row = [float(i) for i in row]
                         row.append(subdir)
                         observations.append(row)
+                    unique_observations = []
+                    obs_end_times = []
+                    for obs in observations:
+                        if obs[1:4] not in obs_end_times:
+                            obs_end_times.append(obs[1:4])
+                            unique_observations.append(obs)
+                    observations = unique_observations
                 all_replan_observations.extend(observations)
 
             if "replan" in f and settings["planner"] in f and "het" in f:
@@ -301,14 +341,33 @@ def compute_experiment_statistics_het(settings):
                     observations = []
                     i = 0
                     for row in spamreader:
-                        if i < 1:
-                            i=i+1
-                            continue
                         row = [float(i) for i in row]
                         row.append(subdir)
                         observations.append(row)
+                    unique_observations = []
+                    obs_end_times = []
+                    for obs in observations:
+                        if obs[1:4] not in obs_end_times:
+                            obs_end_times.append(obs[1:4])
+                            unique_observations.append(obs)
+                    observations = unique_observations
                 all_replan_het_observations.extend(observations)
-
+            if "oracle" in f and settings["planner"] in f and "het" not in f:
+                with open(directory+subdir+"/"+f,newline='') as csv_file:
+                    spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
+                    observations = []
+                    for row in spamreader:
+                        row = [float(i) for i in row]
+                        row.append(subdir)
+                        observations.append(row)
+                    unique_observations = []
+                    obs_end_times = []
+                    for obs in observations:
+                        if obs[1:4] not in obs_end_times:
+                            obs_end_times.append(obs[1:4])
+                            unique_observations.append(obs)
+                    observations = unique_observations
+                all_oracle_observations.extend(observations)
         if settings["preplanned_observations"] is not None:
             with open(settings["preplanned_observations"],newline='') as csv_file:
                 csvreader = csv.reader(csv_file, delimiter=',', quotechar='|')
@@ -326,44 +385,43 @@ def compute_experiment_statistics_het(settings):
 
         if "orbitpy_id" in satellite:
             satellites.append(satellite)
-
-    all_visibilities = []
-    for satellite in satellites:
-        vis_windows = []
-        i = 0
-        visibilities = satellite["visibilities"]
-        while i < len(visibilities):
-            continuous_visibilities = []
-            visibility = visibilities[i]
-            continuous_visibilities.append(visibility)
-            start = visibility[0]
-            end = visibility[0]
-            while(i < len(visibilities)-1 and visibilities[i+1][0] == start):
-                i += 1
-            vis_done = False
-            if i == len(visibilities)-1:
-                break
-            while not vis_done:
-                vis_done = True
-                num_steps = len(continuous_visibilities)
-                while visibilities[i+1][0] == start+num_steps:
-                    if visibilities[i+1][1] == visibility[1]:
-                        continuous_visibilities.append(visibilities[i+1])
-                        end = visibilities[i+1][0]
-                        vis_done = False
-                    if i == len(visibilities)-2:
-                        break
-                    else:
-                        i += 1
-                num_steps = len(continuous_visibilities)
-                if i == len(visibilities)-1:
-                    break
-            vis_window = [start,end,visibility[3],visibility[4],0,0,visibility[-1]] # no reward or angle associated with visibilities
-            vis_windows.append(vis_window)
-            for cont_vis in continuous_visibilities:
-                visibilities.remove(cont_vis)
-            i = 0
-        all_visibilities.extend(vis_windows)
+    # all_visibilities = []
+    # for satellite in satellites:
+    #     vis_windows = []
+    #     i = 0
+    #     visibilities = satellite["visibilities"]
+    #     while i < len(visibilities):
+    #         continuous_visibilities = []
+    #         visibility = visibilities[i]
+    #         continuous_visibilities.append(visibility)
+    #         start = visibility[0]
+    #         end = visibility[0]
+    #         while(i < len(visibilities)-1 and visibilities[i+1][0] == start):
+    #             i += 1
+    #         vis_done = False
+    #         if i == len(visibilities)-1:
+    #             break
+    #         while not vis_done:
+    #             vis_done = True
+    #             num_steps = len(continuous_visibilities)
+    #             while visibilities[i+1][0] == start+num_steps:
+    #                 if visibilities[i+1][1] == visibility[1]:
+    #                     continuous_visibilities.append(visibilities[i+1])
+    #                     end = visibilities[i+1][0]
+    #                     vis_done = False
+    #                 if i == len(visibilities)-2:
+    #                     break
+    #                 else:
+    #                     i += 1
+    #             num_steps = len(continuous_visibilities)
+    #             if i == len(visibilities)-1:
+    #                 break
+    #         vis_window = [start,end,visibility[3],visibility[4],0,0,visibility[-1]] # no reward or angle associated with visibilities
+    #         vis_windows.append(vis_window)
+    #         for cont_vis in continuous_visibilities:
+    #             visibilities.remove(cont_vis)
+    #         i = 0
+    #     all_visibilities.extend(vis_windows)
 
     events = []
     event_filename = settings["event_csvs"][0]
@@ -375,7 +433,7 @@ def compute_experiment_statistics_het(settings):
                 i=i+1
                 continue
             events.append(row) # lat, lon, start, duration, severity
-
+    
     grid_locations = []
     with open(settings["point_grid"],'r') as csvfile:
         csvreader = csv.reader(csvfile,delimiter=',')
@@ -389,70 +447,76 @@ def compute_experiment_statistics_het(settings):
     replan_results = compute_statistics(events,all_replan_observations,grid_locations,settings)
     print("Replan het event observations")
     replan_het_results = compute_statistics(events,all_replan_het_observations,grid_locations,settings)
-    print("Potential observations (visibilities)")
-    vis_results = compute_statistics(events,all_visibilities,grid_locations,settings)
+    print("Oracle event observations")
+    oracle_results = compute_statistics(events,all_oracle_observations,grid_locations,settings)
     overall_results = {
         "init_results": init_results,
         "replan_results": replan_results,
         "replan_het_results": replan_het_results,
-        "vis_results": vis_results,
+        "oracle_results": oracle_results,
         "num_events": len(events),
         "num_obs_init": len(all_initial_observations),
         "num_obs_replan": len(all_replan_observations),
         "num_obs_replan_het": len(all_replan_het_observations),
-        "num_vis": len(all_visibilities)
+        "num_obs_oracle": len(all_oracle_observations)
     }
     print(overall_results)
     return overall_results
 
 def main():
-    name = "compute_exp_stats_het"
+    name = "updated_experiment_het_2"
     settings = {
-        "name": name,
-        "instrument": {
-            "ffor": 30,
-            "ffov": 0
-        },
-        "agility": {
-            "slew_constraint": "rate",
-            "max_slew_rate": 0.1
-        },
-        "orbit": {
-            "altitude": 705, # km
-            "inclination": 98.4, # deg
-            "eccentricity": 0.0001,
-            "argper": 0, # deg
-        },
-        "constellation": {
-            "num_sats_per_plane": 6,
-            "num_planes": 6,
-            "phasing_parameter": 1
-        },
-        "events": {
-            "event_duration": 3600*6,
-            "event_frequency": 0.01/3600,
-            "event_density": 2,
-            "event_clustering": 4
-        },
-        "time": {
-            "step_size": 10, # seconds
-            "duration": 1, # days
-            "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
-        },
-        "rewards": {
-            "reward": 10,
-            "reward_increment": 0.1,
-        },
-        "planner": "milp",
-        "num_meas_types": 3,
-        "sharing_horizon": 1000,
-        "planning_horizon": 1000,
-        "directory": "./missions/"+name+"/",
-        "grid_type": "event", # can be "event" or "static"
-        "point_grid": "./coverage_grids/"+name+"/event_locations.csv",
-        "preplanned_observations": None,
-        "event_csvs": ["./events/"+name+"/events.csv"],
-        "process_obs_only": False,
+                "name": name,
+                "instrument": {
+                    "ffor": 30,
+                    "ffov": 10
+                },
+                "agility": {
+                    "slew_constraint": "rate",
+                    "max_slew_rate": 10,
+                    "inertia": 2.66,
+                    "max_torque": 4e-3
+                },
+                "orbit": {
+                    "altitude": 705, # km
+                    "inclination": 98.4, # deg
+                    "eccentricity": 0.0001,
+                    "argper": 0, # deg
+                },
+                "constellation": {
+                    "num_sats_per_plane": 8,
+                    "num_planes": 3,
+                    "phasing_parameter": 1
+                },
+                "events": {
+                    "event_duration": 3600,
+                    "num_events": int(1000),
+                    "event_clustering": "clustered"
+                },
+                "time": {
+                    "step_size": 10, # seconds
+                    "duration": 1, # days
+                    "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
+                },
+                "rewards": {
+                    "reward": 10,
+                    "reward_increment": 0.1,
+                    "reobserve_conops": "linear_increase",
+                    "event_duration_decay": "linear",
+                    "no_event_reward": 1,
+                    "oracle_reobs": "true"
+                },
+                "planner": "dp",
+                "num_meas_types": 2,
+                "sharing_horizon": 500,
+                "planning_horizon": 500,
+                "directory": "./missions/"+name+"/",
+                "grid_type": "custom", # can be "uniform" or "custom"
+                "point_grid": "./missions/"+name+"/coverage_grids/event_locations.csv",
+                "preplanned_observations": None,
+                "event_csvs": ["./missions/"+name+"/events/events.csv"],
+                "process_obs_only": False,
+                "conops": "onboard_processing"
     }
     overall_results = compute_experiment_statistics_het(settings)
     print(overall_results)

@@ -1,7 +1,7 @@
 from pyscipopt import Model
 import numpy as np
 import csv
-from utils.parse_SCIP_sols import *
+from src.utils.milp.parse_SCIP_sols import *
 
 def unique(lakes):
     lakes = np.asarray(lakes)

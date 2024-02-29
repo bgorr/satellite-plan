@@ -64,7 +64,7 @@ def check_maneuver_feasibility(curr_angle,obs_angle,curr_time,obs_end_time,setti
         print("Invalid slewing constraint provided")
 
 def close_enough(lat0,lon0,lat1,lon1):
-    if np.sqrt((lat0-lat1)**2+(lon0-lon1)**2) < 0.01:
+    if np.sqrt((lat0-lat1)**2+(lon0-lon1)**2) <= 0.01:
         return True
     else:
         return False

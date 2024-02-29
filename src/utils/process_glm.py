@@ -31,7 +31,25 @@ for event_loc in event_locations.keys():
     times = event_locations[event_loc]
     earliest_time = np.min(times)
     latest_time = np.max(times)
-    rows.append([event_loc[0],event_loc[1],earliest_time,latest_time-earliest_time,1])
+    time_arrays = []
+    through_all_times = False
+    #print(times)
+    while not through_all_times:
+        initial_times = times
+        for i in range(1,len(times)):
+            if times[i] - times[i-1] > 3600:
+                time_arrays.append(times[0:i-1])
+                times = times[i:]
+                break
+        if times == initial_times:
+            time_arrays.append(times)
+            through_all_times = True
+    #print(time_arrays)
+    for array in time_arrays:
+        if len(array) > 0:
+            earliest_time = np.min(array)
+            latest_time = np.max(array)
+            rows.append([event_loc[0],event_loc[1],earliest_time,latest_time-earliest_time,1])
 
 with open("./src/utils/lightning_events.csv", "w") as csvfile:
     csvwriter = csv.writer(csvfile)
