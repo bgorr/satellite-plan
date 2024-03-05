@@ -61,6 +61,6 @@ for row_key in rows.keys():
         xint.append(int(each))
     plt.xticks(xint)
 
-    plt.savefig(plot_dir+"/fire_"+row_key+"_lininc_hist.png",dpi=300, bbox_inches="tight")
+    plt.savefig(plot_dir+"/"+row_key+"_lininc_hist.png",dpi=300, bbox_inches="tight")
 
     plt.close()

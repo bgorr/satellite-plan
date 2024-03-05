@@ -133,12 +133,12 @@ if __name__ == "__main__":
             },
             "rewards": {
                 "reward": 10,
-                "reward_increment": 1,
+                "reward_increment": 2,
                 "reobserve_conops": "no_change",
                 "event_duration_decay": "step",
-                "no_event_reward": 5,
+                "no_event_reward": 1,
                 "oracle_reobs": "true",
-                "initial_reward": 5
+                "initial_reward": 1
             },
             "planner": "dp",
             "num_meas_types": 3,
