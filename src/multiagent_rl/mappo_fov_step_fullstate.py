@@ -133,7 +133,7 @@ def plot_learning_curve(x, scores, figure_file):
     plt.title('Running average of previous 100 scores')
     plt.savefig(figure_file)
 
-def transition_function(satellites, events, actions, num_actions, settings, grid_locations):
+def transition_function(satellites, events, event_statuses, actions, num_actions, settings, grid_locations):
     observed_points = []
     new_state = []
     reward = 0
@@ -166,6 +166,7 @@ def transition_function(satellites, events, actions, num_actions, settings, grid
             new_state.append(0)
         return new_state, 0, True, []
     event_locations = []
+    not_event_locations = []
     for obs in observed_points:
         location = obs["location"]
         events_per_location = []
@@ -180,21 +181,33 @@ def transition_function(satellites, events, actions, num_actions, settings, grid
             event_locations.append([location["lat"],location["lon"]])
             reward += 10
         else:
+            not_event_locations.append([location["lat"],location["lon"]])
             reward += 1
 
-    for grid_location in grid_locations:
+    for i, grid_location in enumerate(grid_locations):
         event_occurring = False
+        event_not_occurring = False
         for event_location in event_locations:
             if close_enough(event_location[0],event_location[1],grid_location[0],grid_location[1]):
                 event_occurring = True
+        for event_location in not_event_locations:
+            if close_enough(event_location[0],event_location[1],grid_location[0],grid_location[1]):
+                event_not_occurring = True
+
         if event_occurring:
             new_state.append(1)
+            print('heyo')
+        elif event_statuses[i] == 1 and event_not_occurring:
+            new_state.append(0)
+        elif event_statuses[i] == 1 and not event_not_occurring:
+            new_state.append(1)
+            print('heyo')
         else:
             new_state.append(0)
     
     return new_state, reward, False, observed_points
 
-def transition_function_by_sat(satellites, events, actions, num_actions, settings, grid_locations):
+def transition_function_by_sat(satellites, events, event_statuses, actions, num_actions, settings, grid_locations):
     observed_points = []
     observed_points_flattened = []
     new_state = []
@@ -232,7 +245,8 @@ def transition_function_by_sat(satellites, events, actions, num_actions, setting
         return new_state, 0, True, []
     
     event_locations = []
-    for obs in observed_points_flattened:
+    not_event_locations = []
+    for obs in observed_points:
         location = obs["location"]
         events_per_location = []
         for event in events:
@@ -246,9 +260,24 @@ def transition_function_by_sat(satellites, events, actions, num_actions, setting
             event_locations.append([location["lat"],location["lon"]])
             reward += 10
         else:
+            not_event_locations.append([location["lat"],location["lon"]])
             reward += 1
-    for grid_location in grid_locations:
-        if [grid_location[0],grid_location[1]] in event_locations:
+
+    for i, grid_location in enumerate(grid_locations):
+        event_occurring = False
+        event_not_occurring = False
+        for event_location in event_locations:
+            if close_enough(event_location[0],event_location[1],grid_location[0],grid_location[1]):
+                event_occurring = True
+        for event_location in not_event_locations:
+            if close_enough(event_location[0],event_location[1],grid_location[0],grid_location[1]):
+                event_not_occurring = True
+
+        if event_occurring:
+            new_state.append(1)
+        elif event_statuses[i] == 1 and event_not_occurring:
+            new_state.append(0)
+        elif event_statuses[i] == 1 and not event_not_occurring:
             new_state.append(1)
         else:
             new_state.append(0)
@@ -391,7 +420,7 @@ if __name__ == '__main__':
                 actions.append(action)
                 probs.append(prob)
                 vals.append(val)
-            joint_observation_, reward, done, obs_info = transition_function(satellites,events,actions,action_space_size,settings,grid_locations)
+            joint_observation_, reward, done, obs_info = transition_function(satellites,events,joint_observation[4*len(satellites):],actions,action_space_size,settings,grid_locations)
             if done:
                 break
             for i, satellite in enumerate(satellites):
@@ -399,10 +428,11 @@ if __name__ == '__main__':
                 satellite["curr_angle"] = joint_observation_[4*i+1]
                 satellite["curr_lat"] = joint_observation_[4*i+2]
                 satellite["curr_lon"] = joint_observation_[4*i+3]
-            n_steps += 1
+            
             score += reward
             for i, satellite in enumerate(satellites):
                 agent.remember(joint_observation[4*i:4*i+4], joint_observation, actions[i], probs[i], vals[i], reward, done)
+                n_steps += 1
             if n_steps % N == 0:
                 agent.learn()
                 learn_iters += 1
@@ -455,7 +485,7 @@ if __name__ == '__main__':
             actions.append(action)
             probs.append(prob)
             vals.append(val)
-        joint_observation_, reward, done, obs_info = transition_function_by_sat(satellites,events,actions,action_space_size,settings,grid_locations)
+        joint_observation_, reward, done, obs_info = transition_function_by_sat(satellites,fixed_events,joint_observation[4*len(satellites):],actions,action_space_size,settings,grid_locations)
         if done:
             break
         for i, satellite in enumerate(satellites):
