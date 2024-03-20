@@ -184,6 +184,13 @@ def graph_search_events_interval(planner_inputs):
     sharing_end = planner_inputs["sharing_end"]
     settings = planner_inputs["settings"]
     orbitpy_id = planner_inputs["orbitpy_id"]
+    start_angle = planner_inputs["start_angle"]
+    filtered_obs_list = []
+    for obs in obs_list:
+        feasible, _ = check_maneuver_feasibility(start_angle,obs["angle"],plan_start,obs["end"],settings)
+        if feasible:
+            filtered_obs_list.append(obs)
+    obs_list = filtered_obs_list
     rewards, node_indices = propagate_weights(obs_list,settings)
     prelim_plan = list(extract_path(obs_list,rewards,node_indices))
     updated_rewards = []

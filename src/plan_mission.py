@@ -52,6 +52,18 @@ def load_satellites(directory):
                 satellite["visibilities"] = visibilities
                 satellite["orbitpy_id"] = subdir
 
+            if "geo" in f:
+                satellite["ssps"] = {}
+                with open(directory+subdir+"/"+f,newline='') as csv_file:
+                    spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
+                    for idx, row in enumerate(spamreader):
+                        if idx < 1:
+                            continue
+                        row = [float(i) for i in row]
+                        satellite["ssps"][row[0]] = [row[1], row[2]]
+
+
+
         satellites.append(satellite)
     return satellites
 
@@ -128,16 +140,17 @@ def load_obs(satellite):
             num_steps = len(continuous_visibilities)
             if i == len(visibilities)-1:
                 break
+        angle_list = [x[6] for x in continuous_visibilities]
         time_window = {
             "location": {
                 "lat": np.round(visibility[3],3),
                 "lon": np.round(visibility[4],3)
             },
             "times": [x[0] for x in continuous_visibilities],
-            "angles": [x[6] for x in continuous_visibilities],
+            "angles": angle_list,
             "start": start,
             "end": end,
-            "angle": visibility[6],
+            "angle": angle_list[np.argmin(np.abs(angle_list))],
             "reward": 1,
             "last_updated": 0.0
         }
@@ -187,7 +200,7 @@ def decompose_plan(full_plan,satellites,settings):
                 
 
 
-def save_plan_w_fov(satellite,settings,grid_locations,flag):
+def save_plan_w_fov(satellite,settings,flag):
     directory = settings["directory"] + "orbit_data/"
     with open(directory+satellite["orbitpy_id"]+'/replan_interval'+settings["planner"]+flag+'.csv','w') as csvfile:
         csvwriter = csv.writer(csvfile, delimiter=',',
@@ -682,7 +695,7 @@ def plan_mission_horizon(settings):
         next(csvfile)
         for row in csvreader:
             grid_locations.append([float(row[0]),float(row[1])])
-    pool.map(partial(save_plan_w_fov, settings=settings, grid_locations=grid_locations, flag="init"), satellites)
+    pool.map(partial(save_plan_w_fov, settings=settings, flag="init"), satellites)
     print("Planned mission with horizons!")
 
 
@@ -956,7 +969,7 @@ def plan_mission_replan_interval(settings):
         next(csvfile)
         for row in csvreader:
             grid_locations.append([float(row[0]),float(row[1])])
-    pool.map(partial(save_plan_w_fov, settings=settings, grid_locations=grid_locations, flag="hom"), satellites)
+    pool.map(partial(save_plan_w_fov, settings=settings, flag="hom"), satellites)
     print("Planned mission with replans at interval!")
 
 def plan_mission_replan_oracle(settings):
@@ -1057,7 +1070,7 @@ def plan_mission_replan_oracle(settings):
         next(csvfile)
         for row in csvreader:
             grid_locations.append([float(row[0]),float(row[1])])
-    pool.map(partial(save_plan_w_fov, settings=settings, grid_locations=grid_locations, flag="oracle"), satellites)
+    pool.map(partial(save_plan_w_fov, settings=settings, flag="oracle"), satellites)
     print("Planned mission with replans at interval, oracle!")
 
 def plan_mission_replan_interval_het(settings):
@@ -1290,7 +1303,7 @@ def plan_mission_replan_interval_het(settings):
         next(csvfile)
         for row in csvreader:
             grid_locations.append([float(row[0]),float(row[1])])
-    pool.map(partial(save_plan_w_fov, settings=settings, grid_locations=grid_locations, flag="het"), satellites)
+    pool.map(partial(save_plan_w_fov, settings=settings, flag="het"), satellites)
     print("Planned mission with replans at interval (het)!")
 
 if __name__ == "__main__":

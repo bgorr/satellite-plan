@@ -11,7 +11,7 @@ def unique(lakes):
     return np.unique(lakes,axis=0)
 
 def close_enough(lat0,lon0,lat1,lon1):
-    if np.sqrt((lat0-lat1)**2+(lon0-lon1)**2) < 0.0001:
+    if np.sqrt((lat0-lat1)**2+(lon0-lon1)**2) < 0.001:
         return True
     else:
         return False
@@ -392,16 +392,18 @@ def compute_experiment_statistics(settings):
     return overall_results
 
 def main():
-    name = "agu_rain"
+    name = "dqn_test_fov_step_fullstate"
     settings = {
         "name": name,
         "instrument": {
-            "ffor": 30,
+            "ffor": 60,
             "ffov": 0
         },
         "agility": {
             "slew_constraint": "rate",
-            "max_slew_rate": 0.1
+            "max_slew_rate": 0.1,
+            "inertia": 2.66,
+            "max_torque": 4e-3
         },
         "orbit": {
             "altitude": 705, # km
@@ -410,15 +412,14 @@ def main():
             "argper": 0, # deg
         },
         "constellation": {
-            "num_sats_per_plane": 6,
-            "num_planes": 6,
+            "num_sats_per_plane": 1,
+            "num_planes": 1,
             "phasing_parameter": 1
         },
         "events": {
             "event_duration": 3600*6,
-            "event_frequency": 0.01/3600,
-            "event_density": 2,
-            "event_clustering": 4
+            "num_events": 10000,
+            "event_clustering": "clustered"
         },
         "time": {
             "step_size": 10, # seconds
@@ -428,20 +429,29 @@ def main():
         "rewards": {
             "reward": 10,
             "reward_increment": 0.1,
+            "reobserve_reward": 2
+        },
+        "plotting":{
+            "plot_clouds": False,
+            "plot_rain": False,
+            "plot_duration": 0.1,
+            "plot_interval": 10,
+            "plot_obs": True
         },
         "planner": "dp",
         "num_meas_types": 3,
-        "sharing_horizon": 1000,
-        "planning_horizon": 1000,
-        "directory": "./missions/agu_rain/",
-        "grid_type": "event", # can be "event" or "static"
-        "point_grid": "./coverage_grids/agu_rain/event_locations.csv",
+        "sharing_horizon": 500,
+        "planning_horizon": 500,
+        "directory": "./missions/"+name+"/",
+        "grid_type": "custom", # can be "uniform" or "custom"
+        "point_grid": "./missions/"+name+"/coverage_grids/event_locations.csv",
         "preplanned_observations": None,
-        "event_csvs": ["./rain_events.csv"],
+        "event_csvs": ["./missions/"+name+"/events/events.csv"],
         "process_obs_only": False,
+        "conops": "onboard_processing"
     }
     overall_results = compute_experiment_statistics(settings)
-    print(overall_results)
+    #print(overall_results)
 
 if __name__ == "__main__":
     main()

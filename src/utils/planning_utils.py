@@ -58,13 +58,21 @@ def check_maneuver_feasibility(curr_angle,obs_angle,curr_time,obs_end_time,setti
         slew_rate = abs(obs_angle-curr_angle)/abs(obs_end_time-curr_time)/settings["time"]["step_size"]
         max_slew_rate = settings["agility"]["max_slew_rate"] # deg / s
         transition_end_time = abs(obs_angle-curr_angle)/(max_slew_rate*settings["time"]["step_size"]) + curr_time
-
+        # if curr_angle == -32.91:
+        #     print(slew_rate)
+        #     print(obs_angle)
+        #     print(curr_angle)
+        #     print(max_slew_rate)
+        #     print(obs_end_time)
+        #     print(curr_time)
+        #     print(settings["time"]["step_size"])
         return slew_rate < max_slew_rate, transition_end_time
     else:
         print("Invalid slewing constraint provided")
+        return False, False
 
 def close_enough(lat0,lon0,lat1,lon1):
-    if np.sqrt((lat0-lat1)**2+(lon0-lon1)**2) <= 0.01:
+    if np.sqrt((lat0-lat1)**2+(lon0-lon1)**2) <= 0.0001:
         return True
     else:
         return False
