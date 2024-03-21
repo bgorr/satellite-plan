@@ -144,7 +144,7 @@ def transition_function(satellites, events, actions, num_actions, settings):
             done_flag = True
             break
         obs_list = chop_obs_list(satellite["obs_list"],satellite["curr_time"],satellite["curr_time"]+planning_interval)
-        pointing_options = np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2,settings["instrument"]["ffov"])
+        pointing_options = np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"])
         pointing_option = pointing_options[actions[i]]
         slew_time = np.abs(satellite["curr_angle"]-pointing_option)/settings["agility"]["max_slew_rate"]/settings["time"]["step_size"]
         ready_time = satellite["curr_time"]+slew_time
@@ -193,7 +193,7 @@ def transition_function_by_sat(satellites, events, actions, num_actions, setting
             done_flag = True
             break
         obs_list = chop_obs_list(satellite["obs_list"],satellite["curr_time"],satellite["curr_time"]+planning_interval)
-        pointing_options = np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2,settings["instrument"]["ffov"])
+        pointing_options = np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"])
         pointing_option = pointing_options[actions[i]]
         slew_time = np.abs(satellite["curr_angle"]-pointing_option)/settings["agility"]["max_slew_rate"]/settings["time"]["step_size"]
         ready_time = satellite["curr_time"]+slew_time
@@ -308,7 +308,7 @@ if __name__ == '__main__':
     batch_size = 10
     n_epochs = 10
     alpha=0.00005
-    action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2,settings["instrument"]["ffov"]))
+    action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
     observation_space_size = 4*len(satellites)+1 #len(grid_locations)*3
     agent = Agent(settings=settings,n_sats=len(satellites),gamma=0.99, epsilon = 0.99, batch_size=256, n_actions=action_space_size, eps_end=0.01, input_dims=[observation_space_size], lr=0.00005)
     randomize_events = True

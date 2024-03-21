@@ -134,7 +134,7 @@ def transition_function(satellite, events, action, num_actions, settings):
     if satellite["curr_time"]+planning_interval > settings["time"]["duration"]*86400/10:
         return [satellite["curr_time"],satellite["curr_angle"],satellite["ssps"][satellite["curr_time"]*10][0],satellite["ssps"][satellite["curr_time"]*10][1]], 0, True, []
     obs_list = chop_obs_list(satellite["obs_list"],satellite["curr_time"],satellite["curr_time"]+planning_interval)
-    pointing_options = np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2,settings["instrument"]["ffov"])
+    pointing_options = np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"])
     pointing_option = pointing_options[action]
     slew_time = np.abs(satellite["curr_angle"]-pointing_option)/settings["agility"]["max_slew_rate"]/settings["time"]["step_size"]
     ready_time = satellite["curr_time"]+slew_time
@@ -252,15 +252,15 @@ if __name__ == '__main__':
         # batch_size = 100
         # n_epochs = 100
         # alpha=0.00005
-        N = 100
-        batch_size = 10
+        N = 256
+        batch_size = 256
         n_epochs = 10
-        alpha=0.00005
-        action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2,settings["instrument"]["ffov"]))
+        alpha=3e-4
+        action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
         observation_space_size = 4 #len(grid_locations)*3
         agent = Agent(settings, satellite["orbitpy_id"],n_actions=action_space_size, batch_size=batch_size,
                         alpha=alpha,n_epochs=n_epochs, input_dims=observation_space_size)
-        n_games = 1000
+        n_games = 10000
 
         figure_file = 'plots/ppo_main_fov_step_'+satellite["orbitpy_id"]+'.png'
         best_score = -1000
@@ -307,11 +307,11 @@ if __name__ == '__main__':
 
     ### LOADING SAVED MODELS AND SAVING PLANS ###
     for satellite in satellites:
-        N = 100
-        batch_size = 10
+        N = 1000
+        batch_size = 100
         n_epochs = 10
         alpha=0.00005
-        action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2,settings["instrument"]["ffov"]))
+        action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
         observation_space_size = 4
         agent = Agent(settings, satellite["orbitpy_id"],n_actions=action_space_size, batch_size=batch_size,
                             alpha=alpha,n_epochs=n_epochs, input_dims=observation_space_size)

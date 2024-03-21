@@ -249,7 +249,7 @@ def compute_experiment_statistics(settings):
                 satellite["visibilities"] = visibilities
                 #all_visibilities.extend(visibilities)
 
-            if "init" in f and settings["planner"] in f:
+            if "init" in f and settings["planner"] in f and "complete" in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
                     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                     observations = []
@@ -266,7 +266,7 @@ def compute_experiment_statistics(settings):
                     observations = unique_observations
                 all_initial_observations.extend(observations)
 
-            if "replan" in f and settings["planner"] in f and "het" not in f and "oracle" not in f and "init" not in f:
+            if "replan" in f and settings["planner"] in f and "het" not in f and "oracle" not in f and "init" not in f and "complete" in f:
                 with open(directory+subdir+"/"+f,newline='') as csv_file:
                     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
                     observations = []
@@ -392,7 +392,7 @@ def compute_experiment_statistics(settings):
     return overall_results
 
 def main():
-    name = "dqn_test_fov_step_fullstate"
+    name = "dqn_test_fov_step"
     settings = {
         "name": name,
         "instrument": {

@@ -66,7 +66,11 @@ def check_maneuver_feasibility(curr_angle,obs_angle,curr_time,obs_end_time,setti
         #     print(obs_end_time)
         #     print(curr_time)
         #     print(settings["time"]["step_size"])
-        return slew_rate < max_slew_rate, transition_end_time
+        # if slew_rate < max_slew_rate and transition_end_time > obs_end_time:
+        #     print(transition_end_time)
+        #     print(obs_end_time)
+        feasible = (slew_rate < max_slew_rate)# and curr_time < obs_end_time and transition_end_time < obs_end_time
+        return feasible, transition_end_time
     else:
         print("Invalid slewing constraint provided")
         return False, False

@@ -12,7 +12,7 @@ from src.planners.dp_planner import graph_search, graph_search_events, graph_sea
 from src.planners.milp_planner import milp_planner, milp_planner_interval
 from src.planners.heuristic_planner import greedy_lemaitre_planner, greedy_lemaitre_planner_events, greedy_lemaitre_planner_events_interval
 from src.planners.fifo_planner import fifo_planner, fifo_planner_events, fifo_planner_events_interval
-from src.utils.planning_utils import close_enough
+from src.utils.planning_utils import close_enough, check_maneuver_feasibility
     
 def unique(lakes):
     lakes = np.asarray(lakes)
@@ -188,12 +188,28 @@ def decompose_plan(full_plan,satellites,settings):
                         row = [obs["end"],obs["end"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
 
+def verify_plan(satellite,settings):
+    angle = 0.0
+    time = 0.0
+    verified_plan = []
+    for obs in satellite["plan"]:
+        feasible, transition_end_time = check_maneuver_feasibility(angle, obs["angle"], time, obs["end"], settings)
+        if feasible:
+            if transition_end_time > obs["start"]:
+                obs["soonest"] = transition_end_time
+            else:
+                obs["soonest"] = obs["start"]
+            time = obs["soonest"]
+            angle = obs["angle"]
+            verified_plan.append(obs)
+    return verified_plan
+
 def save_plan_w_fov(satellite,settings,grid_locations,flag):
     directory = settings["directory"] + "orbit_data/"
     with open(directory+satellite["orbitpy_id"]+'/replan_interval'+settings["planner"]+flag+'.csv','w') as csvfile:
         csvwriter = csv.writer(csvfile, delimiter=',',
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        plan = satellite["plan"]
+        plan = verify_plan(satellite,settings)
         rows = []
         grid_locations = []
         with open(settings["point_grid"],'r') as csvfile:
@@ -1368,17 +1384,17 @@ if __name__ == "__main__":
         },
         "time": {
             "step_size": 10, # seconds
-            "duration": 1, # days
+            "duration": 0.1, # days
             "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
         },
         "rewards": {
-                "reward": 10,
-                "reward_increment": 2,
-                "reobserve_conops": "no_change",
-                "event_duration_decay": "step",
-                "no_event_reward": 1,
-                "oracle_reobs": "true",
-                "initial_reward": 1
+            "reward": 10,
+            "reward_increment": 2,
+            "reobserve_conops": "no_change",
+            "event_duration_decay": "step",
+            "no_event_reward": 1,
+            "oracle_reobs": "true",
+            "initial_reward": 1
         },
         "plotting":{
             "plot_clouds": False,

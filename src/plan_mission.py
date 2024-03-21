@@ -253,12 +253,12 @@ def within_fov(loc_array,loc_dict,angle,orbit_height_km):
 def chop_obs_list(obs_list,start,end):
     chopped_list = []
     for obs in obs_list:
-        if obs["start"] > start and obs["end"] < end:
+        if obs["start"] >= start and obs["end"] <= end:
             chopped_list.append(obs)
-        elif obs["start"] > start and obs["start"] < end:
+        elif obs["start"] >= start and obs["start"] <= end:
             obs["end"] = end
             chopped_list.append(obs)
-        elif obs["end"] < end and obs["end"] > start:
+        elif obs["end"] <= end and obs["end"] >= start:
             obs["start"] = start
             chopped_list.append(obs)
     return chopped_list

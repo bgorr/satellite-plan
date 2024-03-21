@@ -142,7 +142,7 @@ def transition_function(satellite, events, event_statuses, action, num_actions, 
             state.append(0)
         return state, 0, True, []
     obs_list = chop_obs_list(satellite["obs_list"],satellite["curr_time"],satellite["curr_time"]+planning_interval)
-    pointing_options = np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2,settings["instrument"]["ffov"])
+    pointing_options = np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"])
     pointing_option = pointing_options[action]
     slew_time = np.abs(satellite["curr_angle"]-pointing_option)/settings["agility"]["max_slew_rate"]/settings["time"]["step_size"]
     ready_time = satellite["curr_time"]+slew_time
@@ -299,7 +299,7 @@ if __name__ == '__main__':
         batch_size = 10
         n_epochs = 10
         alpha=0.00005
-        action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2,settings["instrument"]["ffov"]))
+        action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
         observation_space_size = 4+len(grid_locations)
         agent = Agent(settings, satellite["orbitpy_id"],n_actions=action_space_size, batch_size=batch_size,
                     alpha=alpha,n_epochs=n_epochs, input_dims=observation_space_size)
@@ -355,7 +355,7 @@ if __name__ == '__main__':
         batch_size = 10
         n_epochs = 10
         alpha=0.00005
-        action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2,settings["instrument"]["ffov"]))
+        action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
         observation_space_size = 4+len(grid_locations)
         agent = Agent(settings, satellite["orbitpy_id"],n_actions=action_space_size, batch_size=batch_size,
                             alpha=alpha,n_epochs=n_epochs, input_dims=observation_space_size)

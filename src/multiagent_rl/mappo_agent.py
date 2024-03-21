@@ -72,6 +72,7 @@ class ActorNetwork(nn.Module):
         norm_tensor_array.append(self.settings["instrument"]["ffor"]/2)
         norm_tensor_array.append(180)
         norm_tensor_array.append(180)
+        norm_tensor_array.append(self.n_sats)
 
         state = state / T.tensor(norm_tensor_array, dtype=T.float).to(self.device)
         dist = self.actor(state)
@@ -110,6 +111,7 @@ class CriticNetwork(nn.Module):
             norm_tensor_array.append(self.settings["instrument"]["ffor"]/2)
             norm_tensor_array.append(180)
             norm_tensor_array.append(180)
+            norm_tensor_array.append(self.n_sats)
 
         state = state / T.tensor(norm_tensor_array, dtype=T.float).to(self.device)
         value = self.critic(state)
@@ -123,7 +125,7 @@ class CriticNetwork(nn.Module):
         self.load_state_dict(T.load(self.checkpoint_file))
 
 class Agent:
-    def __init__(self, settings, num_sats, n_actions, actor_input_dims, critic_input_dims, gamma=0.99, alpha=3e-4, gae_lambda=0.97, policy_clip=0.1, batch_size=64, N=2048, n_epochs=10):
+    def __init__(self, settings, num_sats, n_actions, actor_input_dims, critic_input_dims, gamma=0.99, alpha=3e-4, gae_lambda=0.97, policy_clip=0.2, batch_size=64, N=2048, n_epochs=10):
         self.gamma = gamma
         self.policy_clip = policy_clip
         self.n_epochs = n_epochs

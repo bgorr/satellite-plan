@@ -144,7 +144,7 @@ def transition_function(satellites, events, event_statuses, actions, num_actions
             done_flag = True
             break
         obs_list = chop_obs_list(satellite["obs_list"],satellite["curr_time"],satellite["curr_time"]+planning_interval)
-        pointing_options = np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2,settings["instrument"]["ffov"])
+        pointing_options = np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"])
         pointing_option = pointing_options[actions[i]]
         slew_time = np.abs(satellite["curr_angle"]-pointing_option)/settings["agility"]["max_slew_rate"]/settings["time"]["step_size"]
         ready_time = satellite["curr_time"]+slew_time
@@ -196,12 +196,10 @@ def transition_function(satellites, events, event_statuses, actions, num_actions
 
         if event_occurring:
             new_state.append(1)
-            print('heyo')
         elif event_statuses[i] == 1 and event_not_occurring:
             new_state.append(0)
         elif event_statuses[i] == 1 and not event_not_occurring:
             new_state.append(1)
-            print('heyo')
         else:
             new_state.append(0)
     
@@ -220,7 +218,7 @@ def transition_function_by_sat(satellites, events, event_statuses, actions, num_
             done_flag = True
             break
         obs_list = chop_obs_list(satellite["obs_list"],satellite["curr_time"],satellite["curr_time"]+planning_interval)
-        pointing_options = np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2,settings["instrument"]["ffov"])
+        pointing_options = np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"])
         pointing_option = pointing_options[actions[i]]
         slew_time = np.abs(satellite["curr_angle"]-pointing_option)/settings["agility"]["max_slew_rate"]/settings["time"]["step_size"]
         ready_time = satellite["curr_time"]+slew_time
@@ -246,7 +244,7 @@ def transition_function_by_sat(satellites, events, event_statuses, actions, num_
     
     event_locations = []
     not_event_locations = []
-    for obs in observed_points:
+    for obs in observed_points_flattened:
         location = obs["location"]
         events_per_location = []
         for event in events:
@@ -385,7 +383,7 @@ if __name__ == '__main__':
         batch_size = 10
         n_epochs = 10
         alpha=0.00005
-        action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2,settings["instrument"]["ffov"]))
+        action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
         local_observation_space_size = 4
         joint_observation_space_size = 4*len(satellites) + len(grid_locations)
         agent = Agent(settings, num_sats=len(satellites),n_actions=action_space_size, batch_size=batch_size, alpha=alpha,n_epochs=n_epochs, actor_input_dims=local_observation_space_size,critic_input_dims=joint_observation_space_size)
@@ -451,7 +449,7 @@ if __name__ == '__main__':
     batch_size = 10
     n_epochs = 10
     alpha=0.00005
-    action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2,settings["instrument"]["ffov"]))
+    action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
     observation_space_size = 4 * len(satellites) + len(grid_locations)
     local_observation_space_size = 4
     joint_observation_space_size = 4*len(satellites) + len(grid_locations)
