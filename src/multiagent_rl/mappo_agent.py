@@ -213,5 +213,5 @@ class Agent:
                 self.actor.optimizer.step()
                 self.critic.optimizer.step()
 
-            self.memory.clear_memory()
+        self.memory.clear_memory()
 

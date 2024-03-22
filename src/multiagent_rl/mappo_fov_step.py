@@ -301,16 +301,16 @@ if __name__ == '__main__':
         satellite["obs_list"] = load_obs(satellite)
 
     agent_list = []
-    N = 1000
+    #N = 8640
     n_games = 10000
     n_steps = 0
     learn_iters = 0
     best_score = -1000
     figure_file = 'plots/mappo_fov_step.png'
     score_history = []
-    batch_size = 100
+    batch_size = 864*len(satellites)
     n_epochs = 10
-    alpha=0.00005
+    alpha=3e-4
     action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
     local_observation_space_size = 5
     joint_observation_space_size = 5*len(satellites) #len(grid_locations)*3
@@ -351,15 +351,13 @@ if __name__ == '__main__':
                 satellite["curr_angle"] = joint_observation_[5*i+1]
                 satellite["curr_lat"] = joint_observation_[5*i+2]
                 satellite["curr_lon"] = joint_observation_[5*i+3]
-            
             score += reward
             for i, satellite in enumerate(satellites):
                 agent.remember(joint_observation[5*i:5*i+5], joint_observation, actions[i], probs[i], vals[i], reward, done)
-                n_steps += 1
-            if n_steps % N == 0:
-                agent.learn()
-                learn_iters += 1
+            n_steps += 1
             joint_observation = joint_observation_
+        agent.learn()
+        learn_iters += 1
         score_history.append(score)
         avg_score = np.mean(score_history[-100:])
         if avg_score > best_score:
