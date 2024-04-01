@@ -21,8 +21,7 @@ from src.multiagent_rl.mappo_agent_fullstate import Agent
 import matplotlib.pyplot as plt
 
 
-# state space: satellite time, satellite angle
-# action space: next 5 actions
+
 
 def save_plan(satellite,settings,flag):
     directory = settings["directory"] + "orbit_data/"
@@ -160,6 +159,7 @@ def transition_function(satellites, events, event_statuses, actions, num_actions
         new_state.append(satellite["curr_angle"])
         new_state.append(satellite["curr_lat"])
         new_state.append(satellite["curr_lon"])
+        new_state.append(i)
     
     if done_flag:
         for grid_location in grid_locations:
@@ -235,6 +235,7 @@ def transition_function_by_sat(satellites, events, event_statuses, actions, num_
         new_state.append(satellite["curr_angle"])
         new_state.append(satellite["curr_lat"])
         new_state.append(satellite["curr_lon"])
+        new_state.append(i)
         observed_points.append(observed_points_per_sat)
     
     if done_flag:
@@ -372,28 +373,25 @@ if __name__ == '__main__':
             grid_locations.append([float(row[0]),float(row[1])])
 
     agent_list = []
-    N = 100
-    n_games = 1000
+    n_games = 10000
     n_steps = 0
     learn_iters = 0
     best_score = -1000
     figure_file = 'plots/mappo_fov_step_fullstate.png'
     score_history = []
-    for satellite in satellites:
-        batch_size = 10
-        n_epochs = 10
-        alpha=0.00005
-        action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
-        local_observation_space_size = 4
-        joint_observation_space_size = 4*len(satellites) + len(grid_locations)
-        agent = Agent(settings, num_sats=len(satellites),n_actions=action_space_size, batch_size=batch_size, alpha=alpha,n_epochs=n_epochs, actor_input_dims=local_observation_space_size,critic_input_dims=joint_observation_space_size)
-        agent_list.append(agent)
+    batch_size = 86*len(satellites)
+    n_epochs = 10
+    alpha = 3e-4
+    action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
+    local_observation_space_size = 5
+    joint_observation_space_size = 5*len(satellites) + len(grid_locations)
+    agent = Agent(settings, num_sats=len(satellites),n_actions=action_space_size, batch_size=batch_size, alpha=alpha,n_epochs=n_epochs, actor_input_dims=local_observation_space_size,critic_input_dims=joint_observation_space_size)
     randomize_events = True
     for j in range(n_games):
         if randomize_events:
             events = create_and_load_random_events(settings)
         joint_observation = []
-        for satellite in satellites:
+        for i, satellite in enumerate(satellites):
             satellite["curr_angle"] = 0.0
             satellite["curr_time"] = 0.0
             satellite["curr_lat"] = satellite["ssps"][0.0][0]
@@ -402,7 +400,7 @@ if __name__ == '__main__':
             joint_observation.append(satellite["curr_angle"])
             joint_observation.append(satellite["curr_lat"])
             joint_observation.append(satellite["curr_lon"])
-        
+            joint_observation.append(i)
         for grid_location in grid_locations:
             joint_observation.append(0)
 
@@ -413,7 +411,7 @@ if __name__ == '__main__':
             probs = []
             vals = []
             for i, satellite in enumerate(satellites):
-                local_observation = joint_observation[4*i:4*i+4]
+                local_observation = joint_observation[5*i:5*i+5]
                 action, prob, val = agent.choose_action(local_observation,joint_observation)
                 actions.append(action)
                 probs.append(prob)
@@ -422,19 +420,18 @@ if __name__ == '__main__':
             if done:
                 break
             for i, satellite in enumerate(satellites):
-                satellite["curr_time"] = joint_observation_[4*i]
-                satellite["curr_angle"] = joint_observation_[4*i+1]
-                satellite["curr_lat"] = joint_observation_[4*i+2]
-                satellite["curr_lon"] = joint_observation_[4*i+3]
+                satellite["curr_time"] = joint_observation_[5*i]
+                satellite["curr_angle"] = joint_observation_[5*i+1]
+                satellite["curr_lat"] = joint_observation_[5*i+2]
+                satellite["curr_lon"] = joint_observation_[5*i+3]
             
             score += reward
             for i, satellite in enumerate(satellites):
-                agent.remember(joint_observation[4*i:4*i+4], joint_observation, actions[i], probs[i], vals[i], reward, done)
+                agent.remember(joint_observation[5*i:5*i+5], joint_observation, actions[i], probs[i], vals[i], reward, done)
                 n_steps += 1
-            if n_steps % N == 0:
-                agent.learn()
-                learn_iters += 1
             joint_observation = joint_observation_
+        agent.learn()
+        learn_iters += 1
         score_history.append(score)
         avg_score = np.mean(score_history[-100:])
         if avg_score > best_score:
@@ -446,20 +443,13 @@ if __name__ == '__main__':
         
     ### LOADING SAVED MODELS AND SAVING PLANS ###
 
-    batch_size = 10
-    n_epochs = 10
-    alpha=0.00005
-    action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
-    observation_space_size = 4 * len(satellites) + len(grid_locations)
-    local_observation_space_size = 4
-    joint_observation_space_size = 4*len(satellites) + len(grid_locations)
     agent = Agent(settings, num_sats=len(satellites),n_actions=action_space_size, batch_size=batch_size, alpha=alpha,n_epochs=n_epochs, actor_input_dims=local_observation_space_size,critic_input_dims=joint_observation_space_size)
     agent.load_models()
     joint_observation = []
     plans = []
     for i in range(len(satellites)):
         plans.append([])
-    for satellite in satellites:
+    for i, satellite in enumerate(satellites):
         satellite["curr_angle"] = 0.0
         satellite["curr_time"] = 0.0
         satellite["curr_lat"] = satellite["ssps"][0.0][0]
@@ -468,7 +458,7 @@ if __name__ == '__main__':
         joint_observation.append(satellite["curr_angle"])
         joint_observation.append(satellite["curr_lat"])
         joint_observation.append(satellite["curr_lon"])
-
+        joint_observation.append(i)
     for grid_location in grid_locations:
         joint_observation.append(0)
     done = False
@@ -478,7 +468,7 @@ if __name__ == '__main__':
         probs = []
         vals = []
         for i, satellite in enumerate(satellites):
-            local_observation = joint_observation[4*i:4*i+4]
+            local_observation = joint_observation[5*i:5*i+5]
             action, prob, val = agent.choose_action(local_observation,joint_observation)
             actions.append(action)
             probs.append(prob)
@@ -487,10 +477,10 @@ if __name__ == '__main__':
         if done:
             break
         for i, satellite in enumerate(satellites):
-            satellite["curr_time"] = joint_observation_[4*i]
-            satellite["curr_angle"] = joint_observation_[4*i+1]
-            satellite["curr_lat"] = joint_observation_[4*i+2]
-            satellite["curr_lon"] = joint_observation_[4*i+3]
+            satellite["curr_time"] = joint_observation_[5*i]
+            satellite["curr_angle"] = joint_observation_[5*i+1]
+            satellite["curr_lat"] = joint_observation_[5*i+2]
+            satellite["curr_lon"] = joint_observation_[5*i+3]
             for obs in obs_info[i]:
                 plans[i].append(obs)
         score += reward

@@ -22,8 +22,7 @@ from ppo_agent_fullstate import Agent
 import matplotlib.pyplot as plt
 
 
-# state space: satellite time, satellite angle
-# action space: next 5 actions
+
 
 def save_plan(satellite,settings,flag):
     directory = settings["directory"] + "orbit_data/"
@@ -190,12 +189,10 @@ def transition_function(satellite, events, event_statuses, action, num_actions, 
 
         if event_occurring:
             state.append(1)
-            print('heyo')
         elif event_statuses[i] == 1 and event_not_occurring:
             state.append(0)
         elif event_statuses[i] == 1 and not event_not_occurring:
             state.append(1)
-            print('heyo')
         else:
             state.append(0)
     return state, reward, False, observed_points
@@ -296,14 +293,14 @@ if __name__ == '__main__':
         # n_epochs = 100
         # alpha=0.00005
         N = 100
-        batch_size = 10
+        batch_size = 86
         n_epochs = 10
         alpha=0.00005
         action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
         observation_space_size = 4+len(grid_locations)
         agent = Agent(settings, satellite["orbitpy_id"],n_actions=action_space_size, batch_size=batch_size,
                     alpha=alpha,n_epochs=n_epochs, input_dims=observation_space_size)
-        n_games = 1000
+        n_games = 10000
         figure_file = 'plots/ppo_main_fov_step_fullstate_'+satellite["orbitpy_id"]+'.png'
         best_score = -1000
         score_history = []
@@ -333,10 +330,12 @@ if __name__ == '__main__':
                 n_steps += 1
                 score += reward
                 agent.remember(observation, action, prob, val, reward, done)
-                if n_steps % N == 0:
-                    agent.learn()
-                    learn_iters += 1
+                # if n_steps % N == 0:
+                #     agent.learn()
+                #     learn_iters += 1
                 observation = observation_
+            agent.learn()
+            learn_iters += 1
             score_history.append(score)
             avg_score = np.mean(score_history[-100:])
             if avg_score > best_score:

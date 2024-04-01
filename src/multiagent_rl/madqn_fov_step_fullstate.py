@@ -21,8 +21,7 @@ from src.multiagent_rl.madqn_agent_fullstate import Agent
 import matplotlib.pyplot as plt
 
 
-# state space: satellite time, satellite angle
-# action space: next 5 actions
+
 
 def save_plan(satellite,settings,flag):
     directory = settings["directory"] + "orbit_data/"
@@ -196,12 +195,10 @@ def transition_function(satellites, events, event_statuses, actions, num_actions
 
         if event_occurring:
             new_state.append(1)
-            print('heyo')
         elif event_statuses[i] == 1 and event_not_occurring:
             new_state.append(0)
         elif event_statuses[i] == 1 and not event_not_occurring:
             new_state.append(1)
-            print('heyo')
         else:
             new_state.append(0)
     
@@ -375,7 +372,7 @@ if __name__ == '__main__':
 
     agent_list = []
     N = 100
-    n_games = 1000
+    n_games = 10000
     n_steps = 0
     learn_iters = 0
     best_score = -1000

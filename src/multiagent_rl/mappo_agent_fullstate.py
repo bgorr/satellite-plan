@@ -72,6 +72,7 @@ class ActorNetwork(nn.Module):
         norm_tensor_array.append(self.settings["instrument"]["ffor"]/2)
         norm_tensor_array.append(180)
         norm_tensor_array.append(180)
+        norm_tensor_array.append(self.n_sats)
 
         state = state / T.tensor(norm_tensor_array, dtype=T.float).to(self.device)
         dist = self.actor(state)
@@ -110,6 +111,7 @@ class CriticNetwork(nn.Module):
             norm_tensor_array.append(self.settings["instrument"]["ffor"]/2)
             norm_tensor_array.append(180)
             norm_tensor_array.append(180)
+            norm_tensor_array.append(self.n_sats)
         for i in range(self.settings["events"]["num_event_locations"]):
             norm_tensor_array.append(1)
 
@@ -206,12 +208,14 @@ class Agent:
                 critic_loss = (returns-critic_value)**2
                 critic_loss = critic_loss.mean()
                 
-                total_loss = actor_loss + 0.5*critic_loss
+                #total_loss = actor_loss + 0.5*critic_loss
                 self.actor.optimizer.zero_grad()
                 self.critic.optimizer.zero_grad()
-                total_loss.backward()
+                #total_loss.backward()
+                actor_loss.backward()
+                critic_loss.backward()
                 self.actor.optimizer.step()
                 self.critic.optimizer.step()
 
-            self.memory.clear_memory()
+        self.memory.clear_memory()
 

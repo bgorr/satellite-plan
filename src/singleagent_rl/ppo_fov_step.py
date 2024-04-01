@@ -17,8 +17,7 @@ from src.utils.convert_geo import convert_geo_coords
 from src.utils.compute_experiment_statistics import compute_experiment_statistics
 from src.plan_mission_fov import plan_mission_replan_interval, plan_mission_horizon
 
-# state space: satellite time, satellite angle
-# action space: next 5 actions
+
 
 def save_plan(satellite,settings,flag):
     directory = settings["directory"] + "orbit_data/"

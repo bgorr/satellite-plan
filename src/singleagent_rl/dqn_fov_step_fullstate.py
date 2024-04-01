@@ -22,8 +22,7 @@ from src.singleagent_rl.dqn_agent_fullstate import Agent
 import matplotlib.pyplot as plt
 
 
-# state space: satellite time, satellite angle
-# action space: next 5 actions
+
 
 def save_plan(satellite,settings,flag):
     directory = settings["directory"] + "orbit_data/"

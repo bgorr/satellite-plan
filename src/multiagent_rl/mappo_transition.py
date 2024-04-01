@@ -18,7 +18,7 @@ from src.multiagent_rl.mappo_agent import Agent
 import matplotlib.pyplot as plt
 
 
-# state space: satellite time, satellite angle
+
 # action space: next 5 actions
 
 def create_events(settings):
