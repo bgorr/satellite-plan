@@ -186,6 +186,7 @@ class Agent:
             advantage = T.tensor(advantage).to(self.actor.device)
 
             values = T.tensor(values).to(self.actor.device)
+            kl_divs = []
             for batch in batches:
                 local_states = T.tensor(local_state_arr[batch], dtype=T.float).to(self.actor.device)
                 full_states = T.tensor(full_state_arr[batch], dtype=T.float).to(self.actor.device)
@@ -214,6 +215,11 @@ class Agent:
                 critic_loss.backward()
                 self.actor.optimizer.step()
                 self.critic.optimizer.step()
+            #     kl_divs.append((old_probs - new_probs).mean().detach().numpy())
+            # target_kl = 0.01
+            # kl = np.sum(kl_divs)
+            # if kl > 1.5 * target_kl:
+            #     break
 
         self.memory.clear_memory()
 

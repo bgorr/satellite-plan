@@ -17,6 +17,8 @@ from cartopy.feature.nightshade import Nightshade
 from multiprocessing import set_start_method
 from cartopy.feature import ShapelyFeature
 from cartopy.io.shapereader import Reader
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+import matplotlib.patches as patches
 
 
 def nearest(items, pivot):
@@ -42,7 +44,7 @@ ax.add_feature(cfeature.STATES.with_scale('10m'), edgecolor='gray')
 
 lightning_filepath = "./src/utils/lightning_events.csv"
 fire_filepath = "./src/utils/fire_events.csv"
-flood_filepath = "./src/utils/flow_events_75_updated.csv"
+flood_filepath = "./src/utils/event_csvs/flow_events_75_updated.csv"
 
 event_lats = []
 event_lons = []
@@ -69,12 +71,32 @@ plt.scatter([], [], c='red',marker='o', label='Lightning location')
 # Put a legend to the right of the current axis
 # #m.imshow(precip, origin='upper', cmap='RdYlGn_r', vmin=1, vmax=200, zorder=3)
 
+
+#ax_inset = fig.add_axes([0.45, 0.5, 0.6, 0.5],projection=ccrs.PlateCarree())
+#ax2.hist(event_durations,color='blue')
+#ax2.set_xlabel("Event duration (hours)")
+#ax2.set_ylabel("Number of events")
+
+ax.add_patch(patches.Rectangle(xy=[-75, 30], width=10, height=10,
+                                facecolor='white', edgecolor='white', alpha=1,
+                                transform=ccrs.PlateCarree(), zorder=2))
+
+width = 2
+ilon = -70
+ilat = 31.5
+ax_sub= inset_axes(ax, width=width, height=width, loc=10, 
+                       bbox_to_anchor=(ilon, ilat),
+                       bbox_transform=ax.transData, 
+                       borderpad=0)
+ax_sub.hist(event_durations,color='blue')
+#ax_sub.set_aspect("equal")
+ax_sub.set_xlabel("Event duration (hours)", fontsize=12)
+ax_sub.set_ylabel("Number of events", fontsize=12)
+ax_sub.tick_params(axis='x', labelsize=12)
+ax_sub.tick_params(axis='y', labelsize=12)
+plt.show()
 plt.savefig('./flood_event_locations.png',dpi=300,bbox_inches="tight")
 plt.close()
-
-plt.hist(event_durations,color='blue')
-plt.xlabel("Event duration (hours)")
-plt.ylabel("Number of events")
-#plt.xlim([0,3600])
-plt.savefig('./flood_event_durations.png',dpi=300)
-plt.close()
+# #plt.xlim([0,3600])
+# plt.savefig('./flood_event_durations.png',dpi=300)
+# plt.close()

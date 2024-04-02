@@ -314,66 +314,66 @@ if __name__ == '__main__':
     for satellite in satellites:
         satellite["obs_list"] = load_obs(satellite)
 
-    # N = 100
-    # n_games = 1000
-    # n_steps = 0
-    # learn_iters = 0
-    # best_score = -1000 
-    # figure_file = 'plots/madqn_fov_step.png'
-    # score_history = []
-    # batch_size = 10
-    # n_epochs = 10
-    # alpha=0.00005
+    N = 100
+    n_games = 1000
+    n_steps = 0
+    learn_iters = 0
+    best_score = -1000 
+    figure_file = 'plots/madqn_fov_step.png'
+    score_history = []
+    batch_size = 10
+    n_epochs = 10
+    alpha=0.00005
     action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
     observation_space_size = 4*len(satellites)+1 #len(grid_locations)*3
-    # agent = Agent(settings=settings,n_sats=len(satellites),gamma=0.99, epsilon = 0.99, batch_size=256, n_actions=action_space_size, eps_end=0.01, input_dims=[observation_space_size], lr=0.00005)
-    # randomize_events = True
-    # for j in range(n_games):
-    #     if randomize_events:
-    #         events = create_and_load_random_events(settings)
-    #     joint_observation = []
-    #     for satellite in satellites:
-    #         satellite["curr_angle"] = 0.0
-    #         satellite["curr_time"] = 0.0
-    #         satellite["curr_lat"] = satellite["ssps"][0.0][0]
-    #         satellite["curr_lon"] = satellite["ssps"][0.0][1]
-    #         joint_observation.append(satellite["curr_time"])
-    #         joint_observation.append(satellite["curr_angle"])
-    #         joint_observation.append(satellite["curr_lat"])
-    #         joint_observation.append(satellite["curr_lon"])
+    agent = Agent(settings=settings,n_sats=len(satellites),gamma=0.99, epsilon = 0.99, batch_size=256, n_actions=action_space_size, eps_end=0.01, input_dims=[observation_space_size], lr=0.00005)
+    randomize_events = True
+    for j in range(n_games):
+        if randomize_events:
+            events = create_and_load_random_events(settings)
+        joint_observation = []
+        for satellite in satellites:
+            satellite["curr_angle"] = 0.0
+            satellite["curr_time"] = 0.0
+            satellite["curr_lat"] = satellite["ssps"][0.0][0]
+            satellite["curr_lon"] = satellite["ssps"][0.0][1]
+            joint_observation.append(satellite["curr_time"])
+            joint_observation.append(satellite["curr_angle"])
+            joint_observation.append(satellite["curr_lat"])
+            joint_observation.append(satellite["curr_lon"])
 
-    #     done = False
-    #     score = 0
-    #     while not done:
-    #         actions = []
-    #         for i, satellite in enumerate(satellites):
-    #             joint_obs_w_sat_index = joint_observation + [i]
-    #             action = agent.choose_action(joint_obs_w_sat_index)
-    #             actions.append(action)
-    #         joint_observation_, reward, done, obs_info = transition_function(satellites,events,actions,action_space_size,settings)
-    #         if done:
-    #             break
-    #         for i, satellite in enumerate(satellites):
-    #             satellite["curr_time"] = joint_observation_[4*i]
-    #             satellite["curr_angle"] = joint_observation_[4*i+1]
-    #             satellite["curr_lat"] = joint_observation_[4*i+2]
-    #             satellite["curr_lon"] = joint_observation_[4*i+3]
-    #         n_steps += 1
-    #         score += reward
-    #         for i, satellite in enumerate(satellites):
-    #             joint_obs_w_sat_index = joint_observation + [i]
-    #             joint_obs_w_sat_index_ = joint_observation_ + [i]
-    #             agent.store_transition(joint_obs_w_sat_index, actions[i], reward, joint_obs_w_sat_index_, done)
-    #             agent.learn()
-    #         joint_observation = joint_observation_
-    #     score_history.append(score)
-    #     avg_score = np.mean(score_history[-100:])
-    #     if avg_score > best_score:
-    #         best_score = avg_score
-    #         agent.save_models()
-    #     print('episode', j, 'score %.1f' % score, 'avg score %.1f' % avg_score, 'time_steps', n_steps, 'learning_steps', learn_iters)
-    # x = [i+1 for i in range(len(score_history))]
-    # plot_learning_curve(x, score_history, figure_file)
+        done = False
+        score = 0
+        while not done:
+            actions = []
+            for i, satellite in enumerate(satellites):
+                joint_obs_w_sat_index = joint_observation + [i]
+                action = agent.choose_action(joint_obs_w_sat_index)
+                actions.append(action)
+            joint_observation_, reward, done, obs_info = transition_function(satellites,events,actions,action_space_size,settings)
+            if done:
+                break
+            for i, satellite in enumerate(satellites):
+                satellite["curr_time"] = joint_observation_[4*i]
+                satellite["curr_angle"] = joint_observation_[4*i+1]
+                satellite["curr_lat"] = joint_observation_[4*i+2]
+                satellite["curr_lon"] = joint_observation_[4*i+3]
+            n_steps += 1
+            score += reward
+            for i, satellite in enumerate(satellites):
+                joint_obs_w_sat_index = joint_observation + [i]
+                joint_obs_w_sat_index_ = joint_observation_ + [i]
+                agent.store_transition(joint_obs_w_sat_index, actions[i], reward, joint_obs_w_sat_index_, done)
+                agent.learn()
+            joint_observation = joint_observation_
+        score_history.append(score)
+        avg_score = np.mean(score_history[-100:])
+        if avg_score > best_score:
+            best_score = avg_score
+            agent.save_models()
+        print('episode', j, 'score %.1f' % score, 'avg score %.1f' % avg_score, 'time_steps', n_steps, 'learning_steps', learn_iters)
+    x = [i+1 for i in range(len(score_history))]
+    plot_learning_curve(x, score_history, figure_file)
         
     ### LOADING SAVED MODELS AND SAVING PLANS ###
     events = create_and_load_random_events(settings)

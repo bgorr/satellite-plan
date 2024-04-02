@@ -162,6 +162,13 @@ def transition_function(satellites, events, actions, num_actions, settings):
         new_state.append(i)
     
     if done_flag:
+        new_state = []
+        for i, satellite in enumerate(satellites):
+            new_state.append(satellite["curr_time"])
+            new_state.append(satellite["curr_angle"])
+            new_state.append(satellite["curr_lat"])
+            new_state.append(satellite["curr_lon"])
+            new_state.append(i)
         return new_state, 0, True, []
 
     for obs in observed_points:
@@ -307,7 +314,7 @@ if __name__ == '__main__':
     best_score = -1000
     figure_file = 'plots/mappo_fov_step.png'
     score_history = []
-    batch_size = 864*len(satellites)
+    batch_size = 86*len(satellites)
     n_epochs = 10
     alpha=3e-4
     action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
