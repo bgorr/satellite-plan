@@ -261,8 +261,7 @@ if __name__ == '__main__':
         action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
         observation_space_size = 4 #len(grid_locations)*3
         agent = Agent(settings, satellite["orbitpy_id"],gamma=0.99, epsilon = 0.99, batch_size=256, n_actions=action_space_size, eps_end=0.01, input_dims=[observation_space_size], lr=0.00005)
-        n_games = 1000
-
+        n_games = 10000
         figure_file = 'plots/dqn_main_fov_step_'+satellite["orbitpy_id"]+'.png'
         best_score = -1000
         score_history = []

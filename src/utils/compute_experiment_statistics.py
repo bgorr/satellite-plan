@@ -392,7 +392,7 @@ def compute_experiment_statistics(settings):
     return overall_results
 
 def main():
-    name = "mappo_test_fov_step"
+    name = "madqn_test_fov_step_fullstate_expectedval"
     settings = {
         "name": name,
         "instrument": {
@@ -438,7 +438,7 @@ def main():
             "plot_interval": 10,
             "plot_obs": True
         },
-        "planner": "mappo",
+        "planner": "dqn",
         "num_meas_types": 3,
         "sharing_horizon": 500,
         "planning_horizon": 500,

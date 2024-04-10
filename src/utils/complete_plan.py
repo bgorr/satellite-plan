@@ -148,7 +148,7 @@ def complete_plan(flag,settings):
         save_plan(satellite, settings, flag+"complete")
 
 def main():
-    name = "dqn_test_fov_step"
+    name = "madqn_test_fov_step_fullstate_expectedval"
     settings = {
         "name": name,
         "instrument": {

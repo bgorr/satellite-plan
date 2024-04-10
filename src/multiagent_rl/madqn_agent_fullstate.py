@@ -31,7 +31,7 @@ class DeepQNetwork(nn.Module):
             norm_tensor_array.append(self.settings["instrument"]["ffor"]/2)
             norm_tensor_array.append(180)
             norm_tensor_array.append(180)
-        for i in range(self.settings["events"]["num_event_locations"]):
+        for i in range(self.settings["events"]["unique_event_locations"]):
             norm_tensor_array.append(1)
         norm_tensor_array.append(self.n_sats)
 

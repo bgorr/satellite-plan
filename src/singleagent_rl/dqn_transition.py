@@ -1,28 +1,25 @@
-"""Main dqn runner"""
+"""Main PPO runner"""
 import datetime
 import os
 import csv
 import sys
 import random
 import numpy as np
-import copy
 sys.path.append(".")
 
 from src.create_mission import create_mission
 from src.execute_mission import execute_mission
-from src.plan_mission import load_events, load_obs, load_rewards, load_satellites, chop_obs_list, close_enough
+from src.plan_mission import load_events, load_obs, load_rewards, load_satellites, chop_obs_list, close_enough, save_plan_w_fov
 from src.utils.planning_utils import check_maneuver_feasibility
 from src.utils.convert_geo import convert_geo_coords
 from src.utils.compute_experiment_statistics import compute_experiment_statistics
 from src.plan_mission_fov import plan_mission_replan_interval, plan_mission_horizon
 
 
-
-from src.singleagent_rl.dqn_agent_fullstate import Agent
+from dqn_agent import Agent
 import matplotlib.pyplot as plt
 
-
-
+# action space: next 5 actions
 
 def save_plan(satellite,settings,flag):
     directory = settings["directory"] + "orbit_data/"
@@ -76,7 +73,7 @@ def create_events(settings):
             events.append(event)
         if not os.path.exists("./missions/"+mission_name+"/events/"):
             os.mkdir("./missions/"+mission_name+"/events/")
-        with open("./missions/"+mission_name+"/events/events.csv",'w') as csvfile:
+        with open("./missions/"+mission_name+"/events/events.csv",'w',encoding="utf-8") as csvfile:
             csvwriter = csv.writer(csvfile, delimiter=',',
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
             csvwriter.writerow(['lat [deg]','lon [deg]','start time [s]','duration [s]','severity'])
@@ -133,74 +130,42 @@ def plot_learning_curve(x, scores, figure_file):
     plt.title('Running average of previous 100 scores')
     plt.savefig(figure_file)
 
-def transition_function(satellite, events, event_statuses, action, num_actions, settings, grid_locations):
-    planning_interval = 10
-    if satellite["curr_time"]+planning_interval > settings["time"]["duration"]*86400/10:
-        state = [satellite["curr_time"],satellite["curr_angle"],satellite["ssps"][satellite["curr_time"]*10][0],satellite["ssps"][satellite["curr_time"]*10][1]]
-        for grid_location in grid_locations:
-            state.append(0)
-        return state, 0, True, []
-    obs_list = chop_obs_list(satellite["obs_list"],satellite["curr_time"],satellite["curr_time"]+planning_interval)
-    pointing_options = np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"])
-    pointing_option = pointing_options[action]
-    slew_time = np.abs(satellite["curr_angle"]-pointing_option)/settings["agility"]["max_slew_rate"]/settings["time"]["step_size"]
-    ready_time = satellite["curr_time"]+slew_time
-    observed_points = []
-    event_locations = []
-    not_event_locations = []
-    reward = 0
-    for obs in obs_list:
-        if obs["end"] > ready_time and (np.abs(pointing_option-obs["angle"]) < settings["instrument"]["ffov"]/2):
-            observed_points.append(obs)
-    for obs in observed_points:
-        location = obs["location"]
-        events_per_location = []
-        for event in events:
-            if close_enough(location["lat"],location["lon"],event["location"]["lat"],event["location"]["lon"]):
-                events_per_location.append(event)
-        event_occurring = False
-        for event in events_per_location:
-            if event["start"] <= obs["start"] <= event["end"]:
-                event_occurring = True
-        if event_occurring:
-            event_locations.append([location["lat"],location["lon"]])
-            reward += 10
-        else:
-            not_event_locations.append([location["lat"],location["lon"]])
-            reward += 1
-    satellite["curr_time"] += planning_interval
-    satellite["curr_angle"] = pointing_option
-    satellite["curr_lat"] = satellite["ssps"][satellite["curr_time"]*10][0]
-    satellite["curr_lon"] = satellite["ssps"][satellite["curr_time"]*10][1]
-    state = []
-    state.append(satellite["curr_time"])
-    state.append(satellite["curr_angle"])
-    state.append(satellite["curr_lat"])
-    state.append(satellite["curr_lon"])
-    for i, grid_location in enumerate(grid_locations):
-        event_occurring = False
-        event_not_occurring = False
-        for event_location in event_locations:
-            if close_enough(event_location[0],event_location[1],grid_location[0],grid_location[1]):
-                event_occurring = True
-        for event_location in not_event_locations:
-            if close_enough(event_location[0],event_location[1],grid_location[0],grid_location[1]):
-                event_not_occurring = True
+def transition_function(satellite, events, action, num_actions, settings):
+    obs_list = chop_obs_list(satellite["obs_list"],satellite["curr_time"],8640)
+    feasible_actions = []
+    idx = 0
+    while len(feasible_actions) < num_actions and idx < len(obs_list):
+        feasible, _ = check_maneuver_feasibility(satellite["curr_angle"], obs_list[idx]["angle"], satellite["curr_time"], obs_list[idx]["end"], settings)
+        if feasible:
+            feasible_actions.append(obs_list[idx])
+        idx += 1
+    if action >= len(feasible_actions):
+        action = len(feasible_actions)-1
+    if len(feasible_actions) == 0:
+        satellite["curr_lat"] = satellite["ssps"][satellite["curr_time"]*10][0]
+        satellite["curr_lon"] = satellite["ssps"][satellite["curr_time"]*10][1]
+        return [satellite["curr_time"],satellite["curr_angle"],satellite["curr_lat"],satellite["curr_lon"]], 0, True, None
+    obs = feasible_actions[action]
+    location = obs["location"]
+    events_per_location = []
+    for event in events:
+        if close_enough(location["lat"],location["lon"],event["location"]["lat"],event["location"]["lon"]):
+            events_per_location.append(event)
+    event_occurring = False
+    for event in events_per_location:
+        if event["start"] <= obs["start"] <= event["end"]:
+            event_occurring = True
+    if event_occurring:
+        reward = 10
+    else:
+        reward = 1
+    satellite["curr_lat"] = satellite["ssps"][obs["end"]*10][0]
+    satellite["curr_lon"] = satellite["ssps"][obs["end"]*10][1]
 
-        if event_occurring:
-            state.append(1)
-            print('heyo')
-        elif event_statuses[i] == 1 and event_not_occurring:
-            state.append(0)
-        elif event_statuses[i] == 1 and not event_not_occurring:
-            state.append(1)
-            print('heyo')
-        else:
-            state.append(0)
-    return state, reward, False, observed_points
+    return [obs["end"],obs["angle"],satellite["curr_lat"],satellite["curr_lon"]], reward, False, obs
 
 if __name__ == '__main__':
-    name = "dqn_test_fov_step_fullstate"
+    name = "dqn_transition"
     settings = {
         "name": name,
         "instrument": {
@@ -276,25 +241,23 @@ if __name__ == '__main__':
         settings["point_grid"] = settings["directory"]+"orbit_data/grid0.csv"
     satellites = load_satellites(directory)
     events = load_events(settings)
-    fixed_events = copy.deepcopy(events)
+    fixed_events = events
     rewards = load_rewards(settings)
     for satellite in satellites:
         satellite["obs_list"] = load_obs(satellite)
-
-    grid_locations = []
-    with open(settings["point_grid"],'r') as csvfile:
-        csvreader = csv.reader(csvfile,delimiter=',')
-        next(csvfile)
-        for row in csvreader:
-            grid_locations.append([float(row[0]),float(row[1])])
-    randomize_events = True
+    randomize_events = False
     combined_score = 0
     for satellite in satellites:
-        action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
-        observation_space_size = 4+len(grid_locations)
-        agent = Agent(settings, sat_name=satellite["orbitpy_id"],gamma=0.99, epsilon = 0.99, batch_size=256, n_actions=action_space_size, eps_end=0.01, input_dims=[observation_space_size], lr=0.00005)
+        N = 100
+        batch_size = 10
+        n_epochs = 10
+        alpha=0.00005
+        action_space_size = 5
+        observation_space_size = 4
+        agent = Agent(settings, satellite["orbitpy_id"],gamma=0.99, epsilon = 0.99, batch_size=256, n_actions=action_space_size, eps_end=0.01, input_dims=[observation_space_size], lr=0.00005)
         n_games = 10000
-        figure_file = 'plots/dqn_main_fov_step_fullstate_'+satellite["orbitpy_id"]+'.png'
+
+        figure_file = 'plots/dqn_transition_'+satellite["orbitpy_id"]+'.png'
         best_score = -1000
         score_history = []
 
@@ -309,13 +272,11 @@ if __name__ == '__main__':
             satellite["curr_lat"] = satellite["ssps"][0.0][0]
             satellite["curr_lon"] = satellite["ssps"][0.0][1]
             observation = [satellite["curr_time"],satellite["curr_angle"],satellite["curr_lat"],satellite["curr_lon"]]
-            for grid_location in grid_locations:
-                observation.append(0)
             done = False
             score = 0
             while not done:
                 action = agent.choose_action(observation)
-                observation_, reward, done, obs_info = transition_function(satellite,events,observation[4:],action,action_space_size,settings,grid_locations)
+                observation_, reward, done, obs_info = transition_function(satellite,events,action,action_space_size,settings)
                 satellite["curr_time"] = observation_[0]
                 satellite["curr_angle"] = observation_[1]
                 satellite["curr_lat"] = observation_[2]
@@ -343,8 +304,8 @@ if __name__ == '__main__':
         batch_size = 10
         n_epochs = 10
         alpha=0.00005
-        action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
-        observation_space_size = 4+len(grid_locations)
+        action_space_size = 5
+        observation_space_size = 4
         agent = Agent(settings, sat_name=satellite["orbitpy_id"],gamma=0.99, epsilon = 0.0, batch_size=256, n_actions=action_space_size, eps_end=0.01, input_dims=[observation_space_size], lr=0.00005)
         agent.load_models()
         plan = []
@@ -353,15 +314,12 @@ if __name__ == '__main__':
         satellite["curr_lat"] = satellite["ssps"][0.0][0]
         satellite["curr_lon"] = satellite["ssps"][0.0][1]
         observation = [satellite["curr_time"],satellite["curr_angle"],satellite["curr_lat"],satellite["curr_lon"]]
-        for grid_location in grid_locations:
-            observation.append(0)
         done = False
         score = 0
         while not done:
             action = agent.choose_action(observation)
-            observation_, reward, done, obs_info = transition_function(satellite,fixed_events,observation[4:],action,action_space_size,settings,grid_locations)
-            for obs in obs_info:
-                plan.append(obs)
+            observation_, reward, done, obs_info = transition_function(satellite,fixed_events,action,action_space_size,settings)
+            plan.append(obs_info)
             observation = observation_
         satellite["plan"] = plan
         save_plan(satellite,settings,"")
@@ -370,8 +328,7 @@ if __name__ == '__main__':
     settings["event_csvs"] = ["./missions/"+name+"/events/events.csv"] 
     compute_experiment_statistics(settings)
     settings["planner"] = "dp"
-    if not os.path.exists("./missions/"+settings["name"]+"/orbit_data/replan_intervaldp.csv"):
+    if not os.path.exists("./missions/"+settings["name"]+"/orbit_data/sat0/replan_intervaldphom.csv"):
         plan_mission_horizon(settings)
         plan_mission_replan_interval(settings)
     compute_experiment_statistics(settings)
-
