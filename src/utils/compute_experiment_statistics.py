@@ -134,7 +134,7 @@ def compute_statistics(events,obs,grid_locations,settings):
     max_rev_time_list = []
     avg_rev_time_list = []
     event_count = 0
-    for event in tqdm(events):
+    for event in events:
         obs_per_event = []
         event_start = float(event[2])
         event_end = float(event[2])+float(event[3])
@@ -155,7 +155,7 @@ def compute_statistics(events,obs,grid_locations,settings):
     all_max_rev_time_list = []
     all_avg_rev_time_list = []
     loc_count = 0
-    for loc in tqdm(grid_locations):
+    for loc in grid_locations:
         obs_per_loc = []
         for ob in obs:
             if close_enough(ob[2],ob[3],loc[0],loc[1]):

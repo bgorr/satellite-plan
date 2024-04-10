@@ -217,7 +217,7 @@ def save_plan_w_fov(satellite,settings,grid_locations,flag):
             next(csvfile)
             for row in csvreader:
                 grid_locations.append([float(row[0]),float(row[1])])
-        for obs in tqdm(plan):
+        for obs in plan:
             if settings["instrument"]["ffov"] == 0:
                 row = [obs["soonest"],obs["soonest"],np.round(obs["location"]["lat"],3),np.round(obs["location"]["lon"],3),obs["angle"],obs["reward"]]
                 rows.append(row)
@@ -696,7 +696,7 @@ def plan_mission_horizon(settings):
             if len(trimmed_plan) > 0:
                 satellites[i]["curr_angle"] = trimmed_plan[-1]["angle"]
         elapsed_plan_time += sharing_interval
-        print("Elapsed planning time: "+str(elapsed_plan_time))
+        #print("Elapsed planning time: "+str(elapsed_plan_time))
     grid_locations = []
     with open(settings["point_grid"],'r') as csvfile:
         csvreader = csv.reader(csvfile,delimiter=',')
@@ -992,7 +992,7 @@ def plan_mission_replan_interval(settings):
                     else:
                         event_seen_counts[location] = 1
         elapsed_plan_time += sharing_interval
-        print("Elapsed planning time: "+str(elapsed_plan_time))
+        #print("Elapsed planning time: "+str(elapsed_plan_time))
     grid_locations = []
     with open(settings["point_grid"],'r') as csvfile:
         csvreader = csv.reader(csvfile,delimiter=',')

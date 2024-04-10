@@ -21,7 +21,7 @@ def save_plan(satellite,settings,flag):
         for row in rows:
             csvwriter.writerow(row)
 
-def complete_plan(flag,settings):
+def nadir_plan(flag,settings):
     directory = settings["directory"]+"orbit_data/"
 
     satellites = []
@@ -80,6 +80,7 @@ def complete_plan(flag,settings):
                             obs_end_times.append(obs[1:4])
                             unique_observations.append(obs)
                     observations = unique_observations
+                print(f)
                 satellite["observations"] = observations
 
             if flag in f and settings["planner"] in f and "het" not in f and "oracle" not in f:
@@ -111,38 +112,13 @@ def complete_plan(flag,settings):
                 grid_locations.append([float(row[0]),float(row[1])])
 
     for satellite in satellites:
-        obs_list = satellite["observations"]
-        curr_ind = 0
-        curr_angle = 0.0
-        angle_list = []
-        for i in range(int(settings["time"]["duration"]*86400/settings["time"]["step_size"])):
-            if obs_list[curr_ind][0] > i:
-                next_angle = obs_list[curr_ind][4]
-                time_diff = obs_list[curr_ind][0] - i
-                if time_diff > 1:
-                    angle_diff = next_angle - curr_angle
-                    angle_step = angle_diff/time_diff
-                    curr_angle += angle_step
-                    angle_list.append(curr_angle)
-                elif time_diff <= 1:
-                    curr_angle = next_angle
-                    angle_list.append(curr_angle)
-            elif obs_list[curr_ind][0] <= i:
-                curr_angle = obs_list[curr_ind][4]
-                angle_list.append(curr_angle)
-                while obs_list[curr_ind][0] <= i and curr_ind < len(obs_list[:])-1:
-                    curr_ind += 1
-        satellite["obs_list"] = load_obs(satellite)
+        obs_list = load_obs(satellite)
         observed_points = []
-        satellite["curr_angle"] = 0
-        for i in range(int(settings["time"]["duration"]*86400/settings["time"]["step_size"])):
-            obs_list = chop_obs_list(satellite["obs_list"],i,i+1)
-            pointing_option = angle_list[i]
-            for obs in obs_list:
-                if (np.abs(pointing_option-obs["angle"]) < settings["instrument"]["ffov"]/2):
-                    observed_points.append(obs)
-                    obs["pointing_angle"] = pointing_option
-            satellite["curr_angle"] = pointing_option
+        pointing_option = 0.0
+        for obs in obs_list:
+            if (np.abs(pointing_option-obs["angle"]) < settings["instrument"]["ffov"]/2):
+                observed_points.append(obs)
+                obs["pointing_angle"] = pointing_option
         satellite["plan"] = observed_points
         save_plan(satellite, settings, flag)
 
@@ -205,8 +181,7 @@ def main():
         "process_obs_only": False,
         "conops": "onboard_processing"
     }
-    complete_plan("init",settings)
-    complete_plan("hom",settings)
+    nadir_plan("init",settings)
 
 if __name__ == "__main__":
     main()
