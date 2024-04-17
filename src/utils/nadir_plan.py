@@ -80,7 +80,6 @@ def nadir_plan(flag,settings):
                             obs_end_times.append(obs[1:4])
                             unique_observations.append(obs)
                     observations = unique_observations
-                print(f)
                 satellite["observations"] = observations
 
             if flag in f and settings["planner"] in f and "het" not in f and "oracle" not in f:

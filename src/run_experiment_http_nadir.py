@@ -250,15 +250,14 @@ def run_experiment(settings):
         os.mkdir(settings["directory"]+'orbit_data/')
         create_mission(settings)
         execute_mission(settings)
-    settings["event_csvs"] = ["./events/http_events/events"+str(i)+".csv"]
-    #plan_mission_horizon(settings) # must come before process as process expects a plan.csv in the orbit_data directory
-    #plan_mission_horizon(settings)
-    nadir_plan("init",settings)
-    reward = compute_experiment_reward(settings)
-    #overall_results = compute_experiment_statistics(settings)
-    #average_reward += overall_results["replan_results"]["event_obs_count"]
+    average_reward = 0
+    for i in range(5):
+        settings["event_csvs"] = ["./events/http_events/events"+str(i)+".csv"]
+        nadir_plan("init",settings)
+        average_reward += compute_experiment_reward(settings)
+    average_reward = average_reward / 5
     delete_mission(settings)
-    return reward
+    return average_reward
 
 
 app = Flask(__name__)

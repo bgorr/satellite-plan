@@ -5,7 +5,7 @@ import csv
 import sys
 import random
 import numpy as np
-import time
+import shutil
 sys.path.append(".")
 
 from src.create_mission import create_mission
@@ -15,45 +15,14 @@ from src.utils.planning_utils import check_maneuver_feasibility
 from src.utils.convert_geo import convert_geo_coords
 from src.utils.compute_experiment_statistics import compute_experiment_statistics
 from src.plan_mission_fov import plan_mission_replan_interval, plan_mission_horizon
+from src.utils.complete_plan import complete_plan
 
 
 
 from src.multiagent_rl.madqn_agent_fullstate import Agent
 import matplotlib.pyplot as plt
 
-def get_obs_per_gp(satellites, ground_points, settings):
-    ground_point_dict = {}
-    expected_val = settings["events"]["num_events"]/settings["events"]["num_event_locations"]
-    full_obs_list = []
-    for satellite in satellites:
-        full_obs_list.extend(satellite["obs_list"])
-    for ground_point in ground_points:
-        location = (ground_point[0],ground_point[1])
-        ground_point_dict[location] = {
-            "start_times": [],
-            "event_status": expected_val
-        }
-        for obs in full_obs_list:
-            if close_enough(obs["location"]["lat"],obs["location"]["lon"],ground_point[0],ground_point[1]):
-                ground_point_dict[location]["start_times"].append(obs["start"])
-    return ground_point_dict
 
-def get_gps_sorted(ground_point_dict,curr_time,settings):
-    gp_array = []
-    for location in ground_point_dict.keys():
-        start_time_list = np.asarray(ground_point_dict[location]["start_times"])
-        clipped_start_times = start_time_list[(start_time_list > curr_time)]
-        if len(clipped_start_times) > 0:
-            soonest_time = clipped_start_times[0]
-        else:
-            soonest_time = settings["time"]["duration"]*86400
-        gp_array.append((location[0],location[1],soonest_time))
-    gp_array = np.asarray(gp_array)
-    sorted_gps = gp_array[np.argsort(gp_array[:, 2])]
-    sorted_gp_list = []
-    for i in range(len(sorted_gps)):
-        sorted_gp_list.append((sorted_gps[i][0],sorted_gps[i][1]))
-    return sorted_gps
 
 
 def save_plan(satellite,settings,flag):
@@ -165,7 +134,7 @@ def plot_learning_curve(x, scores, figure_file):
     plt.title('Running average of previous 100 scores')
     plt.savefig(figure_file)
 
-def transition_function(satellites, events, actions, num_actions, settings, grid_locations, ground_point_dict):
+def transition_function(satellites, events, event_statuses, actions, num_actions, settings, grid_locations):
     observed_points = []
     new_state = []
     reward = 0
@@ -216,9 +185,7 @@ def transition_function(satellites, events, actions, num_actions, settings, grid
             not_event_locations.append([location["lat"],location["lon"]])
             reward += 1
 
-    sorted_gps = get_gps_sorted(ground_point_dict,satellites[0]["curr_time"]+planning_interval,settings)
-
-    for i, grid_location in enumerate(sorted_gps):
+    for i, grid_location in enumerate(grid_locations):
         event_occurring = False
         event_not_occurring = False
         for event_location in event_locations:
@@ -227,26 +194,19 @@ def transition_function(satellites, events, actions, num_actions, settings, grid
         for event_location in not_event_locations:
             if close_enough(event_location[0],event_location[1],grid_location[0],grid_location[1]):
                 event_not_occurring = True
-        expected_val = settings["events"]["num_events"]/settings["events"]["num_event_locations"]
-        location = (grid_location[0],grid_location[1])
+
         if event_occurring:
-            ground_point_dict[location]["event_status"] = 1
             new_state.append(1)
-        elif ground_point_dict[location]["event_status"] == 1 and event_not_occurring:
-            ground_point_dict[location]["event_status"] = 0
+        elif event_statuses[i] == 1 and event_not_occurring:
             new_state.append(0)
-        elif ground_point_dict[location]["event_status"] == 1 and not event_not_occurring:
-            ground_point_dict[location]["event_status"] = 1
+        elif event_statuses[i] == 1 and not event_not_occurring:
             new_state.append(1)
-        elif ground_point_dict[location]["event_status"] == 0:
-            ground_point_dict[location]["event_status"] = 0
-            new_state.append(0)
         else:
-            new_state.append(expected_val)
+            new_state.append(0)
     
     return new_state, reward, False, observed_points
 
-def transition_function_by_sat(satellites, events, actions, num_actions, settings, grid_locations, ground_point_dict):
+def transition_function_by_sat(satellites, events, event_statuses, actions, num_actions, settings, grid_locations):
     observed_points = []
     observed_points_flattened = []
     new_state = []
@@ -302,9 +262,7 @@ def transition_function_by_sat(satellites, events, actions, num_actions, setting
             not_event_locations.append([location["lat"],location["lon"]])
             reward += 1
 
-    sorted_gps = get_gps_sorted(ground_point_dict,satellites[0]["curr_time"]+planning_interval,settings)
-
-    for i, grid_location in enumerate(sorted_gps):
+    for i, grid_location in enumerate(grid_locations):
         event_occurring = False
         event_not_occurring = False
         for event_location in event_locations:
@@ -313,27 +271,20 @@ def transition_function_by_sat(satellites, events, actions, num_actions, setting
         for event_location in not_event_locations:
             if close_enough(event_location[0],event_location[1],grid_location[0],grid_location[1]):
                 event_not_occurring = True
-        expected_val = settings["events"]["num_events"]/settings["events"]["num_event_locations"]
-        location = (grid_location[0],grid_location[1])
+
         if event_occurring:
-            ground_point_dict[location]["event_status"] = 1
             new_state.append(1)
-        elif ground_point_dict[location]["event_status"] == 1 and event_not_occurring:
-            ground_point_dict[location]["event_status"] = 0
+        elif event_statuses[i] == 1 and event_not_occurring:
             new_state.append(0)
-        elif ground_point_dict[location]["event_status"] == 1 and not event_not_occurring:
-            ground_point_dict[location]["event_status"] = 1
+        elif event_statuses[i] == 1 and not event_not_occurring:
             new_state.append(1)
-        elif ground_point_dict[location]["event_status"] == 0:
-            ground_point_dict[location]["event_status"] = 0
-            new_state.append(0)
         else:
-            new_state.append(expected_val)
+            new_state.append(0)
     
     return new_state, reward, False, observed_points
 
 if __name__ == '__main__':
-    name = "madqn_test_fov_step_fullstate_sorted"
+    name = "madqn_test_fov_step_fullstate_default"
     settings = {
         "name": name,
         "instrument": {
@@ -396,14 +347,16 @@ if __name__ == '__main__':
         "process_obs_only": False,
         "conops": "onboard_processing"
     }
-    if not os.path.exists(settings["directory"]):
-        os.mkdir(settings["directory"])
-    if not os.path.exists(settings["directory"]+'orbit_data/'):
-        os.mkdir(settings["directory"]+'orbit_data/')
-    create_events(settings)
-    create_mission(settings)
-    execute_mission(settings)
-    convert_geo_coords(settings)
+    # if not os.path.exists(settings["directory"]):
+    #     os.mkdir(settings["directory"])
+    # if not os.path.exists(settings["directory"]+'orbit_data/'):
+    #     os.mkdir(settings["directory"]+'orbit_data/')
+    #create_events(settings)
+
+    shutil.copytree("./missions/madqn_test_fov_step_fullstate_sorted/", settings["directory"])
+    #create_mission(settings)
+    #execute_mission(settings)
+    #convert_geo_coords(settings)
     directory = settings["directory"] + "orbit_data/"
     if "point_grid" not in settings:
         settings["point_grid"] = settings["directory"]+"orbit_data/grid0.csv"
@@ -420,10 +373,10 @@ if __name__ == '__main__':
         next(csvfile)
         for row in csvreader:
             grid_locations.append([float(row[0]),float(row[1])])
-    ground_point_dict = get_obs_per_gp(satellites, grid_locations, settings)
+
     agent_list = []
     N = 100
-    n_games = 1000
+    n_games = 2000
     n_steps = 0
     learn_iters = 0
     best_score = -1000
@@ -432,9 +385,9 @@ if __name__ == '__main__':
     batch_size = 10
     n_epochs = 10
     alpha=0.00005
-    settings["events"]["unique_event_locations"] = len(ground_point_dict.keys())
+    settings["events"]["unique_event_locations"] = len(grid_locations)
     action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
-    observation_space_size = 4*len(satellites) + len(ground_point_dict.keys()) + 1
+    observation_space_size = 4*len(satellites) + len(grid_locations) + 1
     agent = Agent(settings=settings,n_sats=len(satellites),gamma=0.99, epsilon = 0.99, batch_size=256, n_actions=action_space_size, eps_end=0.01, input_dims=[observation_space_size], lr=0.00005)
     randomize_events = True
     for j in range(n_games):
@@ -450,9 +403,9 @@ if __name__ == '__main__':
             joint_observation.append(satellite["curr_angle"])
             joint_observation.append(satellite["curr_lat"])
             joint_observation.append(satellite["curr_lon"])
-        expected_val = settings["events"]["num_events"]/settings["events"]["num_event_locations"]
-        for location in ground_point_dict.keys():
-            joint_observation.append(expected_val)
+
+        for grid_location in grid_locations:
+            joint_observation.append(0)
 
         done = False
         score = 0
@@ -462,7 +415,7 @@ if __name__ == '__main__':
                 joint_obs_w_sat_index = joint_observation + [np.float32(i)]
                 action = agent.choose_action(joint_obs_w_sat_index)
                 actions.append(action)
-            joint_observation_, reward, done, obs_info = transition_function(satellites,events,actions,action_space_size,settings,grid_locations,ground_point_dict)
+            joint_observation_, reward, done, obs_info = transition_function(satellites,events,joint_observation[4*len(satellites):],actions,action_space_size,settings,grid_locations)
             if done:
                 break
             for i, satellite in enumerate(satellites):
@@ -515,7 +468,7 @@ if __name__ == '__main__':
             joint_obs_w_sat_index = joint_observation + [i]
             action = agent.choose_action(joint_obs_w_sat_index)
             actions.append(action)
-        joint_observation_, reward, done, obs_info = transition_function_by_sat(satellites,fixed_events,actions,action_space_size,settings,grid_locations,ground_point_dict)
+        joint_observation_, reward, done, obs_info = transition_function_by_sat(satellites,fixed_events,joint_observation[4*len(satellites):],actions,action_space_size,settings,grid_locations)
         if done:
             break
         for i, satellite in enumerate(satellites):
@@ -538,5 +491,7 @@ if __name__ == '__main__':
     if not os.path.exists("./missions/"+settings["name"]+"/orbit_data/sat0/replan_intervaldphom.csv"):
         plan_mission_horizon(settings)
         plan_mission_replan_interval(settings)
+        complete_plan("init",settings)
+        complete_plan("hom",settings)
     compute_experiment_statistics(settings)
 
