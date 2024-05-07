@@ -1,15 +1,17 @@
 import datetime
 import os
+import sys
+sys.path.append(".")
 
-from create_mission import create_mission
-from execute_mission import execute_mission
-from process_mission import process_mission
-from plan_mission import plan_mission, plan_mission_replan_interval, plan_mission_replan_interval_het
-from plot_mission import plot_mission
-from plot_mission_heterogeneous import plot_mission_het
-from utils.compute_experiment_statistics import compute_experiment_statistics
-from utils.compute_experiment_statistics_het import compute_experiment_statistics_het
-from utils.process_coobs import process_coobs
+from src.create_mission import create_mission
+from src.execute_mission import execute_mission
+from src.process_mission import process_mission
+from src.plan_mission import plan_mission, plan_mission_replan_interval, plan_mission_replan_interval_het
+from src.plot_mission import plot_mission
+from src.plot_mission_heterogeneous import plot_mission_het
+from src.utils.compute_experiment_statistics import compute_experiment_statistics
+from src.utils.compute_experiment_statistics_het import compute_experiment_statistics_het
+from src.utils.process_coobs import process_coobs
 
 def main(homhet_flag):
     name = "full_mission_test_het"

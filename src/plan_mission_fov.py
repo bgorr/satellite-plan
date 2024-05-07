@@ -5,12 +5,14 @@ import datetime
 import multiprocessing
 from functools import partial
 from tqdm import tqdm
+import sys
+sys.path.append(".")
 from src.planners.mcts_planner import monte_carlo_tree_search
 from src.planners.dp_planner import graph_search, graph_search_events, graph_search_events_interval
 from src.planners.milp_planner import milp_planner, milp_planner_interval
 from src.planners.heuristic_planner import greedy_lemaitre_planner, greedy_lemaitre_planner_events, greedy_lemaitre_planner_events_interval
 from src.planners.fifo_planner import fifo_planner, fifo_planner_events, fifo_planner_events_interval
-from src.utils.planning_utils import close_enough
+from src.utils.planning_utils import close_enough, check_maneuver_feasibility
     
 def unique(lakes):
     lakes = np.asarray(lakes)
@@ -128,16 +130,17 @@ def load_obs(satellite):
             num_steps = len(continuous_visibilities)
             if i == len(visibilities)-1:
                 break
+        angle_list = [x[6] for x in continuous_visibilities]
         time_window = {
             "location": {
                 "lat": np.round(visibility[3],3),
                 "lon": np.round(visibility[4],3)
             },
             "times": [x[0] for x in continuous_visibilities],
-            "angles": [x[6] for x in continuous_visibilities],
+            "angles": angle_list,
             "start": start,
             "end": end,
-            "angle": visibility[6],
+            "angle": angle_list[np.argmin(np.abs(angle_list))],
             "reward": 1,
             "last_updated": 0.0
         }
@@ -181,18 +184,32 @@ def decompose_plan(full_plan,satellites,settings):
                     csvwriter.writerow(row)
                     continue
                 for loc in grid_locations:
-                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                         row = [obs["end"],obs["end"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
-                
 
+def verify_plan(satellite,settings):
+    angle = 0.0
+    time = 0.0
+    verified_plan = []
+    for obs in satellite["plan"]:
+        feasible, transition_end_time = check_maneuver_feasibility(angle, obs["angle"], time, obs["end"], settings)
+        if feasible:
+            if transition_end_time > obs["start"]:
+                obs["soonest"] = transition_end_time
+            else:
+                obs["soonest"] = obs["start"]
+            time = obs["soonest"]
+            angle = obs["angle"]
+            verified_plan.append(obs)
+    return verified_plan
 
 def save_plan_w_fov(satellite,settings,grid_locations,flag):
     directory = settings["directory"] + "orbit_data/"
     with open(directory+satellite["orbitpy_id"]+'/replan_interval'+settings["planner"]+flag+'.csv','w') as csvfile:
         csvwriter = csv.writer(csvfile, delimiter=',',
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        plan = satellite["plan"]
+        plan = verify_plan(satellite,settings)
         rows = []
         grid_locations = []
         with open(settings["point_grid"],'r') as csvfile:
@@ -200,14 +217,14 @@ def save_plan_w_fov(satellite,settings,grid_locations,flag):
             next(csvfile)
             for row in csvreader:
                 grid_locations.append([float(row[0]),float(row[1])])
-        for obs in tqdm(plan):
+        for obs in plan:
             if settings["instrument"]["ffov"] == 0:
-                row = [obs["soonest"],obs["soonest"],obs["location"]["lat"],obs["location"]["lon"],obs["angle"],obs["reward"]]
+                row = [obs["soonest"],obs["soonest"],np.round(obs["location"]["lat"],3),np.round(obs["location"]["lon"],3),obs["angle"],obs["reward"]]
                 rows.append(row)
                 continue
             for loc in grid_locations:
-                if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
-                    row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
+                if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
+                    row = [obs["soonest"],obs["soonest"],np.round(loc[0],3),np.round(loc[1],3),obs["angle"],obs["reward"]]
                     rows.append(row)
             
 
@@ -240,12 +257,12 @@ def within_fov(loc_array,loc_dict,angle,orbit_height_km):
 def chop_obs_list(obs_list,start,end):
     chopped_list = []
     for obs in obs_list:
-        if obs["start"] > start and obs["end"] < end:
+        if obs["start"] >= start and obs["end"] <= end:
             chopped_list.append(obs)
-        elif obs["start"] > start and obs["start"] < end:
+        elif obs["start"] >= start and obs["start"] <= end:
             obs["end"] = end
             chopped_list.append(obs)
-        elif obs["end"] < end and obs["end"] > start:
+        elif obs["end"] <= end and obs["end"] >= start:
             obs["start"] = start
             chopped_list.append(obs)
     return chopped_list
@@ -385,7 +402,7 @@ def plan_satellite(satellite,settings):
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
             for obs in tqdm(heuristic_plan):
                 for loc in grid_locations:
-                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                         row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
         with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_dp.csv','w') as csvfile:
@@ -393,7 +410,7 @@ def plan_satellite(satellite,settings):
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
             for obs in tqdm(dp_plan):
                 for loc in grid_locations:
-                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                         row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
         with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_fifo.csv','w') as csvfile:
@@ -401,7 +418,7 @@ def plan_satellite(satellite,settings):
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
             for obs in tqdm(fifo_plan):
                 for loc in grid_locations:
-                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                         row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
         with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_mcts.csv','w') as csvfile:
@@ -409,7 +426,7 @@ def plan_satellite(satellite,settings):
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
             for obs in tqdm(mcts_plan):
                 for loc in grid_locations:
-                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                         row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
         return
@@ -433,7 +450,7 @@ def plan_satellite(satellite,settings):
                 csvwriter.writerow(row)
                 continue
             for loc in grid_locations:
-                if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                     row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                     csvwriter.writerow(row)
             
@@ -628,6 +645,8 @@ def plan_mission_horizon(settings):
                     visibilities.remove(cont_vis)
                 i = 0
             satellite["obs_list"] = obs_list
+            satellite["curr_angle"] = 0.0
+            satellite["last_time"] = 0.0
     elapsed_plan_time = 0
     while elapsed_plan_time < float(settings["time"]["duration"])*86400/settings["time"]["step_size"]:
         plan_interval = settings["planning_horizon"]/settings["time"]["step_size"]
@@ -653,6 +672,8 @@ def plan_mission_horizon(settings):
                 "events": events,
                 "settings": settings,
                 "orbitpy_id": satellite["orbitpy_id"],
+                "start_angle": satellite["curr_angle"],
+                "last_time": satellite["last_time"]
             }
             planner_input_list.append(planner_inputs)
         pool = multiprocessing.Pool()
@@ -674,6 +695,9 @@ def plan_mission_horizon(settings):
                 satellites[i]["plan"].extend(trimmed_plan)
             else:
                 satellites[i]["plan"] = trimmed_plan
+            if len(trimmed_plan) > 0:
+                satellites[i]["curr_angle"] = trimmed_plan[-1]["angle"]
+                satellites[i]["last_time"] = trimmed_plan[-1]["soonest"]
         elapsed_plan_time += sharing_interval
         print("Elapsed planning time: "+str(elapsed_plan_time))
     grid_locations = []
@@ -804,6 +828,8 @@ def plan_mission_replan_interval(settings):
     rewards = load_rewards(settings)
     for satellite in satellites:
         satellite["obs_list"] = load_obs(satellite)
+        satellite["curr_angle"] = 0.0
+        satellite["last_time"] = 0.0
 
     elapsed_plan_time = 0
     reward_dict = {}
@@ -846,7 +872,7 @@ def plan_mission_replan_interval(settings):
                     continue
                 for location in reward_dict.keys():
                     if (obs["location"]["lat"],obs["location"]["lon"]) == location:
-                        obs["reward"] = reward_dict[location]["reward"]
+                        obs["reward"] = reward_dict[location]["reward"] 
                         obs["last_updated"] = reward_dict[location]["last_updated"]
                 new_obs_list.append(obs)
             new_obs_list = chop_obs_list(new_obs_list,plan_start,plan_end)
@@ -858,6 +884,8 @@ def plan_mission_replan_interval(settings):
                 "events": events,
                 "settings": settings,
                 "orbitpy_id": satellite["orbitpy_id"],
+                "start_angle": satellite["curr_angle"],
+                "last_time": satellite["last_time"]
             }
             planner_input_list.append(planner_inputs)
         pool = multiprocessing.Pool()
@@ -898,6 +926,7 @@ def plan_mission_replan_interval(settings):
             for updated_reward in updated_reward_list:
                 key = (np.round(updated_reward["location"]["lat"],3),np.round(updated_reward["location"]["lon"],3))
                 if key not in reward_dict:
+                    new_key = None
                     for loc in grid_locations:
                         if close_enough(loc[0],loc[1],key[0],key[1]):
                             new_key = (loc[0],loc[1])
@@ -905,6 +934,8 @@ def plan_mission_replan_interval(settings):
                         key = new_key
                     else:
                         print("ahhhh panic")
+                        print(key)
+                        continue
                 if updated_reward["last_updated"] > reward_dict[key]["last_updated"]:
                     location = (updated_reward["location"]["lat"],updated_reward["location"]["lon"])
                     if location in event_seen_counts.keys(): 
@@ -959,6 +990,9 @@ def plan_mission_replan_interval(settings):
                 satellites[i]["plan"].extend(trimmed_plan)
             else:
                 satellites[i]["plan"] = trimmed_plan
+            if len(trimmed_plan) > 0:
+                satellites[i]["curr_angle"] = trimmed_plan[-1]["angle"]
+                satellites[i]["last_time"] = trimmed_plan[-1]["soonest"]
             for obs in trimmed_plan:
                 location = (obs["location"]["lat"],obs["location"]["lon"])
                 if location in events_per_location and len(events_per_location[location]) != 0:
@@ -1115,6 +1149,8 @@ def plan_mission_replan_interval_het(settings):
     rewards = load_rewards(settings)
     for satellite in satellites:
         satellite["obs_list"] = load_obs(satellite)
+        satellite["curr_angle"] = 0.0
+        satellite["last_time"] = 0.0
     elapsed_plan_time = 0
     reward_dict = {}
     grid_locations = []
@@ -1170,7 +1206,9 @@ def plan_mission_replan_interval_het(settings):
                 "sharing_end": sharing_end,
                 "events": events,
                 "settings": settings,
-                "orbitpy_id": satellite["orbitpy_id"]
+                "orbitpy_id": satellite["orbitpy_id"],
+                "start_angle": satellite["curr_angle"],
+                "last_time": satellite["last_time"]
             }
             planner_input_list.append(planner_inputs)
         pool = multiprocessing.Pool()
@@ -1212,6 +1250,7 @@ def plan_mission_replan_interval_het(settings):
             for updated_reward in updated_reward_list:
                 key = (np.round(updated_reward["location"]["lat"],3),np.round(updated_reward["location"]["lon"],3))
                 if key not in reward_dict:
+                    new_key = None
                     for loc in grid_locations:
                         if close_enough(loc[0],loc[1],key[0],key[1]):
                             new_key = (loc[0],loc[1])
@@ -1219,6 +1258,7 @@ def plan_mission_replan_interval_het(settings):
                         key = new_key
                     else:
                         print("ahhhh panic")
+                        continue
                 if updated_reward["last_updated"] > reward_dict[key]["last_updated"]:
                     reward_dict[key]["last_updated"] = updated_reward["last_updated"]
                     for i in range(settings["num_meas_types"]):
@@ -1307,6 +1347,9 @@ def plan_mission_replan_interval_het(settings):
                 satellites[i]["plan"].extend(trimmed_plan)
             else:
                 satellites[i]["plan"] = trimmed_plan
+            if len(trimmed_plan) > 0:
+                satellites[i]["curr_angle"] = trimmed_plan[-1]["angle"]
+                satellites[i]["last_time"] = trimmed_plan[-1]["soonest"]
             for obs in trimmed_plan:
                 location = (obs["location"]["lat"],obs["location"]["lon"])
                 meas_type = satellite_name_dict[satellites[i]["orbitpy_id"]]
@@ -1328,43 +1371,69 @@ def plan_mission_replan_interval_het(settings):
     print("Planned mission with replans at interval (het)!")
 
 if __name__ == "__main__":
-    mission_name = "milp_test"
-    cross_track_ffor = 90 # deg
-    along_track_ffor = 90 # deg
-    cross_track_ffov = 1 # deg
-    along_track_ffov = 1 # deg
-    agility = 0.01 # deg/s
-    num_planes = 4
-    num_sats_per_plane = 4
-    var = 4 # deg lat/lon
-    num_points_per_cell = 10
-    simulation_step_size = 10 # seconds
-    simulation_duration = 1 # days
-    event_frequency = 1e-5 # events per second
-    event_duration = 21600 # second
-
+    name = "fire_parameter_default"
     settings = {
-        "directory": "./missions/milp_test/",
-        "step_size": simulation_step_size,
-        "duration": simulation_duration,
-        "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
-        "grid_type": "event", # can be "event" or "static"
-        "point_grid": "./coverage_grids/"+mission_name+"/event_locations.csv",
+        "name": name,
+        "instrument": {
+            "ffor": 60,
+            "ffov": 5
+        },
+        "agility": {
+            "slew_constraint": "rate",
+            "max_slew_rate": 1,
+            "inertia": 2.66,
+            "max_torque": 4e-3
+        },
+        "orbit": {
+            "altitude": 705, # km
+            "inclination": 98.4, # deg
+            "eccentricity": 0.0001,
+            "argper": 0, # deg
+        },
+        "constellation": {
+            "num_sats_per_plane": 1,
+            "num_planes": 1,
+            "phasing_parameter": 1
+        },
+        "events": {
+            "event_duration": 3600*6,
+            "num_events": 1000,
+            "event_clustering": "clustered"
+        },
+        "time": {
+            "step_size": 10, # seconds
+            "duration": 1, # days
+            "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
+        },
+        "rewards": {
+            "reward": 10,
+            "reward_increment": 2,
+            "reobserve_conops": "no_change",
+            "event_duration_decay": "step",
+            "no_event_reward": 1,
+            "oracle_reobs": "true",
+            "initial_reward": 1
+        },
+        "plotting":{
+            "plot_clouds": False,
+            "plot_rain": False,
+            "plot_duration": 0.1,
+            "plot_interval": 10,
+            "plot_obs": True
+        },
+        "planner": "dp",
+        "num_meas_types": 3,
+        "sharing_horizon": 500,
+        "planning_horizon": 500,
+        "directory": "./missions/"+name+"/",
+        "grid_type": "custom", # can be "uniform" or "custom"
+        "point_grid": "./missions/"+name+"/coverage_grids/event_locations.csv",
         "preplanned_observations": None,
-        "event_csvs": ["./events/"+mission_name+"/events.csv"],
-        "cross_track_ffor": 30,
-        "along_track_ffor": 30,
-        "cross_track_ffov": 0,
-        "along_track_ffov": 0,
-        "num_planes": num_planes,
-        "num_sats_per_plane": num_sats_per_plane,
-        "agility": agility,
+        "event_csvs": ["./missions/"+name+"/events/events.csv"],
         "process_obs_only": False,
-        "planner": "milp",
-        "reward": 10,
-        "reobserve_reward": 2,
+        "conops": "onboard_processing"
     }
-    plan_mission(settings)
+    plan_mission_horizon(settings)
     #plan_mission_replan_interval(settings)
     #plan_mission_mcts(settings)
     #plan_mission_dp(settings)

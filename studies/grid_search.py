@@ -4,8 +4,10 @@ import time
 import numpy as np
 import shutil
 import errno
+import sys
+sys.path.append(".")
 
-from run_experiment_het import run_experiment_het
+from src.run_experiment_het import run_experiment_het
 
 experiment_num = 0
 settings_list = []

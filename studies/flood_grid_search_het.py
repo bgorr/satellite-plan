@@ -65,7 +65,7 @@ def run_experiment(settings):
 
 
 if __name__ == "__main__":
-    with open('./studies/flood_grid_search_het.csv','w') as csvfile:
+    with open('./studies/flood_grid_search_het_twomeas.csv','w') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
         first_row = ["name","for","fov","num_planes","num_sats_per_plane","agility",
                     "event_duration","num_events","event_clustering","num_meas_types",
@@ -73,7 +73,7 @@ if __name__ == "__main__":
                     "events","init_obs_count","replan_obs_count","oracle_obs_count",
                     "init_event_obs_count","init_obs_per_event_list","init_events_seen_1+","init_events_seen_1","init_events_seen_2","init_events_seen_3","init_events_seen_4","init_event_reward","init_planner_reward","init_perc_cov","init_max_rev","init_avg_rev","init_all_perc_cov","init_all_max_rev","init_all_avg_rev",
                     "replan_event_obs_count","replan_obs_per_event_list","replan_events_seen_1+","replan_events_seen_1","replan_events_seen_2","replan_events_seen_3","replan_events_seen_4+","replan_event_reward","replan_planner_reward","replan_perc_cov","replan_max_rev","replan_avg_rev","replan_all_perc_cov","replan_all_max_rev","replan_all_avg_rev",
-                    "replan_het_event_obs_count","replan_het_events_seen_1+","replan_het_events_seen_1","replan_het_events_seen_2","replan_het_events_seen_3","replan_het_events_seen_4+","replan_het_event_reward","replan_het_planner_reward","replan_het_perc_cov","replan_het_max_rev","replan_het_avg_rev","replan_het_all_perc_cov","replan_het_all_max_rev","replan_het_all_avg_rev","loose_coobs_list","strict_coobs_list",
+                    "replan_het_event_obs_count","replan_het_obs_per_event_list","replan_het_events_seen_1+","replan_het_events_seen_1","replan_het_events_seen_2","replan_het_events_seen_3","replan_het_events_seen_4+","replan_het_event_reward","replan_het_planner_reward","replan_het_perc_cov","replan_het_max_rev","replan_het_avg_rev","replan_het_all_perc_cov","replan_het_all_max_rev","replan_het_all_avg_rev",
                     "time"]
         csvwriter.writerow(first_row)
         csvfile.close()
@@ -91,7 +91,7 @@ if __name__ == "__main__":
 
     #constellation_options = [(2,2),(1,4),(3,8),(8,3)]
     #num_meas_type_options = [2,3,4]
-    reobs_options = ["linear_increase","linear_decrease","decaying_decrease","decaying_increase","immediate_decrease","no_change"]
+    reobs_options = ["linear_increase","no_change","decaying_decrease"]#"decaying_decrease","decaying_increase","immediate_decrease","no_change"]
     i = 0
     for reobs_option in reobs_options:
         name = "flood_grid_search_het_"+str(i)
@@ -131,7 +131,7 @@ if __name__ == "__main__":
             "rewards": {
                 "reward": 10,
                 "reward_increment": 1,
-                "reobserve_conops": "linear_increase",
+                "reobserve_conops": reobs_option,
                 "event_duration_decay": "step",
                 "no_event_reward": 5,
                 "oracle_reobs": "true",
@@ -139,8 +139,8 @@ if __name__ == "__main__":
             },
             "planner": "dp",
             "num_meas_types": 2,
-            "sharing_horizon": 500,
-            "planning_horizon": 500,
+            "sharing_horizon": 100,
+            "planning_horizon": 5000,
             "directory": "./missions/"+name+"/",
             "grid_type": "custom", # can be "uniform" or "custom"
             "point_grid": "./missions/"+name+"/coverage_grids/event_locations.csv",
@@ -151,27 +151,27 @@ if __name__ == "__main__":
         }
         start = time.time()
         print(settings["name"])
-        if settings["name"] != "flood_grid_search_het_0":
-            mission_src = "./missions/flood_grid_search_het_0/"
-            mission_dst = "./missions/"+settings["name"]+"/"
-            try:
-                shutil.copytree(mission_src, mission_dst)
-            except OSError as exc: # python >2.5
-                if exc.errno in (errno.ENOTDIR, errno.EINVAL):
-                    shutil.copy(mission_src, mission_dst)
-                else: raise
+        # if settings["name"] != "flood_grid_search_het_0":
+        #     mission_src = "./missions/flood_grid_search_het_0/"
+        #     mission_dst = "./missions/"+settings["name"]+"/"
+        #     try:
+        #         shutil.copytree(mission_src, mission_dst)
+        #     except OSError as exc: # python >2.5
+        #         if exc.errno in (errno.ENOTDIR, errno.EINVAL):
+        #             shutil.copy(mission_src, mission_dst)
+        #         else: raise
         overall_results = run_experiment(settings)
         end = time.time()
         elapsed_time = end-start
-        with open('./studies/flood_grid_search_het.csv','a') as csvfile:
+        with open('./studies/flood_grid_search_het_twomeas.csv','a') as csvfile:
             csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
             row = [settings["name"],settings["instrument"]["ffor"],settings["instrument"]["ffov"],settings["constellation"]["num_planes"],settings["constellation"]["num_sats_per_plane"],settings["agility"]["max_slew_rate"],
                 settings["events"]["event_duration"],settings["events"]["num_events"],settings["events"]["event_clustering"],settings["num_meas_types"],
                 settings["planner"],settings["sharing_horizon"], settings["planning_horizon"], settings["rewards"]["reward"], settings["rewards"]["reward_increment"], settings["rewards"]["reobserve_conops"],settings["rewards"]["event_duration_decay"],settings["rewards"]["no_event_reward"],
                 overall_results["num_events"],overall_results["num_obs_init"],overall_results["num_obs_replan"],overall_results["num_obs_oracle"],
-                overall_results["init_results"]["event_obs_count"],overall_results["init_results"]["obs_per_event_list"],overall_results["init_results"]["events_seen_at_least_once"],overall_results["init_results"]["events_seen_once"],overall_results["init_results"]["events_seen_twice"],overall_results["init_results"]["events_seen_thrice"],overall_results["init_results"]["events_seen_fourplus"],overall_results["init_results"]["event_reward"],overall_results["init_results"]["planner_reward"],overall_results["init_results"]["percent_coverage"],overall_results["init_results"]["event_max_revisit_time"],overall_results["init_results"]["event_avg_revisit_time"],overall_results["init_results"]["all_percent_coverage"],overall_results["init_results"]["all_max_revisit_time"],overall_results["init_results"]["all_avg_revisit_time"],
-                overall_results["replan_results"]["event_obs_count"],overall_results["replan_results"]["obs_per_event_list"],overall_results["replan_results"]["events_seen_at_least_once"],overall_results["replan_results"]["events_seen_once"],overall_results["replan_results"]["events_seen_twice"],overall_results["replan_results"]["events_seen_thrice"],overall_results["replan_results"]["events_seen_fourplus"],overall_results["replan_results"]["event_reward"],overall_results["replan_results"]["planner_reward"],overall_results["replan_results"]["percent_coverage"],overall_results["replan_results"]["event_max_revisit_time"],overall_results["replan_results"]["event_avg_revisit_time"],overall_results["replan_results"]["all_percent_coverage"],overall_results["replan_results"]["all_max_revisit_time"],overall_results["replan_results"]["all_avg_revisit_time"],
-                overall_results["replan_het_results"]["event_obs_count"],overall_results["replan_het_results"]["events_seen_at_least_once"],overall_results["replan_het_results"]["events_seen_once"],overall_results["replan_het_results"]["events_seen_twice"],overall_results["replan_het_results"]["events_seen_thrice"],overall_results["replan_het_results"]["events_seen_fourplus"],overall_results["replan_het_results"]["event_reward"],overall_results["replan_het_results"]["planner_reward"],overall_results["replan_het_results"]["percent_coverage"],overall_results["replan_het_results"]["event_max_revisit_time"],overall_results["replan_het_results"]["event_avg_revisit_time"],overall_results["replan_het_results"]["all_percent_coverage"],overall_results["replan_het_results"]["all_max_revisit_time"],overall_results["replan_het_results"]["all_avg_revisit_time"], overall_results["replan_het_results"]["loose_coobs_list"], overall_results["replan_het_results"]["strict_coobs_list"],
+                overall_results["init_results"]["event_obs_count"],overall_results["init_results"]["obs_per_event_list"],overall_results["init_results"]["events_seen_at_least_once"],overall_results["init_results"]["events_seen_once"],overall_results["init_results"]["events_seen_twice"],overall_results["init_results"]["events_seen_thrice"],overall_results["init_results"]["events_seen_fourplus"],overall_results["init_results"]["event_reward"],overall_results["init_results"]["planner_reward"],overall_results["init_results"]["percent_coverage"],overall_results["init_results"]["event_max_revisit_time"],overall_results["init_results"]["event_avg_revisit_time"],overall_results["init_results"]["all_percent_coverage"],overall_results["init_results"]["all_max_revisit_time"],overall_results["init_results"]["all_avg_revisit_time"],overall_results["init_results"]["loose_coobs_list"],overall_results["init_results"]["strict_coobs_list"],
+                overall_results["replan_results"]["event_obs_count"],overall_results["replan_results"]["obs_per_event_list"],overall_results["replan_results"]["events_seen_at_least_once"],overall_results["replan_results"]["events_seen_once"],overall_results["replan_results"]["events_seen_twice"],overall_results["replan_results"]["events_seen_thrice"],overall_results["replan_results"]["events_seen_fourplus"],overall_results["replan_results"]["event_reward"],overall_results["replan_results"]["planner_reward"],overall_results["replan_results"]["percent_coverage"],overall_results["replan_results"]["event_max_revisit_time"],overall_results["replan_results"]["event_avg_revisit_time"],overall_results["replan_results"]["all_percent_coverage"],overall_results["replan_results"]["all_max_revisit_time"],overall_results["replan_results"]["all_avg_revisit_time"],overall_results["replan_results"]["loose_coobs_list"],overall_results["replan_results"]["strict_coobs_list"],
+                overall_results["replan_het_results"]["event_obs_count"],overall_results["replan_het_results"]["obs_per_event_list"],overall_results["replan_het_results"]["events_seen_at_least_once"],overall_results["replan_het_results"]["events_seen_once"],overall_results["replan_het_results"]["events_seen_twice"],overall_results["replan_het_results"]["events_seen_thrice"],overall_results["replan_het_results"]["events_seen_fourplus"],overall_results["replan_het_results"]["event_reward"],overall_results["replan_het_results"]["planner_reward"],overall_results["replan_het_results"]["percent_coverage"],overall_results["replan_het_results"]["event_max_revisit_time"],overall_results["replan_het_results"]["event_avg_revisit_time"],overall_results["replan_het_results"]["all_percent_coverage"],overall_results["replan_het_results"]["all_max_revisit_time"],overall_results["replan_het_results"]["all_avg_revisit_time"],overall_results["replan_het_results"]["loose_coobs_list"],overall_results["replan_het_results"]["strict_coobs_list"],
                 elapsed_time
             ]
             csvwriter.writerow(row)

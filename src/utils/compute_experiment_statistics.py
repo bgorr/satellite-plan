@@ -11,7 +11,7 @@ def unique(lakes):
     return np.unique(lakes,axis=0)
 
 def close_enough(lat0,lon0,lat1,lon1):
-    if np.sqrt((lat0-lat1)**2+(lon0-lon1)**2) < 0.0001:
+    if np.sqrt((lat0-lat1)**2+(lon0-lon1)**2) < 0.001:
         return True
     else:
         return False
@@ -107,7 +107,6 @@ def compute_statistics_pieces(input):
 def compute_statistics(events,obs,grid_locations,settings):
     obs.sort(key=lambda obs: obs[0])
     event_chunks = list(chunks(events,25))
-    pool = multiprocessing.Pool()
     input_list = []
     output_list = []
     for i in range(len(event_chunks)):
@@ -134,7 +133,7 @@ def compute_statistics(events,obs,grid_locations,settings):
     max_rev_time_list = []
     avg_rev_time_list = []
     event_count = 0
-    for event in tqdm(events):
+    for event in events:
         obs_per_event = []
         event_start = float(event[2])
         event_end = float(event[2])+float(event[3])
@@ -155,7 +154,7 @@ def compute_statistics(events,obs,grid_locations,settings):
     all_max_rev_time_list = []
     all_avg_rev_time_list = []
     loc_count = 0
-    for loc in tqdm(grid_locations):
+    for loc in grid_locations:
         obs_per_loc = []
         for ob in obs:
             if close_enough(ob[2],ob[3],loc[0],loc[1]):
@@ -392,16 +391,18 @@ def compute_experiment_statistics(settings):
     return overall_results
 
 def main():
-    name = "agu_rain"
+    name = "madqn_test_fov_step_fullstate_expectedval"
     settings = {
         "name": name,
         "instrument": {
-            "ffor": 30,
+            "ffor": 60,
             "ffov": 0
         },
         "agility": {
             "slew_constraint": "rate",
-            "max_slew_rate": 0.1
+            "max_slew_rate": 0.1,
+            "inertia": 2.66,
+            "max_torque": 4e-3
         },
         "orbit": {
             "altitude": 705, # km
@@ -410,15 +411,14 @@ def main():
             "argper": 0, # deg
         },
         "constellation": {
-            "num_sats_per_plane": 6,
-            "num_planes": 6,
+            "num_sats_per_plane": 1,
+            "num_planes": 1,
             "phasing_parameter": 1
         },
         "events": {
             "event_duration": 3600*6,
-            "event_frequency": 0.01/3600,
-            "event_density": 2,
-            "event_clustering": 4
+            "num_events": 10000,
+            "event_clustering": "clustered"
         },
         "time": {
             "step_size": 10, # seconds
@@ -428,20 +428,29 @@ def main():
         "rewards": {
             "reward": 10,
             "reward_increment": 0.1,
+            "reobserve_reward": 2
         },
-        "planner": "dp",
+        "plotting":{
+            "plot_clouds": False,
+            "plot_rain": False,
+            "plot_duration": 0.1,
+            "plot_interval": 10,
+            "plot_obs": True
+        },
+        "planner": "dqn",
         "num_meas_types": 3,
-        "sharing_horizon": 1000,
-        "planning_horizon": 1000,
-        "directory": "./missions/agu_rain/",
-        "grid_type": "event", # can be "event" or "static"
-        "point_grid": "./coverage_grids/agu_rain/event_locations.csv",
+        "sharing_horizon": 500,
+        "planning_horizon": 500,
+        "directory": "./missions/"+name+"/",
+        "grid_type": "custom", # can be "uniform" or "custom"
+        "point_grid": "./missions/"+name+"/coverage_grids/event_locations.csv",
         "preplanned_observations": None,
-        "event_csvs": ["./rain_events.csv"],
+        "event_csvs": ["./missions/"+name+"/events/events.csv"],
         "process_obs_only": False,
+        "conops": "onboard_processing"
     }
     overall_results = compute_experiment_statistics(settings)
-    print(overall_results)
+    #print(overall_results)
 
 if __name__ == "__main__":
     main()

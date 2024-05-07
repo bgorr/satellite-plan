@@ -40,7 +40,7 @@ def nutation(jd,ddpsi,ddeps):
     D = dms_to_dec(297,51,1.307) + (1236*180/np.pi+dms_to_dec(307,6,41.328))*T - dms_to_dec(0,0,6.891)*T**2 + dms_to_dec(0,0,0.019)*T**3
     Omega = dms_to_dec(135,2,40.28) - (5*180/np.pi+dms_to_dec(134,8,10.539))*T + dms_to_dec(0,0,7.455)*T**2 + dms_to_dec(0,0,0.008)*T**3
 
-    with open('./iau80.csv',newline='') as csv_file:
+    with open('./resources/iau80.csv',newline='') as csv_file:
         spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
         rows = []
         for row in spamreader:
@@ -494,11 +494,11 @@ def process_mission(settings):
     if not os.path.exists(base_directory+'constellation_past_observations'):
         os.mkdir(base_directory+'constellation_past_observations')
         past_observations = []
-        for i in range(len(steps)):
+        for i in range(len(steps)-1):
             for sat in satellites:
                 name = sat["orbitpy_id"]        
-                for observation in sat["visibilities"]:
-                    if observation[0] <= i and i <= observation[0]+1:
+                for observation in sat["observations"]:
+                    if steps[i] <= observation[0]*timestep < steps[i+1]:
                         prev_obs = None
                         for past_obs in past_observations:
                             if past_obs[1] == observation[2] and past_obs[2] == observation[3]:
@@ -589,8 +589,8 @@ def process_mission(settings):
                                     quotechar='|', quoting=csv.QUOTE_MINIMAL)
                 for obs in crosslink_locations:
                     csvwriter.writerow(obs)
-    if not os.path.exists(base_directory+'events'):
-        os.mkdir(base_directory+'events')
+    if not os.path.exists(base_directory+'events_processed'):
+        os.mkdir(base_directory+'events_processed')
         if len(settings["event_csvs"]) > 0:
             events = []
             for filename in settings["event_csvs"]:
@@ -610,7 +610,7 @@ def process_mission(settings):
                     if event[2] <= step_time and step_time <= (event[2]+event[3]):
                         event_per_step = [event[0],event[1],event[4]] # lat, lon, start, duration, severity
                         events_per_step.append(event_per_step)
-                with open(base_directory+'events/step'+str(i)+'.csv','w') as csvfile:
+                with open(base_directory+'events_processed/step'+str(i)+'.csv','w') as csvfile:
                     csvwriter = csv.writer(csvfile, delimiter=',',
                                         quotechar='|', quoting=csv.QUOTE_MINIMAL)
                     for event in events_per_step:
@@ -619,71 +619,59 @@ def process_mission(settings):
     print("Processed mission!")
 
 if __name__ == "__main__":
-    cross_track_ffor = 60 # deg
-    along_track_ffor = 60 # deg
-    cross_track_ffov = 0 # deg
-    along_track_ffov = 0 # deg
-    agility = 1 # deg/s
-    num_planes = 5
-    num_sats_per_plane = 5
+    name = "flood_grid_search_het_1"
     settings = {
-        "directory": "./missions/25_sats_prelim/",
-        "step_size": 10,
-        "duration": 1,
-        "plot_interval": 5,
-        "plot_duration": 2/24,
-        "plot_location": ".",
-        "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
-        "grid_type": "uniform", # can be "event" or "static"
-        "preplanned_observations": None,
-        "event_csvs": [],
-        "plot_clouds": False,
-        "plot_rain": False,
-        "plot_obs": True,
-        "cross_track_ffor": cross_track_ffor,
-        "along_track_ffor": along_track_ffor,
-        "cross_track_ffov": cross_track_ffov,
-        "along_track_ffov": along_track_ffov,
-        "num_planes": num_planes,
-        "num_sats_per_plane": num_sats_per_plane,
-        "agility": agility,
+        "name": name,
+        "instrument": {
+            "ffor": 60,
+            "ffov": 5
+        },
+        "agility": {
+            "slew_constraint": "rate",
+            "max_slew_rate": 1,
+            "inertia": 2.66,
+            "max_torque": 4e-3
+        },
+        "orbit": {
+            "altitude": 705, # km
+            "inclination": 98.4, # deg
+            "eccentricity": 0.0001,
+            "argper": 0, # deg
+        },
+        "constellation": {
+            "num_sats_per_plane": 8,
+            "num_planes": 3,
+            "phasing_parameter": 1
+        },
+        "events": {
+            "event_duration": 5000,
+            "num_events": 100,
+            "event_clustering": "clustered"
+        },
+        "time": {
+            "step_size": 10, # seconds
+            "duration": 1, # days
+            "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
+        },
+        "rewards": {
+            "reward": 10,
+            "reward_increment": 1,
+            "reobserve_conops": "no_change",
+            "event_duration_decay": "step",
+            "no_event_reward": 5,
+            "oracle_reobs": "true",
+            "initial_reward": 5
+        },
         "planner": "dp",
-        "process_obs_only": True
-    }
-
-    mission_name = "oa_het_9"
-    cross_track_ffor = 90 # deg
-    along_track_ffor = 90 # deg
-    cross_track_ffov = 1 # deg
-    along_track_ffov = 1 # deg
-    agility = 0.01 # deg/s
-    num_planes = 4
-    num_sats_per_plane = 4
-    var = 4 # deg lat/lon
-    num_points_per_cell = 10
-    simulation_step_size = 10 # seconds
-    simulation_duration = 1 # days
-    event_frequency = 1e-5 # events per second
-    event_duration = 21600 # second
-    settings = {
-        "directory": "./missions/"+mission_name+"/",
-        "step_size": simulation_step_size,
-        "duration": simulation_duration,
-        "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
-        "grid_type": "event", # can be "event" or "static"
-        "point_grid": "./coverage_grids/"+mission_name+"/event_locations.csv",
+        "num_meas_types": 2,
+        "sharing_horizon": 100,
+        "planning_horizon": 5000,
+        "directory": "./missions/"+name+"/",
+        "grid_type": "custom", # can be "uniform" or "custom"
+        "point_grid": "./missions/"+name+"/coverage_grids/event_locations.csv",
         "preplanned_observations": None,
-        "event_csvs": ["./events/"+mission_name+"/events.csv"],
-        "cross_track_ffor": cross_track_ffor,
-        "along_track_ffor": along_track_ffor,
-        "cross_track_ffov": cross_track_ffov,
-        "along_track_ffov": along_track_ffov,
-        "num_planes": num_planes,
-        "num_sats_per_plane": num_sats_per_plane,
-        "agility": agility,
+        "event_csvs": ["./missions/"+name+"/events/events.csv"],
         "process_obs_only": False,
-        "planner": "dp",
-        "reward": 10,
-        "reobserve_reward": 2
+        "conops": "onboard_processing"
     }
     process_mission(settings)

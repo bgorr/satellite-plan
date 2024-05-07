@@ -6,12 +6,15 @@ import multiprocessing
 import random
 from functools import partial
 from tqdm import tqdm
-from planners.mcts_planner import monte_carlo_tree_search
-from planners.dp_planner import graph_search, graph_search_events, graph_search_events_interval, graph_search_kg, graph_search_ukge
-from planners.milp_planner import milp_planner, milp_planner_interval
-from planners.heuristic_planner import greedy_lemaitre_planner, greedy_lemaitre_planner_events, greedy_lemaitre_planner_events_interval
-from planners.fifo_planner import fifo_planner, fifo_planner_events, fifo_planner_events_interval
-from utils.planning_utils import close_enough
+import sys
+sys.path.append(".")
+
+from src.planners.mcts_planner import monte_carlo_tree_search
+from src.planners.dp_planner import graph_search, graph_search_events, graph_search_events_interval, graph_search_kg, graph_search_ukge
+from src.planners.milp_planner import milp_planner, milp_planner_interval
+from src.planners.heuristic_planner import greedy_lemaitre_planner, greedy_lemaitre_planner_events, greedy_lemaitre_planner_events_interval
+from src.planners.fifo_planner import fifo_planner, fifo_planner_events, fifo_planner_events_interval
+from src.utils.planning_utils import close_enough
     
 def unique(lakes):
     lakes = np.asarray(lakes)
@@ -54,7 +57,7 @@ def decompose_plan(full_plan,satellites,settings):
                 }
                 obs = obs_dict
                 for loc in grid_locations:
-                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                         row = [obs["end"],obs["end"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
                 if settings["instrument"]["ffov"] == 0:
@@ -77,7 +80,7 @@ def save_plan_w_fov(satellite,settings,grid_locations,flag):
                 grid_locations.append([float(row[0]),float(row[1])])
         for obs in tqdm(plan):
             for loc in grid_locations:
-                if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                     row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                     rows.append(row)
             if settings["instrument"]["ffov"] == 0:
@@ -234,7 +237,7 @@ def plan_satellite(satellite,settings):
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
             for obs in tqdm(heuristic_plan):
                 for loc in grid_locations:
-                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                         row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
         with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_dp.csv','w') as csvfile:
@@ -242,7 +245,7 @@ def plan_satellite(satellite,settings):
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
             for obs in tqdm(dp_plan):
                 for loc in grid_locations:
-                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                         row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
         with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_fifo.csv','w') as csvfile:
@@ -250,7 +253,7 @@ def plan_satellite(satellite,settings):
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
             for obs in tqdm(fifo_plan):
                 for loc in grid_locations:
-                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                         row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
         with open(settings["directory"]+"orbit_data/"+satellite["orbitpy_id"]+'/plan_mcts.csv','w') as csvfile:
@@ -258,7 +261,7 @@ def plan_satellite(satellite,settings):
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
             for obs in tqdm(mcts_plan):
                 for loc in grid_locations:
-                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                    if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                         row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"]]
                         csvwriter.writerow(row)
         return
@@ -278,7 +281,7 @@ def plan_satellite(satellite,settings):
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
         for obs in tqdm(plan):
             for loc in grid_locations:
-                if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),500): # TODO fix hardcode
+                if within_fov(loc,obs["location"],np.min([settings["instrument"]["ffov"],settings["instrument"]["ffov"]]),settings["orbit"]["altitude"]): # TODO fix hardcode
                     row = [obs["soonest"],obs["soonest"],loc[0],loc[1],obs["angle"],obs["reward"],obs["parameter"]]
                     csvwriter.writerow(row)
             if settings["instrument"]["ffov"] == 0:

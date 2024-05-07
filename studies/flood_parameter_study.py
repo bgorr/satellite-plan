@@ -98,14 +98,14 @@ if __name__ == "__main__":
     parameters = {
         # "reward": reward_options,
         # "reward_increment": reward_increment_options,
-        # "sharing_horizon": sharing_horizons,
-        # "planning_horizon": planning_horizons,
-        "reobserve_conops": reobserve_conopses,
+        "sharing_horizon": sharing_horizons,
+        "planning_horizon": planning_horizons,
+        # "reobserve_conops": reobserve_conopses,
         # "event_duration_decay": event_duration_decays,
         # "no_event_reward": no_event_rewards
     }
 
-    name = "flood_reobservation_default"
+    name = "flood_horizon_default"
     default_settings = {
         "name": name,
         "instrument": {
@@ -165,7 +165,7 @@ if __name__ == "__main__":
     settings_list.append(default_settings)
     for parameter in parameters:
         for level in parameters[parameter]:
-            experiment_name = 'flood_reobservation_'+str(i)
+            experiment_name = 'flood_horizon_'+str(i)
             modified_settings = default_settings.copy()
             modified_settings["rewards"] = default_settings["rewards"].copy()
             if "horizon" in parameter:
@@ -181,8 +181,8 @@ if __name__ == "__main__":
         settings = settings_list[i]
         start = time.time()
         print(settings["name"])
-        if settings["name"] != "flood_reobservation_default":
-            mission_src = "./missions/flood_reobservation_default/"
+        if settings["name"] != "flood_horizon_default":
+            mission_src = "./missions/flood_horizon_default/"
             mission_dst = "./missions/"+settings["name"]+"/"
             try:
                 shutil.copytree(mission_src, mission_dst)
@@ -193,7 +193,7 @@ if __name__ == "__main__":
         overall_results = run_experiment(settings)
         end = time.time()
         elapsed_time = end-start
-        with open('./studies/flood_reobservation_study.csv','a') as csvfile:
+        with open('./studies/flood_horizon_study.csv','a') as csvfile:
             csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
             row = [settings["name"],settings["instrument"]["ffor"],settings["instrument"]["ffov"],settings["constellation"]["num_planes"],settings["constellation"]["num_sats_per_plane"],settings["agility"]["max_slew_rate"],
                 settings["events"]["event_duration"],settings["events"]["num_events"],settings["events"]["event_clustering"],settings["num_meas_types"],

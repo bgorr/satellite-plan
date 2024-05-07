@@ -34,9 +34,14 @@ with open("./studies/flood_grid_search_het_threemeas.csv",newline='') as csv_fil
         ind = np.arange(N)+1
         width = 0.25
         distribution = [1,2,3,4]
-        initial_observations = get_nonzero_observations(row[37])
-        reactive_observations = get_nonzero_observations(row[53])
-        reactive_het_observations = get_nonzero_observations(row[69])
+        initial_observations = get_nonzero_observations(row[38])
+        reactive_observations = get_nonzero_observations(row[55])
+        reactive_het_observations = get_nonzero_observations(row[72])
+        if len(initial_observations)==0 or len(reactive_observations)==0 or len(reactive_het_observations)==0:
+            continue
+        initial_observations -= 1
+        reactive_observations -= 1
+        reactive_het_observations -= 1
         print(len(initial_observations))
         print(sum(initial_observations))
         print(len(reactive_observations))
@@ -48,7 +53,7 @@ with open("./studies/flood_grid_search_het_threemeas.csv",newline='') as csv_fil
         all_observations = []
         labels = []
         all_observations.extend(initial_observations)
-        labels.extend(['Initial']*len(initial_observations))
+        labels.extend(['Non-reactive']*len(initial_observations))
         all_observations.extend(reactive_observations)
         labels.extend(['Reactive']*len(reactive_observations))
         all_observations.extend(reactive_het_observations)
@@ -56,14 +61,14 @@ with open("./studies/flood_grid_search_het_threemeas.csv",newline='') as csv_fil
         all_data = {'Planner': labels,'Number of co-observations per event': all_observations}
         all_df = pd.DataFrame(data=all_data)
 
-        sns.kdeplot(all_df,x='Number of co-observations per event',hue='Planner',palette=['red','blue','green'],clip=[1,10],bw_adjust=2,fill=True,alpha=.5, linewidth=0,)
+        sns.kdeplot(all_df,x='Number of co-observations per event',hue='Planner',palette=['red','blue','green'],clip=[0,40],bw_adjust=2,fill=True,alpha=.5, linewidth=0,)
 
         xint = []
         locs, labels = plt.xticks()
         for each in locs:
             xint.append(int(each))
         plt.xticks(xint)
-
-        plt.savefig(plot_dir+row[0]+"_hist.png",dpi=300,bbox_inches="tight")
+        plt.gca().set_xlim(left=0)
+        plt.savefig(plot_dir+row[0]+"_threemeas_hist_042624.png",dpi=300,bbox_inches="tight")
 
         plt.close()

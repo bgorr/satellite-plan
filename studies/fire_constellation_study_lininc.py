@@ -64,7 +64,7 @@ def run_experiment(settings):
 
 
 if __name__ == "__main__":
-    with open('./studies/fire_constellation_study_lininc.csv','w') as csvfile:
+    with open('./studies/fire_constellation_study_lininc_042424.csv','w') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
         first_row = ["name","for","fov","num_planes","num_sats_per_plane","agility",
                     "event_duration","num_events","event_clustering","num_meas_types",
@@ -142,8 +142,8 @@ if __name__ == "__main__":
             },
             "planner": "dp",
             "num_meas_types": 3,
-            "sharing_horizon": 500,
-            "planning_horizon": 500,
+            "sharing_horizon": 100,
+            "planning_horizon": 5000,
             "directory": "./missions/"+name+"/",
             "grid_type": "custom", # can be "uniform" or "custom"
             "point_grid": "./missions/"+name+"/coverage_grids/event_locations.csv",
@@ -157,7 +157,7 @@ if __name__ == "__main__":
         overall_results = run_experiment(settings)
         end = time.time()
         elapsed_time = end-start
-        with open('./studies/fire_constellation_study_lininc.csv','a') as csvfile:
+        with open('./studies/fire_constellation_study_lininc_042424.csv','a') as csvfile:
             csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
             row = [settings["name"],settings["instrument"]["ffor"],settings["instrument"]["ffov"],settings["constellation"]["num_planes"],settings["constellation"]["num_sats_per_plane"],settings["agility"]["max_slew_rate"],
                 settings["events"]["event_duration"],settings["events"]["num_events"],settings["events"]["event_clustering"],settings["num_meas_types"],

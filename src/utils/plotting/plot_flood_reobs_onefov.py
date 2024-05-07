@@ -57,7 +57,7 @@ no_change_observations = get_nonzero_observations(row[38])
 all_observations = []
 labels = []
 all_observations.extend(initial_observations)
-labels.extend(['Initial']*len(initial_observations))
+labels.extend(['Non-reactive']*len(initial_observations))
 all_observations.extend(lin_inc_observations)
 labels.extend(['Linear Increase']*len(lin_inc_observations))
 all_observations.extend(lin_dec_observations)
@@ -74,7 +74,15 @@ all_data = {'Reobserving Strategy': labels,'Number of re-observations': all_obse
 all_df = pd.DataFrame(data=all_data)
 
 
-sns.kdeplot(all_df,x='Number of re-observations',hue='Reobserving Strategy',palette=['black','red','green','blue','yellow','orange','purple'],clip=[1,20],bw_adjust=2)
+p = sns.kdeplot(all_df,x='Number of re-observations',hue='Reobserving Strategy',palette=['black','red','green','blue','yellow','orange','purple'],clip=[1,20],bw_adjust=2)
+
+lss = [':', '--', '-.', '-', ':', '--', '-.']
+
+handles = p.legend_.legendHandles[::-1]
+
+for line, ls, handle in zip(p.lines, lss, handles):
+    line.set_linestyle(ls)
+    handle.set_ls(ls)
 
 xint = []
 locs, labels = plt.xticks()
