@@ -53,27 +53,28 @@ def plot_step(step_num,settings):
     plt.figure(figsize=(12, 6))
     ax = plt.axes(projection=data_crs)
     ax.set_global()
-    ax.set_extent([-80, -40, -20, 10], crs=ccrs.PlateCarree())
+    ax.set_extent([-125, -65, 25, 50], crs=ccrs.PlateCarree())
     #ax.set_xlim([-150,-30])
     #ax.set_ylim([20,70])
     x0c, x1c, y0c, y1c = ax.properties()['extent']
     ax.coastlines()
+    ax.add_feature(cfeature.STATES.with_scale('10m'), edgecolor='gray')
     
     fname = './grwl_files/GRWL_summaryStats.shp'
     shape_feature = ShapelyFeature(Reader(fname).geometries(),
                                     ccrs.PlateCarree(), edgecolor='lightskyblue', facecolor='None', linewidth=0.5)
     ax.add_feature(shape_feature, edgecolor='lightskyblue', facecolor='None', linewidth=0.5)
 
-    ax.yaxis.tick_right()
-    ax.set_xticks([-80,-70,-60,-50,-40], crs=ccrs.PlateCarree())
-    ax.set_yticks([-20,-10,0,10], crs=ccrs.PlateCarree())
-    lon_formatter = LongitudeFormatter(zero_direction_label=True)
-    lat_formatter = LatitudeFormatter()
-    ax.xaxis.set_major_formatter(lon_formatter)
-    ax.yaxis.set_major_formatter(lat_formatter)
+    # ax.yaxis.tick_right()
+    # ax.set_xticks([-80,-70,-60,-50,-40], crs=ccrs.PlateCarree())
+    # ax.set_yticks([-20,-10,0,10], crs=ccrs.PlateCarree())
+    # lon_formatter = LongitudeFormatter(zero_direction_label=True)
+    # lat_formatter = LatitudeFormatter()
+    # ax.xaxis.set_major_formatter(lon_formatter)
+    # ax.yaxis.set_major_formatter(lat_formatter)
 
-    gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=False,
-                    linewidth=2, color='gray', alpha=0.5, linestyle='--')
+    # gl = ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=False,
+    #                 linewidth=2, color='gray', alpha=0.5, linestyle='--')
 
     #ax.stock_img()
     pos_rows = []
@@ -104,13 +105,13 @@ def plot_step(step_num,settings):
         csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
         for row in csvreader:
             crosslinks.append(row)
-    if os.path.isdir(settings["directory"]+'reward_grids/'):
-        reward_grid_rows = []
-        reward_grid_filename = get_latest_reward_grid_file(settings,step_num)
-        with open(settings["directory"]+'reward_grids/'+reward_grid_filename,'r') as csvfile:
-            csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
-            for row in csvreader:
-                reward_grid_rows.append(row)
+    # if os.path.isdir(settings["directory"]+'reward_grids/'):
+    #     reward_grid_rows = []
+    #     reward_grid_filename = get_latest_reward_grid_file(settings,step_num)
+    #     with open(settings["directory"]+'reward_grids/'+reward_grid_filename,'r') as csvfile:
+    #         csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+    #         for row in csvreader:
+    #             reward_grid_rows.append(row)
 
     past_lats = []
     past_lons = []
@@ -131,12 +132,12 @@ def plot_step(step_num,settings):
         for row in csvreader:
             grid_lats.append(float(row[0]))
             grid_lons.append(float(row[1]))
-    if settings["grid_type"] == "event":
-        event_rows = []
-        with open(settings["directory"]+'events/step'+str(step_num)+'.csv','r') as csvfile:
-            csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
-            for row in csvreader:
-                event_rows.append(row)
+
+    event_rows = []
+    with open(settings["directory"]+'events_processed/step'+str(step_num)+'.csv','r') as csvfile:
+        csvreader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        for row in csvreader:
+            event_rows.append(row)
     
     if os.path.isdir(settings["directory"]+'coobs/'):
         coobs_rows = []
@@ -262,11 +263,11 @@ def plot_step(step_num,settings):
 
     #x, y = ax(grid_lons,grid_lats)meas_types
     ax.scatter(grid_lons,grid_lats,0.5,marker='o',color='blue',transform=data_crs)
-    if os.path.isdir(settings["directory"]+'reward_grids/'):
-        reward_grid_rows = np.asfarray(reward_grid_rows)
-        ax.scatter(reward_grid_rows[:,1],reward_grid_rows[:,0],(reward_grid_rows[:,2])**1.5,color='purple',transform=data_crs, marker=',')
+    # if os.path.isdir(settings["directory"]+'reward_grids/'):
+    #     reward_grid_rows = np.asfarray(reward_grid_rows)
+    #     ax.scatter(reward_grid_rows[:,1],reward_grid_rows[:,0],(reward_grid_rows[:,2])**1.5,color='purple',transform=data_crs, marker=',')
     
-    if len(os.listdir(settings["directory"]+'events/')) != 0:
+    if len(os.listdir(settings["directory"]+'events_processed/')) != 0:
         for row in event_rows:
             plt.scatter(float(row[1]),float(row[0]),2,marker='^',color='cyan',transform=data_crs)
         # if float(row[3]) == 0:
@@ -314,7 +315,7 @@ def plot_step(step_num,settings):
         plt.scatter(float(row[2]),float(row[1]),4,marker='^',color=color,transform=data_crs)
         transform = data_crs._as_mpl_transform(ax)
         ax.annotate(name, xy=(float(row[2]), float(row[1])), color=color, xycoords=transform,
-                    ha='right', va='top',annotation_clip=True)
+                    ha='left', va='top',annotation_clip=True)
         #ax.annotate(row[0], (x, y))
     
     for row in vis_rows:
@@ -472,41 +473,66 @@ def plot_missing(settings):
     pool.map(partial(plot_step, settings=settings), missing_steps)
 
 if __name__ == "__main__":
-    set_start_method("spawn")
-    cross_track_ffor = 60 # deg
-    along_track_ffor = 60 # deg
-    cross_track_ffov = 0 # deg
-    along_track_ffov = 0 # deg
-    agility = 1 # deg/s
-    num_planes = 6
-    num_sats_per_plane = 6
+    name = "flood_grid_search_het_1"
     settings = {
-        "directory": "./missions/agu_rain_het/",
-        "step_size": 10,
-        "duration": 1,
-        "plot_interval": 10,
-        "plot_duration": 0.1,
-        "initial_datetime": datetime.datetime(2020,1,1,0,0,0),
-        "grid_type": "event", # can be "event" or "static"
-        "preplanned_observations": None,
-        "event_csvs": ["./rain_events_het.csv"],
-        "point_grid": "./coverage_grids/agu_rain/event_locations.csv",
-        "plot_clouds": False,
-        "plot_rain": True,
-        "plot_obs": True,
-        "cross_track_ffor": cross_track_ffor,
-        "along_track_ffor": along_track_ffor,
-        "cross_track_ffov": cross_track_ffov,
-        "along_track_ffov": along_track_ffov,
-        "num_planes": num_planes,
-        "num_sats_per_plane": num_sats_per_plane,
-        "agility": agility,
+        "name": name,
+        "instrument": {
+            "ffor": 60,
+            "ffov": 5
+        },
+        "agility": {
+            "slew_constraint": "rate",
+            "max_slew_rate": 1,
+            "inertia": 2.66,
+            "max_torque": 4e-3
+        },
+        "orbit": {
+            "altitude": 705, # km
+            "inclination": 98.4, # deg
+            "eccentricity": 0.0001,
+            "argper": 0, # deg
+        },
+        "constellation": {
+            "num_sats_per_plane": 8,
+            "num_planes": 3,
+            "phasing_parameter": 1
+        },
+        "events": {
+            "event_duration": 5000,
+            "num_events": 100,
+            "event_clustering": "clustered"
+        },
+        "time": {
+            "step_size": 10, # seconds
+            "duration": 1, # days
+            "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
+        },
+        "rewards": {
+            "reward": 10,
+            "reward_increment": 1,
+            "reobserve_conops": "no_change",
+            "event_duration_decay": "step",
+            "no_event_reward": 5,
+            "oracle_reobs": "true",
+            "initial_reward": 5
+        },
+        "plotting":{
+            "plot_clouds": False,
+            "plot_rain": False,
+            "plot_duration": 1,
+            "plot_interval": 10,
+            "plot_obs": True
+        },
         "planner": "dp",
+        "num_meas_types": 2,
+        "sharing_horizon": 100,
+        "planning_horizon": 5000,
+        "directory": "./missions/"+name+"/",
+        "grid_type": "custom", # can be "uniform" or "custom"
+        "point_grid": "./missions/"+name+"/coverage_grids/event_locations.csv",
+        "preplanned_observations": None,
+        "event_csvs": ["./missions/"+name+"/events/events.csv"],
         "process_obs_only": False,
-        "reward": 10,
-        "reward_increment": 0.1,
-        "reobserve_reward": 2,
-        "sharing_horizon": 1000,
-        "planning_horizon": 1000,
+        "conops": "onboard_processing"
     }
     plot_mission_het(settings)

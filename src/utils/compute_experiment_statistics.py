@@ -107,7 +107,6 @@ def compute_statistics_pieces(input):
 def compute_statistics(events,obs,grid_locations,settings):
     obs.sort(key=lambda obs: obs[0])
     event_chunks = list(chunks(events,25))
-    pool = multiprocessing.Pool()
     input_list = []
     output_list = []
     for i in range(len(event_chunks)):

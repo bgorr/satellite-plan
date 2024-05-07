@@ -42,11 +42,11 @@ class DeepQNetwork(nn.Module):
 
         return actions
     
-    def save_checkpoint(self):
-        T.save(self.state_dict(), self.checkpoint_file)
+    def save_checkpoint(self,flag):
+        T.save(self.state_dict(), self.checkpoint_file+flag)
 
-    def load_checkpoint(self):
-        self.load_state_dict(T.load(self.checkpoint_file))
+    def load_checkpoint(self,flag):
+        self.load_state_dict(T.load(self.checkpoint_file+flag))
     
 class Agent:
     def __init__(self, settings, n_sats, gamma, epsilon, lr, input_dims, batch_size, n_actions,
@@ -119,10 +119,10 @@ class Agent:
         self.epsilon = self.epsilon - self.eps_dec if self.epsilon > self.eps_min \
                         else self.eps_min
         
-    def save_models(self):
+    def save_models(self,flag=""):
         print('saving models')
-        self.Q_eval.save_checkpoint()
+        self.Q_eval.save_checkpoint(flag)
 
-    def load_models(self):
+    def load_models(self,flag=""):
         print('loading models')
-        self.Q_eval.load_checkpoint()
+        self.Q_eval.load_checkpoint(flag)

@@ -141,7 +141,7 @@ def transition_function(satellites, events, event_statuses, actions, num_actions
     done_flag = False
     for i, satellite in enumerate(satellites):
         planning_interval = 10
-        if satellite["curr_time"]+planning_interval > settings["time"]["duration"]*86400/10:
+        if satellite["curr_time"]+planning_interval > settings["time"]["duration"]*86400/settings["time"]["step_size"]:
             done_flag = True
             break
         obs_list = chop_obs_list(satellite["obs_list"],satellite["curr_time"],satellite["curr_time"]+planning_interval)
@@ -195,14 +195,17 @@ def transition_function(satellites, events, event_statuses, actions, num_actions
             if close_enough(event_location[0],event_location[1],grid_location[0],grid_location[1]):
                 event_not_occurring = True
 
+        expected_val = settings["events"]["num_events"]/settings["events"]["num_event_locations"]
         if event_occurring:
             new_state.append(1)
         elif event_statuses[i] == 1 and event_not_occurring:
             new_state.append(0)
         elif event_statuses[i] == 1 and not event_not_occurring:
             new_state.append(1)
-        else:
+        elif event_statuses[i] == 0:
             new_state.append(0)
+        else:
+            new_state.append(expected_val)
     
     return new_state, reward, False, observed_points
 
@@ -272,19 +275,22 @@ def transition_function_by_sat(satellites, events, event_statuses, actions, num_
             if close_enough(event_location[0],event_location[1],grid_location[0],grid_location[1]):
                 event_not_occurring = True
 
+        expected_val = settings["events"]["num_events"]/settings["events"]["num_event_locations"]
         if event_occurring:
             new_state.append(1)
         elif event_statuses[i] == 1 and event_not_occurring:
             new_state.append(0)
         elif event_statuses[i] == 1 and not event_not_occurring:
             new_state.append(1)
-        else:
+        elif event_statuses[i] == 0:
             new_state.append(0)
+        else:
+            new_state.append(expected_val)
     
     return new_state, reward, False, observed_points
 
 if __name__ == '__main__':
-    name = "madqn_test_fov_step_fullstate_default"
+    name = "madqn_test_fov_step_fullstate_expectedval"
     settings = {
         "name": name,
         "instrument": {
@@ -293,7 +299,7 @@ if __name__ == '__main__':
         },
         "agility": {
             "slew_constraint": "rate",
-            "max_slew_rate": 1,
+            "max_slew_rate": 0.6,
             "inertia": 2.66,
             "max_torque": 4e-3
         },
@@ -321,12 +327,12 @@ if __name__ == '__main__':
         },
         "rewards": {
             "reward": 10,
-            "reward_increment": 2,
-            "reobserve_conops": "no_change",
+            "reward_increment": 1,
+            "reobserve_conops": "linear_increase",
             "event_duration_decay": "step",
-            "no_event_reward": 1,
+            "no_event_reward": 5,
             "oracle_reobs": "true",
-            "initial_reward": 1
+            "initial_reward": 5
         },
         "plotting":{
             "plot_clouds": False,
@@ -352,8 +358,8 @@ if __name__ == '__main__':
     # if not os.path.exists(settings["directory"]+'orbit_data/'):
     #     os.mkdir(settings["directory"]+'orbit_data/')
     #create_events(settings)
-
-    shutil.copytree("./missions/madqn_test_fov_step_fullstate_sorted/", settings["directory"])
+    if not os.path.exists(settings["directory"]):
+        shutil.copytree("./missions/madqn_test_fov_step_fullstate_sorted/", settings["directory"])
     #create_mission(settings)
     #execute_mission(settings)
     #convert_geo_coords(settings)
@@ -380,7 +386,7 @@ if __name__ == '__main__':
     n_steps = 0
     learn_iters = 0
     best_score = -1000
-    figure_file = 'plots/madqn_fov_step_fullstate.png'
+    figure_file = 'plots/madqn_fov_step_fullstate_expectedval.png'
     score_history = []
     batch_size = 10
     n_epochs = 10
@@ -435,7 +441,7 @@ if __name__ == '__main__':
         avg_score = np.mean(score_history[-100:])
         if avg_score > best_score:
             best_score = avg_score
-            agent.save_models()
+            agent.save_models("_expectedval")
         print('episode', j, 'score %.1f' % score, 'avg score %.1f' % avg_score, 'time_steps', n_steps, 'learning_steps', learn_iters)
     x = [i+1 for i in range(len(score_history))]
     plot_learning_curve(x, score_history, figure_file)
@@ -443,7 +449,7 @@ if __name__ == '__main__':
     ### LOADING SAVED MODELS AND SAVING PLANS ###
 
     agent = Agent(settings=settings,n_sats=len(satellites),gamma=0.99, epsilon = 0.0, batch_size=256, n_actions=action_space_size, eps_end=0.01, input_dims=[observation_space_size], lr=0.00005)
-    agent.load_models()
+    agent.load_models("_expectedval")
     joint_observation = []
     plans = []
     for i in range(len(satellites)):
@@ -488,10 +494,10 @@ if __name__ == '__main__':
     settings["event_csvs"] = ["./missions/"+name+"/events/events.csv"] 
     compute_experiment_statistics(settings)
     settings["planner"] = "dp"
-    if not os.path.exists("./missions/"+settings["name"]+"/orbit_data/sat0/replan_intervaldphom.csv"):
-        plan_mission_horizon(settings)
-        plan_mission_replan_interval(settings)
-        complete_plan("init",settings)
-        complete_plan("hom",settings)
+    # if not os.path.exists("./missions/"+settings["name"]+"/orbit_data/sat0/replan_intervaldphom.csv"):
+    plan_mission_horizon(settings)
+    plan_mission_replan_interval(settings)
+    complete_plan("init",settings)
+    complete_plan("hom",settings)
     compute_experiment_statistics(settings)
 

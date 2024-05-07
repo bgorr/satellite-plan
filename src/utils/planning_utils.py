@@ -58,17 +58,6 @@ def check_maneuver_feasibility(curr_angle,obs_angle,curr_time,obs_end_time,setti
         slew_rate = abs(obs_angle-curr_angle)/abs(obs_end_time-curr_time)/settings["time"]["step_size"]
         max_slew_rate = settings["agility"]["max_slew_rate"] # deg / s
         transition_end_time = abs(obs_angle-curr_angle)/(max_slew_rate*settings["time"]["step_size"]) + curr_time
-        # if curr_angle == -32.91:
-        #     print(slew_rate)
-        #     print(obs_angle)
-        #     print(curr_angle)
-        #     print(max_slew_rate)
-        #     print(obs_end_time)
-        #     print(curr_time)
-        #     print(settings["time"]["step_size"])
-        # if slew_rate < max_slew_rate and transition_end_time > obs_end_time:
-        #     print(transition_end_time)
-        #     print(obs_end_time)
         feasible = (slew_rate < max_slew_rate)# and curr_time < obs_end_time and transition_end_time < obs_end_time
         return feasible, transition_end_time
     else:
@@ -76,7 +65,7 @@ def check_maneuver_feasibility(curr_angle,obs_angle,curr_time,obs_end_time,setti
         return False, False
 
 def close_enough(lat0,lon0,lat1,lon1):
-    if np.sqrt((lat0-lat1)**2+(lon0-lon1)**2) <= 0.0001:
+    if np.sqrt((lat0-lat1)**2+(lon0-lon1)**2) <= 0.001:
         return True
     else:
         return False

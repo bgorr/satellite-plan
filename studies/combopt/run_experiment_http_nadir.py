@@ -12,8 +12,8 @@ sys.path.append(".")
 
 from src.create_mission import create_mission
 from src.execute_mission import execute_mission
-from src.plan_mission_fov import plan_mission_replan_interval
-from src.utils.complete_plan import complete_plan
+from src.plan_mission_fov import plan_mission_horizon
+from src.utils.nadir_plan import nadir_plan
 from src.utils.compute_experiment_statistics import unique, close_enough, chunks, compute_statistics_pieces
 from flask import Flask, request
 
@@ -235,7 +235,7 @@ def compute_experiment_reward(settings):
         for row in csvreader:
             grid_locations.append([float(row[0]),float(row[1])])
 
-    reward = compute_statistics(events,all_replan_observations,grid_locations,settings)
+    reward = compute_statistics(events,all_initial_observations,grid_locations,settings)
     return reward
 
 def delete_mission(settings):
@@ -253,12 +253,8 @@ def run_experiment(settings):
     average_reward = 0
     for i in range(5):
         settings["event_csvs"] = ["./events/http_events/events"+str(i)+".csv"]
-        #plan_mission_horizon(settings) # must come before process as process expects a plan.csv in the orbit_data directory
-        plan_mission_replan_interval(settings)
-        complete_plan("hom",settings)
+        nadir_plan("init",settings)
         average_reward += compute_experiment_reward(settings)
-        #overall_results = compute_experiment_statistics(settings)
-        #average_reward += overall_results["replan_results"]["event_obs_count"]
     average_reward = average_reward / 5
     delete_mission(settings)
     return average_reward
@@ -364,4 +360,4 @@ def index():
         return "hello world"
 
 if __name__ == '__main__':
-	app.run(port='5000')
+	app.run(threaded=True,port='5000')

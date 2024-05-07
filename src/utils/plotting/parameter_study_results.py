@@ -15,11 +15,11 @@ def get_nonzero_observations(input_str):
 
 
 rows = {}
-plot_dir = "./plots/fire_plots/"
-if not os.path.exists(plot_dir):
-    os.mkdir("./plots/fire_plots/")
+# plot_dir = "./plots/fire_plots/"
+# if not os.path.exists(plot_dir):
+#     os.mkdir("./plots/fire_plots/")
 
-with open("./studies/fire_constellation_study_lininc_042424.csv",newline='') as csv_file:
+with open("./studies/fire_parameter_study.csv",newline='') as csv_file:
     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
 
     i = 0
@@ -38,13 +38,11 @@ for row_key in rows.keys():
     row = rows[row_key]
     initial_observations = get_nonzero_observations(row[23])
     replan_observations = get_nonzero_observations(row[38])
-    initial_observations = initial_observations - 1
-    replan_observations = replan_observations - 1
 
     all_observations = []
     labels = []
     all_observations.extend(initial_observations)
-    labels.extend(['Non-reactive']*len(initial_observations))
+    labels.extend(['Initial']*len(initial_observations))
     all_observations.extend(replan_observations)
     labels.extend(['Reactive']*len(replan_observations))
     print(len(initial_observations))
@@ -55,14 +53,14 @@ for row_key in rows.keys():
     all_df = pd.DataFrame(data=all_data)
 
 
-    sns.kdeplot(all_df,x='Number of re-observations',hue='Planner',palette=['red','blue'],clip=[0,20],bw_adjust=2)
+    # sns.kdeplot(all_df,x='Number of re-observations',hue='Planner',palette=['red','blue'],clip=[1,20],bw_adjust=2)
 
-    xint = []
-    locs, labels = plt.xticks()
-    for each in locs:
-        xint.append(int(each))
-    plt.xticks(xint)
-    plt.gca().set_xlim(left=0)
-    plt.savefig(plot_dir+"/"+row_key+"_lininc_hist_042424.png",dpi=300, bbox_inches="tight")
+    # xint = []
+    # locs, labels = plt.xticks()
+    # for each in locs:
+    #     xint.append(int(each))
+    # plt.xticks(xint)
+
+    # plt.savefig(plot_dir+"/"+row_key+"_lininc_hist_042424.png",dpi=300, bbox_inches="tight")
 
     plt.close()

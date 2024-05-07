@@ -4,8 +4,10 @@ import time
 import oapackage
 import oapackage.Doptim
 import numpy as np
+import sys
+sys.path.append(".")
 
-from run_experiment_het import run_experiment_het
+from src.run_experiment_het import run_experiment_het
 
 event_frequency_levels = [0.1/3600,0.01/3600,0.001/3600,1e-4/3600]
 agility_levels = [5,1,0.1,0.01]

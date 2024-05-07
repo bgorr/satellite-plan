@@ -185,9 +185,10 @@ def graph_search_events_interval(planner_inputs):
     settings = planner_inputs["settings"]
     orbitpy_id = planner_inputs["orbitpy_id"]
     start_angle = planner_inputs["start_angle"]
+    last_time = planner_inputs["last_time"]
     filtered_obs_list = []
     for obs in obs_list:
-        feasible, _ = check_maneuver_feasibility(start_angle,obs["angle"],plan_start,obs["end"],settings)
+        feasible, _ = check_maneuver_feasibility(start_angle,obs["angle"],last_time,obs["end"],settings)
         if feasible:
             filtered_obs_list.append(obs)
     obs_list = filtered_obs_list

@@ -14,6 +14,7 @@ from src.plan_mission import load_events, load_obs, load_rewards, load_satellite
 from src.utils.planning_utils import check_maneuver_feasibility
 from src.utils.convert_geo import convert_geo_coords
 from src.utils.compute_experiment_statistics import compute_experiment_statistics
+from src.utils.complete_plan import complete_plan
 from src.plan_mission_fov import plan_mission_replan_interval, plan_mission_horizon
 
 
@@ -342,7 +343,7 @@ if __name__ == '__main__':
         },
         "agility": {
             "slew_constraint": "rate",
-            "max_slew_rate": 1,
+            "max_slew_rate": 0.6,
             "inertia": 2.66,
             "max_torque": 4e-3
         },
@@ -370,12 +371,12 @@ if __name__ == '__main__':
         },
         "rewards": {
             "reward": 10,
-            "reward_increment": 2,
-            "reobserve_conops": "no_change",
+            "reward_increment": 1,
+            "reobserve_conops": "linear_increase",
             "event_duration_decay": "step",
-            "no_event_reward": 1,
+            "no_event_reward": 5,
             "oracle_reobs": "true",
-            "initial_reward": 1
+            "initial_reward": 5
         },
         "plotting":{
             "plot_clouds": False,
@@ -423,11 +424,11 @@ if __name__ == '__main__':
     ground_point_dict = get_obs_per_gp(satellites, grid_locations, settings)
     agent_list = []
     N = 100
-    n_games = 1000
+    n_games = 2000
     n_steps = 0
     learn_iters = 0
     best_score = -1000
-    figure_file = 'plots/madqn_fov_step_fullstate.png'
+    figure_file = 'plots/madqn_fov_step_fullstate_sorted.png'
     score_history = []
     batch_size = 10
     n_epochs = 10
@@ -535,8 +536,10 @@ if __name__ == '__main__':
     settings["event_csvs"] = ["./missions/"+name+"/events/events.csv"] 
     compute_experiment_statistics(settings)
     settings["planner"] = "dp"
-    if not os.path.exists("./missions/"+settings["name"]+"/orbit_data/sat0/replan_intervaldphom.csv"):
-        plan_mission_horizon(settings)
-        plan_mission_replan_interval(settings)
+    #if not os.path.exists("./missions/"+settings["name"]+"/orbit_data/sat0/replan_intervaldphom.csv"):
+    plan_mission_horizon(settings)
+    plan_mission_replan_interval(settings)
+    complete_plan("init",settings)
+    complete_plan("hom",settings)
     compute_experiment_statistics(settings)
 

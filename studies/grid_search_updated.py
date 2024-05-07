@@ -159,7 +159,7 @@ if __name__ == "__main__":
             overall_results = run_experiment(settings)
             end = time.time()
             elapsed_time = end-start
-            with open('./studies/updated_grid_search.csv','a') as csvfile:
+            with open('./studies/constel_duration_grid_search.csv','a') as csvfile:
                 csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
                 row = [settings["name"],settings["instrument"]["ffor"],settings["instrument"]["ffov"],settings["constellation"]["num_planes"],settings["constellation"]["num_sats_per_plane"],settings["agility"]["max_slew_rate"],
                     settings["events"]["event_duration"],settings["events"]["num_events"],settings["events"]["event_clustering"],settings["num_meas_types"],

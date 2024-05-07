@@ -5,6 +5,7 @@ import csv
 import sys
 import random
 import numpy as np
+import shutil
 sys.path.append(".")
 
 from src.create_mission import create_mission
@@ -14,6 +15,7 @@ from src.utils.planning_utils import check_maneuver_feasibility
 from src.utils.convert_geo import convert_geo_coords
 from src.utils.compute_experiment_statistics import compute_experiment_statistics
 from src.plan_mission_fov import plan_mission_replan_interval, plan_mission_horizon
+from src.utils.complete_plan import complete_plan
 
 
 
@@ -139,7 +141,7 @@ def transition_function(satellites, events, actions, num_actions, settings):
     done_flag = False
     for i, satellite in enumerate(satellites):
         planning_interval = 10
-        if satellite["curr_time"]+planning_interval > settings["time"]["duration"]*86400/10:
+        if satellite["curr_time"]+planning_interval > settings["time"]["duration"]*86400/settings["time"]["step_size"]:
             done_flag = True
             break
         obs_list = chop_obs_list(satellite["obs_list"],satellite["curr_time"],satellite["curr_time"]+planning_interval)
@@ -297,13 +299,7 @@ if __name__ == '__main__':
         "conops": "onboard_processing"
     }
     if not os.path.exists(settings["directory"]):
-        os.mkdir(settings["directory"])
-    if not os.path.exists(settings["directory"]+'orbit_data/'):
-        os.mkdir(settings["directory"]+'orbit_data/')
-    create_events(settings)
-    create_mission(settings)
-    execute_mission(settings)
-    convert_geo_coords(settings)
+        shutil.copytree("./missions/madqn_test_fov_step_fullstate_sorted/", settings["directory"])
     directory = settings["directory"] + "orbit_data/"
     if "point_grid" not in settings:
         settings["point_grid"] = settings["directory"]+"orbit_data/grid0.csv"
@@ -314,16 +310,25 @@ if __name__ == '__main__':
     for satellite in satellites:
         satellite["obs_list"] = load_obs(satellite)
 
+    grid_locations = []
+    with open(settings["point_grid"],'r') as csvfile:
+        csvreader = csv.reader(csvfile,delimiter=',')
+        next(csvfile)
+        for row in csvreader:
+            grid_locations.append([float(row[0]),float(row[1])])
+
+    agent_list = []
     N = 100
-    n_games = 1000
+    n_games = 2000
     n_steps = 0
     learn_iters = 0
-    best_score = -1000 
-    figure_file = 'plots/madqn_fov_step.png'
+    best_score = -1000
+    figure_file = 'plots/madqn_fov_step_uniform.png'
     score_history = []
     batch_size = 10
     n_epochs = 10
     alpha=0.00005
+    settings["events"]["unique_event_locations"] = len(grid_locations)
     action_space_size = len(np.arange(-settings["instrument"]["ffor"]/2,settings["instrument"]["ffor"]/2+settings["instrument"]["ffov"],settings["instrument"]["ffov"]))
     observation_space_size = 4*len(satellites)+1 #len(grid_locations)*3
     agent = Agent(settings=settings,n_sats=len(satellites),gamma=0.99, epsilon = 0.99, batch_size=256, n_actions=action_space_size, eps_end=0.01, input_dims=[observation_space_size], lr=0.00005)
@@ -370,15 +375,15 @@ if __name__ == '__main__':
         avg_score = np.mean(score_history[-100:])
         if avg_score > best_score:
             best_score = avg_score
-            agent.save_models()
+            agent.save_models("_reduced")
         print('episode', j, 'score %.1f' % score, 'avg score %.1f' % avg_score, 'time_steps', n_steps, 'learning_steps', learn_iters)
     x = [i+1 for i in range(len(score_history))]
     plot_learning_curve(x, score_history, figure_file)
         
     ### LOADING SAVED MODELS AND SAVING PLANS ###
-    events = create_and_load_random_events(settings)
+
     agent = Agent(settings=settings,n_sats=len(satellites),gamma=0.99, epsilon = 0.0, batch_size=256, n_actions=action_space_size, eps_end=0.01, input_dims=[observation_space_size], lr=0.00005)
-    agent.load_models()
+    agent.load_models("_reduced")
     joint_observation = []
     plans = []
     for i in range(len(satellites)):
@@ -392,7 +397,7 @@ if __name__ == '__main__':
         joint_observation.append(satellite["curr_angle"])
         joint_observation.append(satellite["curr_lat"])
         joint_observation.append(satellite["curr_lon"])
-
+        
     done = False
     score = 0
     while not done:
@@ -401,7 +406,7 @@ if __name__ == '__main__':
             joint_obs_w_sat_index = joint_observation + [i]
             action = agent.choose_action(joint_obs_w_sat_index)
             actions.append(action)
-        joint_observation_, reward, done, obs_info = transition_function(satellites,events,actions,action_space_size,settings)
+        joint_observation_, reward, done, obs_info = transition_function_by_sat(satellites,events,actions,action_space_size,settings)
         if done:
             break
         for i, satellite in enumerate(satellites):
@@ -413,7 +418,6 @@ if __name__ == '__main__':
                 plans[i].append(obs)
         score += reward
         joint_observation = joint_observation_
-    print(score)
     for i, satellite in enumerate(satellites):
         satellite["plan"] = plans[i]
         save_plan(satellite,settings,"")
@@ -422,8 +426,10 @@ if __name__ == '__main__':
     settings["event_csvs"] = ["./missions/"+name+"/events/events.csv"] 
     compute_experiment_statistics(settings)
     settings["planner"] = "dp"
-    if not os.path.exists("./missions/"+settings["name"]+"/orbit_data/sat0/replan_intervaldphom.csv"):
-        plan_mission_horizon(settings)
-        plan_mission_replan_interval(settings)
+    # if not os.path.exists("./missions/"+settings["name"]+"/orbit_data/sat0/replan_intervaldphom.csv"):
+    plan_mission_horizon(settings)
+    plan_mission_replan_interval(settings)
+    complete_plan("init",settings)
+    complete_plan("hom",settings)
     compute_experiment_statistics(settings)
 

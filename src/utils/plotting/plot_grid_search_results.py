@@ -15,11 +15,11 @@ def get_nonzero_observations(input_str):
 
 
 rows = {}
-plot_dir = "./plots/fire_plots/"
+plot_dir = "./plots/constel_duration/"
 if not os.path.exists(plot_dir):
-    os.mkdir("./plots/fire_plots/")
+    os.mkdir("./plots/constel_duration/")
 
-with open("./studies/fire_constellation_study_lininc_042424.csv",newline='') as csv_file:
+with open("./studies/constel_duration_grid_search.csv",newline='') as csv_file:
     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
 
     i = 0
@@ -36,8 +36,11 @@ for row_key in rows.keys():
     fig, ax1 = plt.subplots()
     plt.rcParams.update({'font.size': 12})
     row = rows[row_key]
+    print(row[23])
+    print(row[38])
     initial_observations = get_nonzero_observations(row[23])
     replan_observations = get_nonzero_observations(row[38])
+
     initial_observations = initial_observations - 1
     replan_observations = replan_observations - 1
 
@@ -62,7 +65,8 @@ for row_key in rows.keys():
     for each in locs:
         xint.append(int(each))
     plt.xticks(xint)
+
     plt.gca().set_xlim(left=0)
-    plt.savefig(plot_dir+"/"+row_key+"_lininc_hist_042424.png",dpi=300, bbox_inches="tight")
+    plt.savefig(plot_dir+"/"+row_key+"_grid_search_hist_050124.png",dpi=300, bbox_inches="tight")
 
     plt.close()

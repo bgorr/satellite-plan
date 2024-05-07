@@ -16,24 +16,42 @@ from src.plan_mission_fov import plan_mission_horizon, plan_mission_replan_inter
 from src.utils.compute_experiment_statistics import compute_experiment_statistics
 
 def run_experiment(settings):
+    simulation_step_size = settings["time"]["step_size"] # seconds
+    simulation_duration = settings["time"]["duration"] # days
     mission_name = settings["name"]
-    event_csv = './src/utils/event_csvs/fire_events.csv'
-    events = []
-    used_event_locations = []
-    event_durations = []
-    with open(event_csv,'r') as csvfile:
-        csvreader = csv.reader(csvfile,delimiter=',')
-        next(csvfile)
-        for row in csvreader:
-            event_location = [float(row[0]),float(row[1])]
-            if event_location not in used_event_locations:
-                used_event_locations.append(event_location)
-            event = [event_location[0],event_location[1],float(row[2]),float(row[3]),1]
-            event_durations.append(float(row[3]))
-            events.append(event)
+    event_duration = settings["events"]["event_duration"]
+    if not os.path.exists("./missions/"+mission_name+"/coverage_grids/event_locations.csv"):
+        possible_event_locations = []
+        if settings["events"]["event_clustering"] == "uniform":
+            center_lats = np.arange(-90,90,0.1)
+            center_lons = np.arange(-180,180,0.1)
+            for clat in center_lats:
+                for clon in center_lons:
+                    location = [clat,clon]
+                    possible_event_locations.append(location)
+        elif settings["events"]["event_clustering"] == "clustered":
+            center_lats = np.random.uniform(-90,90,100)
+            center_lons = np.random.uniform(-180,180,100)
+            for i in range(len(center_lons)):
+                var = 1
+                mean = [center_lats[i], center_lons[i]]
+                cov = [[var, 0], [0, var]]
+                num_points_per_cell = int(6.48e6/100)
+                xs, ys = np.random.multivariate_normal(mean, cov, num_points_per_cell).T
+                for i in range(len(xs)):
+                    location = [xs[i],ys[i]]
+                    possible_event_locations.append(location)
     if not os.path.exists(settings["directory"]):
         os.mkdir(settings["directory"])
     if not os.path.exists("./missions/"+mission_name+"/events/"):
+        events = []
+        used_event_locations = []
+        for i in range(settings["events"]["num_events"]):
+            event_location = random.choice(possible_event_locations)
+            used_event_locations.append(event_location)
+            step = int(np.random.uniform(0,simulation_duration*86400))
+            event = [event_location[0],event_location[1],step,event_duration,1]
+            events.append(event)
         if not os.path.exists("./missions/"+mission_name+"/events/"):
             os.mkdir("./missions/"+mission_name+"/events/")
         with open("./missions/"+mission_name+"/events/events.csv",'w') as csvfile:
@@ -64,7 +82,7 @@ def run_experiment(settings):
 
 
 if __name__ == "__main__":
-    with open('./studies/fire_constellation_study_lininc_042424.csv','w') as csvfile:
+    with open('./studies/horizons_grid_search.csv','w') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
         first_row = ["name","for","fov","num_planes","num_sats_per_plane","agility",
                     "event_duration","num_events","event_clustering","num_meas_types",
@@ -75,89 +93,97 @@ if __name__ == "__main__":
                     "time"]
         csvwriter.writerow(first_row)
         csvfile.close()
-
-    constellation_options = [(2,2),(1,4),(3,8),(8,3)]
-    for_options = [30,60]
-    fov_options = [1,5,10]
-    agility_options = [0.1,1,10]
-    event_clustering_options = ["uniform","clustered"]
-    event_quantity_options = [1000,10000]
-    event_duration_options = [15*60,3600,3*3600,6*3600]
-
-    event_csv = './src/utils/event_csvs/fire_events.csv'
-    event_durations = []
-    num_events = 0
-    with open(event_csv,'r') as csvfile:
-        csvreader = csv.reader(csvfile,delimiter=',')
-        next(csvfile)
-        for row in csvreader:
-            event_durations.append(float(row[3]))
-            num_events += 1
-    average_event_duration = np.mean(event_durations)
+    name = "grid_search_horizons_default"
+    default_settings = {
+        "name": name,
+        "instrument": {
+            "ffor": 60,
+            "ffov": 5
+        },
+        "agility": {
+            "slew_constraint": "rate",
+            "max_slew_rate": 1,
+            "inertia": 2.66,
+            "max_torque": 4e-3
+        },
+        "orbit": {
+            "altitude": 705, # km
+            "inclination": 98.4, # deg
+            "eccentricity": 0.0001,
+            "argper": 0, # deg
+        },
+        "constellation": {
+            "num_sats_per_plane": 3,
+            "num_planes": 8,
+            "phasing_parameter": 1
+        },
+        "events": {
+            "event_duration": 6*3600,
+            "num_events": int(1000),
+            "event_clustering": "clustered"
+        },
+        "time": {
+            "step_size": 10, # seconds
+            "duration": 1, # days
+            "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
+        },
+        "rewards": {
+            "reward": 10,
+            "reward_increment": 1,
+            "reobserve_conops": "linear_increase",
+            "event_duration_decay": "step",
+            "no_event_reward": 5,
+            "oracle_reobs": "true",
+            "initial_reward": 5
+        },
+        "planner": "dp",
+        "num_meas_types": 3,
+        "sharing_horizon": 500,
+        "planning_horizon": 500,
+        "directory": "./missions/"+name+"/",
+        "grid_type": "custom", # can be "uniform" or "custom"
+        "point_grid": "./missions/"+name+"/coverage_grids/event_locations.csv",
+        "preplanned_observations": None,
+        "event_csvs": ["./missions/"+name+"/events/events.csv"],
+        "process_obs_only": False,
+        "conops": "onboard_processing"
+    }
+    sharing_horizon_options = [100,500,1000]
+    planning_horizon_options = [100,500,1000,5000]
+    parameters = {
+        "sharing_horizon": sharing_horizon_options,
+        "planning_horizon": planning_horizon_options
+    }
 
     i = 0
-    for constellation_option in constellation_options:
-        name = "fire_constellation_study_"+str(i)
-        settings = {
-            "name": name,
-            "instrument": {
-                "ffor": 60,
-                "ffov": 5
-            },
-            "agility": {
-                "slew_constraint": "rate",
-                "max_slew_rate": 1,
-                "inertia": 2.66,
-                "max_torque": 4e-3
-            },
-            "orbit": {
-                "altitude": 705, # km
-                "inclination": 98.4, # deg
-                "eccentricity": 0.0001,
-                "argper": 0, # deg
-            },
-            "constellation": {
-                "num_sats_per_plane": constellation_option[1],
-                "num_planes": constellation_option[0],
-                "phasing_parameter": 1
-            },
-            "events": {
-                "event_duration": average_event_duration,
-                "num_events": num_events,
-                "event_clustering": "clustered"
-            },
-            "time": {
-                "step_size": 10, # seconds
-                "duration": 1, # days
-                "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
-            },
-            "rewards": {
-                "reward": 10,
-                "reward_increment": 1,
-                "reobserve_conops": "linear_increase",
-                "event_duration_decay": "step",
-                "no_event_reward": 5,
-                "oracle_reobs": "true",
-                "initial_reward": 5
-            },
-            "planner": "dp",
-            "num_meas_types": 3,
-            "sharing_horizon": 100,
-            "planning_horizon": 5000,
-            "directory": "./missions/"+name+"/",
-            "grid_type": "custom", # can be "uniform" or "custom"
-            "point_grid": "./missions/"+name+"/coverage_grids/event_locations.csv",
-            "preplanned_observations": None,
-            "event_csvs": ["./missions/"+name+"/events/events.csv"],
-            "process_obs_only": False,
-            "conops": "onboard_processing"
-        }
+    settings_list = []
+    settings_list.append(default_settings)
+    for parameter in parameters:
+        for level in parameters[parameter]:
+            experiment_name = 'grid_search_horizons_'+str(i)
+            modified_settings = default_settings.copy()
+            modified_settings[parameter] = level
+            if modified_settings == default_settings:
+                continue
+            modified_settings["name"] = experiment_name
+            settings_list.append(modified_settings)
+            i = i+1
+    for settings in settings_list:
         start = time.time()
         print(settings["name"])
+        mission_dst = "./missions/"+settings["name"]+"/"
+        if settings["name"] != "grid_search_horizons_default" and not os.path.exists(mission_dst):
+            mission_src = "./missions/grid_search_horizons_default/"
+            try:
+                shutil.copytree(mission_src, mission_dst)
+            except OSError as exc: # python >2.5
+                if exc.errno in (errno.ENOTDIR, errno.EINVAL):
+                    shutil.copy(mission_src, mission_dst)
+                else: raise
         overall_results = run_experiment(settings)
         end = time.time()
         elapsed_time = end-start
-        with open('./studies/fire_constellation_study_lininc_042424.csv','a') as csvfile:
+        with open('./studies/horizons_grid_search.csv','a') as csvfile:
             csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
             row = [settings["name"],settings["instrument"]["ffor"],settings["instrument"]["ffov"],settings["constellation"]["num_planes"],settings["constellation"]["num_sats_per_plane"],settings["agility"]["max_slew_rate"],
                 settings["events"]["event_duration"],settings["events"]["num_events"],settings["events"]["event_clustering"],settings["num_meas_types"],

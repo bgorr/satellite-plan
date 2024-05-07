@@ -189,14 +189,14 @@ metric_dict = {
     "Difference in hom-het planning, percent coverage (possible events)": 54,
 }
 
-# metric_dict = { # new update
-#     "Difference in reobs reward, oracle-replan": 63,
-#     "Difference in reobs reward, replan-init": 64,
-#     "Difference in event count, oracle-replan": 65,
-#     "Difference in event count, replan-init": 66,
-#     "Difference in obs event count, oracle-replan": 67,
-#     "Difference in obs event count, replan-init": 68
-# }
+metric_dict = { # new update
+    #"Difference in reobs reward, oracle-replan": 63,
+    "Difference in reobs reward, replan-init": 67,
+    #"Difference in event count, oracle-replan": 65,
+    "Difference in event count, replan-init": 69,
+    #"Difference in obs event count, oracle-replan": 67,
+    "Difference in obs event count, replan-init": 71
+}
 
 # metric_dict = { # new update, normalized
 #     "Difference in reobs reward, oracle-replan": 72,
@@ -456,7 +456,7 @@ def heatmaps(var1_ind,var2_ind,var1_name,var2_name,metric_ind,metric_name,xscale
 for metric in metric_dict.keys():
     rows = []
     diff_metric = []
-    with open("./results/grid_search_112623.csv",newline='') as csv_file:
+    with open("./results/updated_experiment.csv",newline='') as csv_file:
         spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
 
         i = 0
@@ -488,4 +488,4 @@ for metric in metric_dict.keys():
     plt.ylabel("Density")
     plt.xlabel(metric)
     plt.legend()
-    plt.savefig(directory+metric+"_histogram_quick.png")
+    plt.savefig(directory+metric+"_histogram_updated.png")
