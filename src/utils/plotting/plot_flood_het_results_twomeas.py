@@ -59,7 +59,15 @@ with open("./studies/flood_grid_search_het_twomeas.csv",newline='') as csv_file:
         all_data = {'Planner': labels,'Number of co-observations per event': all_observations}
         all_df = pd.DataFrame(data=all_data)
 
-        sns.kdeplot(all_df,x='Number of co-observations per event',hue='Planner',palette=['red','blue','green'],clip=[0,40],bw_adjust=2,fill=True,alpha=.5, linewidth=0,)
+        p = sns.kdeplot(all_df,x='Number of co-observations per event',hue='Planner',palette=['red','blue','green'],clip=[0,40],bw_adjust=2,linestyle="--")
+
+        lss = [':', '--', '-.']
+
+        handles = p.legend_.legendHandles[::-1]
+
+        for line, ls, handle in zip(p.lines, lss, handles):
+            line.set_linestyle(ls)
+            handle.set_ls(ls)
 
         xint = []
         locs, labels = plt.xticks()

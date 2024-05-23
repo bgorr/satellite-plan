@@ -101,22 +101,24 @@ for event_duration in event_durations:
     values = []
     for result in results:
         if result["event_duration"] == event_duration:
-            sum += (result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"]
-            values.append((result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"])
+            sum += 100*(result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"]
+            values.append(100*(result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"])
             count += 1
     averages.append(sum/count)
     stds.append(np.std(values))
 
-event_durations = ["15 min","1 hour","3 hours","6 hours"]
-plt.title("Difference in event obs count,\n averaged over the 49 LHS cases")
+event_durations = ["0.25","1.0","3.0","6.0"]
+#plt.title("Difference in event obs count,\n averaged over the 49 LHS cases")
 plt.bar(event_durations,averages)
 plt.errorbar(event_durations,averages,yerr=stds, fmt="o", color="black",capsize=2.0)
-plt.xlabel("Event durations")
-plt.ylabel("Reactive minus non-reactive event obs count")
-plt.savefig("./plots/event_duration_averages_perc.png",dpi=300)
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+plt.xlabel("Event duration (hrs)",fontsize=12)
+plt.ylabel("Percent difference, reactive minus non-reactive",fontsize=12)
+plt.savefig("./plots/event_duration_averages_perc.png",dpi=300,bbox_inches="tight")
 plt.show()
 
-constellations = [0,1,3,2]
+constellations = [1,0,2,3]
 averages = []
 stds = []
 for constellation in constellations:
@@ -125,19 +127,21 @@ for constellation in constellations:
     values = []
     for result in results:
         if result["constellation"] == constellation:
-            sum += (result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"]
-            values.append((result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"])
+            sum += 100*(result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"]
+            values.append(100*(result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"])
             count += 1
     averages.append(sum/count)
     stds.append(np.std(values))
 
-constellations = ["(2,2)","(1,4)","(8,3)","(3,8)"]
-plt.title("Difference in event obs count,\n averaged over the 49 LHS cases")
+constellations = ["(1,4)","(2,2)","(3,8)","(8,3)"]
+#plt.title("Difference in event obs count,\n averaged over the 49 LHS cases")
 plt.bar(constellations,averages)
 plt.errorbar(constellations,averages,yerr=stds, fmt="o", color="black",capsize=2.0)
-plt.xlabel("Constellations ($n_p$,$n_s$)")
-plt.ylabel("Reactive minus non-reactive event obs count")
-plt.savefig("./plots/constellation_averages_perc.png",dpi=300)
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+plt.xlabel("Constellations ($n_p$,$n_s$)",fontsize=12)
+plt.ylabel("Percent difference, reactive minus non-reactive",fontsize=12)
+plt.savefig("./plots/constellation_averages_perc.png",dpi=300,bbox_inches="tight")
 plt.show()
 
 fors = [30,60]
@@ -149,19 +153,21 @@ for field_of_regard in fors:
     values = []
     for result in results:
         if result["for"] == field_of_regard:
-            sum += (result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"]
-            values.append((result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"])
+            sum += 100*(result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"]
+            values.append(100*(result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"])
             count += 1
     averages.append(sum/count)
     stds.append(np.std(values))
 
 fors = ["30","60"]
-plt.title("Difference in event obs count,\n averaged over the 49 LHS cases")
+#plt.title("Difference in event obs count,\n averaged over the 49 LHS cases")
 plt.bar(fors,averages)
 plt.errorbar(fors,averages,yerr=stds, fmt="o", color="black",capsize=2.0)
-plt.xlabel("Constellations ($n_p$,$n_s$)")
-plt.ylabel("Reactive minus non-reactive event obs count")
-plt.savefig("./plots/for_averages_perc.png",dpi=300)
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+plt.xlabel("FOR (deg)",fontsize=12)
+plt.ylabel("Percent difference, reactive minus non-reactive",fontsize=12)
+plt.savefig("./plots/for_averages_perc.png",dpi=300,bbox_inches="tight")
 plt.show()
 
 fovs = [1,5,10]
@@ -173,19 +179,21 @@ for fov in fovs:
     values = []
     for result in results:
         if result["fov"] == fov:
-            sum += (result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"]
-            values.append((result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"])
+            sum += 100*(result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"]
+            values.append(100*(result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"])
             count += 1
     averages.append(sum/count)
     stds.append(np.std(values))
 
 fovs = ["1","5","10"]
-plt.title("Difference in event obs count,\n averaged over the 49 LHS cases")
+#plt.title("Difference in event obs count,\n averaged over the 49 LHS cases")
 plt.bar(fovs,averages)
 plt.errorbar(fovs,averages,yerr=stds, fmt="o", color="black",capsize=2.0)
-plt.xlabel("Constellations ($n_p$,$n_s$)")
-plt.ylabel("Reactive minus non-reactive event obs count")
-plt.savefig("./plots/fov_averages_perc.png",dpi=300)
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+plt.xlabel("FOV (deg)",fontsize=12)
+plt.ylabel("Percent difference, reactive minus non-reactive",fontsize=12)
+plt.savefig("./plots/fov_averages_perc.png",dpi=300,bbox_inches="tight")
 plt.show()
 
 event_counts = [1000,10000]
@@ -197,19 +205,21 @@ for event_count in event_counts:
     values = []
     for result in results:
         if result["event_count"] == event_count:
-            sum += (result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"]
-            values.append((result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"])
+            sum += 100*(result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"]
+            values.append(100*(result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"])
             count += 1
     averages.append(sum/count)
     stds.append(np.std(values))
 
 event_counts = ["1000","10000"]
-plt.title("Difference in event obs count,\n averaged over the 49 LHS cases")
+#plt.title("Difference in event obs count,\n averaged over the 49 LHS cases")
 plt.bar(event_counts,averages)
 plt.errorbar(event_counts,averages,yerr=stds, fmt="o", color="black",capsize=2.0)
-plt.xlabel("Constellations ($n_p$,$n_s$)")
-plt.ylabel("Reactive minus non-reactive event obs count")
-plt.savefig("./plots/event_count_averages_perc.png",dpi=300)
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+plt.xlabel("Number of events",fontsize=12)
+plt.ylabel("Percent difference, reactive minus non-reactive",fontsize=12)
+plt.savefig("./plots/event_count_averages_perc.png",dpi=300,bbox_inches="tight")
 plt.show()
 
 event_clusterings = [0,1]
@@ -221,19 +231,21 @@ for event_clustering in event_clusterings:
     values = []
     for result in results:
         if result["event_clustering"] == event_clustering:
-            sum += (result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"]
-            values.append((result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"])
+            sum += 100*(result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"]
+            values.append(100*(result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"])
             count += 1
     averages.append(sum/count)
     stds.append(np.std(values))
 
 event_clusterings = ["uniform","clustered"]
-plt.title("Difference in event obs count,\n averaged over the 49 LHS cases")
+#plt.title("Difference in event obs count,\n averaged over the 49 LHS cases")
 plt.bar(event_clusterings,averages)
 plt.errorbar(event_clusterings,averages,yerr=stds, fmt="o", color="black",capsize=2.0)
-plt.xlabel("Constellations ($n_p$,$n_s$)")
-plt.ylabel("Reactive minus non-reactive event obs count")
-plt.savefig("./plots/event_clustering_averages_perc.png",dpi=300)
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+plt.xlabel("Event distribution",fontsize=12)
+plt.ylabel("Percent difference, reactive minus non-reactive",fontsize=12)
+plt.savefig("./plots/event_clustering_averages_perc.png",dpi=300,bbox_inches="tight")
 plt.show()
 
 agilities = [0.1,1,10]
@@ -245,19 +257,22 @@ for agility in agilities:
     values = []
     for result in results:
         if result["agility"] == agility:
-            sum += (result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"]
-            values.append((result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"])
+            sum += 100*(result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"]
+            values.append(100*(result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"])
             count += 1
     averages.append(sum/count)
     stds.append(np.std(values))
 
-agilities = ["0.1","1","10"]
-plt.title("Difference in event obs count,\n averaged over the 49 LHS cases")
+agilities = ["0.1","1.0","10.0"]
+#plt.title("Difference in event obs count,\n averaged over the 49 LHS cases")
 plt.bar(agilities,averages)
 plt.errorbar(agilities,averages,yerr=stds, fmt="o", color="black",capsize=2.0)
-plt.xlabel("Constellations ($n_p$,$n_s$)")
-plt.ylabel("Reactive minus non-reactive event obs count")
-plt.savefig("./plots/agility_averages_perc.png",dpi=300)
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+plt.xlabel("Max slew rate (deg/s)",fontsize=12)
+plt.ylabel("Percent difference, reactive minus non-reactive",fontsize=12)
+
+plt.savefig("./plots/agility_averages_perc.png",dpi=300,bbox_inches="tight")
 plt.show()
 
 sum = 0
@@ -265,14 +280,14 @@ count = 0
 values = []
 for result in results:
     sum += (result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"]
-    values.append((result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"])
+    values.append(100*(result["replan_event_obs_count"]-result["init_event_obs_count"])/result["init_event_obs_count"])
     count += 1
 
 average = sum/count
 print(average)
 print(np.average(values))
 print(np.std(values))
-plt.hist(values*100,bins=20)
+plt.hist(values,bins=20)
 plt.xlabel("Percent improvement in event obs count, reactive vs. non-reactive")
 plt.ylabel("Count")
 plt.savefig("./plots/overall_hist_perc.png",dpi=300,bbox_inches="tight")

@@ -82,7 +82,7 @@ def run_experiment(settings):
 
 
 if __name__ == "__main__":
-    with open('./studies/horizons_grid_search.csv','w') as csvfile:
+    with open('./studies/medium_simulation.csv','w') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
         first_row = ["name","for","fov","num_planes","num_sats_per_plane","agility",
                     "event_duration","num_events","event_clustering","num_meas_types",
@@ -93,97 +93,71 @@ if __name__ == "__main__":
                     "time"]
         csvwriter.writerow(first_row)
         csvfile.close()
-    name = "grid_search_horizons_default"
-    default_settings = {
-        "name": name,
-        "instrument": {
-            "ffor": 60,
-            "ffov": 5
-        },
-        "agility": {
-            "slew_constraint": "rate",
-            "max_slew_rate": 1,
-            "inertia": 2.66,
-            "max_torque": 4e-3
-        },
-        "orbit": {
-            "altitude": 705, # km
-            "inclination": 98.4, # deg
-            "eccentricity": 0.0001,
-            "argper": 0, # deg
-        },
-        "constellation": {
-            "num_sats_per_plane": 2,
-            "num_planes": 2,
-            "phasing_parameter": 1
-        },
-        "events": {
-            "event_duration": 6*3600,
-            "num_events": int(1000),
-            "event_clustering": "clustered"
-        },
-        "time": {
-            "step_size": 10, # seconds
-            "duration": 1, # days
-            "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
-        },
-        "rewards": {
-            "reward": 10,
-            "reward_increment": 2,
-            "reobserve_conops": "linear_increase",
-            "event_duration_decay": "linear",
-            "no_event_reward": 1,
-            "oracle_reobs": "true",
-            "initial_reward": 1
-        },
-        "planner": "dp",
-        "num_meas_types": 3,
-        "sharing_horizon": 500,
-        "planning_horizon": 500,
-        "directory": "./missions/"+name+"/",
-        "grid_type": "custom", # can be "uniform" or "custom"
-        "point_grid": "./missions/"+name+"/coverage_grids/event_locations.csv",
-        "preplanned_observations": None,
-        "event_csvs": ["./missions/"+name+"/events/events.csv"],
-        "process_obs_only": False,
-        "conops": "onboard_processing"
-    }
-    sharing_horizon_options = [100,500,1000]
-    planning_horizon_options = [500,1000,5000]
-    parameters = {
-        "sharing_horizon": sharing_horizon_options,
-        "planning_horizon": planning_horizon_options
-    }
 
+    constellation_options = [(2,2),(1,4),(3,8),(8,3)]
     i = 0
-    settings_list = []
-    settings_list.append(default_settings)
-    for parameter in parameters:
-        for level in parameters[parameter]:
-            experiment_name = 'grid_search_horizons_'+str(i)
-            modified_settings = default_settings.copy()
-            modified_settings[parameter] = level
-            if modified_settings == default_settings:
-                continue
-            modified_settings["name"] = experiment_name
-            settings_list.append(modified_settings)
-            i = i+1
-    for settings in settings_list:
+    for constellation_option in constellation_options:
+        name = "medium_simulation_"+str(i)
+        settings = {
+            "name": name,
+            "instrument": {
+                "ffor": 60,
+                "ffov": 5
+            },
+            "agility": {
+                "slew_constraint": "rate",
+                "max_slew_rate": 1,
+                "inertia": 2.66,
+                "max_torque": 4e-3
+            },
+            "orbit": {
+                "altitude": 705, # km
+                "inclination": 98.4, # deg
+                "eccentricity": 0.0001,
+                "argper": 0, # deg
+            },
+            "constellation": {
+                "num_sats_per_plane": constellation_option[1],
+                "num_planes": constellation_option[0],
+                "phasing_parameter": 1
+            },
+            "events": {
+                "event_duration": 12*3600,
+                "num_events": int(1000),
+                "event_clustering": "clustered"
+            },
+            "time": {
+                "step_size": 10, # seconds
+                "duration": 1, # days
+                "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
+            },
+            "rewards": {
+                "reward": 10,
+                "reward_increment": 1,
+                "reobserve_conops": "linear_increase",
+                "event_duration_decay": "step",
+                "no_event_reward": 5,
+                "oracle_reobs": "true",
+                "initial_reward": 5
+            },
+            "planner": "dp",
+            "num_meas_types": 3,
+            "sharing_horizon": 500,
+            "planning_horizon": 500,
+            "directory": "./missions/"+name+"/",
+            "grid_type": "custom", # can be "uniform" or "custom"
+            "point_grid": "./missions/"+name+"/coverage_grids/event_locations.csv",
+            "preplanned_observations": None,
+            "event_csvs": ["./missions/"+name+"/events/events.csv"],
+            "process_obs_only": False,
+            "conops": "onboard_processing"
+        }
         start = time.time()
         print(settings["name"])
-        mission_dst = "./missions/"+settings["name"]+"/"
-        if settings["name"] != "grid_search_horizons_default" and not os.path.exists(mission_dst):
-            mission_src = "./missions/grid_search_horizons_default/"
-            try:
-                shutil.copytree(mission_src, mission_dst)
-            except OSError as exc: # python >2.5
-                if exc.errno in (errno.ENOTDIR, errno.EINVAL):
-                    shutil.copy(mission_src, mission_dst)
-                else: raise
         overall_results = run_experiment(settings)
         end = time.time()
         elapsed_time = end-start
-        with open('./studies/horizons_grid_search.csv','a') as csvfile:
+        with open('./studies/medium_simulation.csv','a') as csvfile:
             csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
             row = [settings["name"],settings["instrument"]["ffor"],settings["instrument"]["ffov"],settings["constellation"]["num_planes"],settings["constellation"]["num_sats_per_plane"],settings["agility"]["max_slew_rate"],
                 settings["events"]["event_duration"],settings["events"]["num_events"],settings["events"]["event_clustering"],settings["num_meas_types"],

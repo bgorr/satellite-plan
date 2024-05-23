@@ -75,25 +75,25 @@ def run_experiment(settings):
         os.mkdir(settings["directory"]+'orbit_data/')
         create_mission(settings)
         execute_mission(settings)
-    plan_mission_horizon(settings) # must come before process as process expects a plan.csv in the orbit_data directory
-    plan_mission_replan_interval(settings)
+    #plan_mission_horizon(settings) # must come before process as process expects a plan.csv in the orbit_data directory
+    #plan_mission_replan_interval(settings)
     overall_results = compute_experiment_statistics(settings)
     return overall_results
 
 
 if __name__ == "__main__":
-    with open('./studies/horizons_grid_search.csv','w') as csvfile:
-        csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
-        first_row = ["name","for","fov","num_planes","num_sats_per_plane","agility",
-                    "event_duration","num_events","event_clustering","num_meas_types",
-                    "planner","sharing_horizon", "planning_horizon", "reward", "reward_increment", "reobserve_conops","event_duration_decay","no_event_reward",
-                    "events","init_obs_count","replan_obs_count","oracle_obs_count",
-                    "init_event_obs_count","init_obs_per_event_list","init_events_seen_1+","init_events_seen_1","init_events_seen_2","init_events_seen_3","init_events_seen_4","init_event_reward","init_planner_reward","init_perc_cov","init_max_rev","init_avg_rev","init_all_perc_cov","init_all_max_rev","init_all_avg_rev",
-                    "replan_event_obs_count","replan_obs_per_event_list","replan_events_seen_1+","replan_events_seen_1","replan_events_seen_2","replan_events_seen_3","replan_events_seen_4+","replan_event_reward","replan_planner_reward","replan_perc_cov","replan_max_rev","replan_avg_rev","replan_all_perc_cov","replan_all_max_rev","replan_all_avg_rev",
-                    "time"]
-        csvwriter.writerow(first_row)
-        csvfile.close()
-    name = "grid_search_horizons_default"
+    # with open('./studies/local_sensitivity.csv','w') as csvfile:
+    #     csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
+    #     first_row = ["name","for","fov","num_planes","num_sats_per_plane","agility",
+    #                 "event_duration","num_events","event_clustering","num_meas_types",
+    #                 "planner","sharing_horizon", "planning_horizon", "reward", "reward_increment", "reobserve_conops","event_duration_decay","no_event_reward",
+    #                 "events","init_obs_count","replan_obs_count","oracle_obs_count",
+    #                 "init_event_obs_count","init_obs_per_event_list","init_events_seen_1+","init_events_seen_1","init_events_seen_2","init_events_seen_3","init_events_seen_4","init_event_reward","init_planner_reward","init_perc_cov","init_max_rev","init_avg_rev","init_all_perc_cov","init_all_max_rev","init_all_avg_rev",
+    #                 "replan_event_obs_count","replan_obs_per_event_list","replan_events_seen_1+","replan_events_seen_1","replan_events_seen_2","replan_events_seen_3","replan_events_seen_4+","replan_event_reward","replan_planner_reward","replan_perc_cov","replan_max_rev","replan_avg_rev","replan_all_perc_cov","replan_all_max_rev","replan_all_avg_rev",
+    #                 "time"]
+    #     csvwriter.writerow(first_row)
+    #     csvfile.close()
+    name = "local_sensitivity_default"
     default_settings = {
         "name": name,
         "instrument": {
@@ -113,12 +113,12 @@ if __name__ == "__main__":
             "argper": 0, # deg
         },
         "constellation": {
-            "num_sats_per_plane": 2,
-            "num_planes": 2,
+            "num_sats_per_plane": 8,
+            "num_planes": 3,
             "phasing_parameter": 1
         },
         "events": {
-            "event_duration": 6*3600,
+            "event_duration": 3*3600,
             "num_events": int(1000),
             "event_clustering": "clustered"
         },
@@ -148,42 +148,60 @@ if __name__ == "__main__":
         "process_obs_only": False,
         "conops": "onboard_processing"
     }
-    sharing_horizon_options = [100,500,1000]
-    planning_horizon_options = [500,1000,5000]
+    event_duration_options = [900,3600,3*3600,6*3600]
+    event_clustering_options = ["uniform","clustered"]
+    event_count_options = [1000,10000]
+    constellation_options = [(1,4),(2,2),(3,8),(8,3)]
+    agility_options = [0.1,1,10]
+    fov_options = [1,5,10]
+    for_options = [30,60]
     parameters = {
-        "sharing_horizon": sharing_horizon_options,
-        "planning_horizon": planning_horizon_options
+        "num_events": event_count_options,
+        "event_clustering": event_clustering_options,
+        "event_duration": event_duration_options,
+        "constellation_options": constellation_options,
+        "max_slew_rate": agility_options,
+        "ffor": for_options,
+        "ffov": fov_options
     }
 
     i = 0
     settings_list = []
     settings_list.append(default_settings)
-    for parameter in parameters:
-        for level in parameters[parameter]:
-            experiment_name = 'grid_search_horizons_'+str(i)
-            modified_settings = default_settings.copy()
-            modified_settings[parameter] = level
-            if modified_settings == default_settings:
-                continue
-            modified_settings["name"] = experiment_name
-            settings_list.append(modified_settings)
-            i = i+1
+    # for parameter in parameters:
+    #     for level in parameters[parameter]:
+    #         experiment_name = 'local_sensitivity_'+str(i)
+    #         modified_settings = default_settings.copy()
+    #         if "event" in parameter:
+    #             modified_settings["events"] = default_settings["events"].copy()
+    #             modified_settings["events"][parameter] = level
+    #         elif "slew" in parameter:
+    #             modified_settings["agility"] = default_settings["agility"].copy()
+    #             modified_settings["agility"][parameter] = level
+    #         elif "ff" in parameter:
+    #             modified_settings["instrument"] = default_settings["instrument"].copy()
+    #             modified_settings["instrument"][parameter] = level
+    #         else:
+    #             modified_settings["constellation"] = default_settings["constellation"].copy()
+    #             modified_settings["constellation"]["num_sats_per_plane"] = level[1]
+    #             modified_settings["constellation"]["num_planes"] = level[0]
+    #         if modified_settings == default_settings and modified_settings["events"] == default_settings["events"] and modified_settings["instrument"] == default_settings["instrument"] and modified_settings["agility"] == default_settings["agility"] and modified_settings["constellation"] == default_settings["constellation"]:
+    #             continue
+    #         modified_settings["name"] = experiment_name
+    #         modified_settings["event_csvs"] = ["./missions/"+experiment_name+"/events/events.csv"]
+    #         modified_settings["directory"] = "./missions/"+experiment_name+"/"
+    #         modified_settings["point_grid"] = "./missions/"+experiment_name+"/coverage_grids/event_locations.csv"
+    #         settings_list.append(modified_settings)
+    #         i = i+1
+    print(len(settings_list))
+    print(settings_list)
     for settings in settings_list:
         start = time.time()
         print(settings["name"])
-        mission_dst = "./missions/"+settings["name"]+"/"
-        if settings["name"] != "grid_search_horizons_default" and not os.path.exists(mission_dst):
-            mission_src = "./missions/grid_search_horizons_default/"
-            try:
-                shutil.copytree(mission_src, mission_dst)
-            except OSError as exc: # python >2.5
-                if exc.errno in (errno.ENOTDIR, errno.EINVAL):
-                    shutil.copy(mission_src, mission_dst)
-                else: raise
         overall_results = run_experiment(settings)
         end = time.time()
         elapsed_time = end-start
-        with open('./studies/horizons_grid_search.csv','a') as csvfile:
+        with open('./studies/local_sensitivity.csv','a') as csvfile:
             csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
             row = [settings["name"],settings["instrument"]["ffor"],settings["instrument"]["ffov"],settings["constellation"]["num_planes"],settings["constellation"]["num_sats_per_plane"],settings["agility"]["max_slew_rate"],
                 settings["events"]["event_duration"],settings["events"]["num_events"],settings["events"]["event_clustering"],settings["num_meas_types"],
