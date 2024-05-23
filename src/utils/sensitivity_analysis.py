@@ -198,99 +198,104 @@ metric_dict = { # new update
     "Difference in obs event count, replan-init": 71
 }
 
-# metric_dict = { # new update, normalized
-#     "Difference in reobs reward, oracle-replan": 72,
-#     "Difference in reobs reward, replan-init": 73,
-#     "Difference in event count, oracle-replan": 74,
-#     "Difference in event count, replan-init": 75,
-#     "Difference in obs event count, oracle-replan": 76,
-#     "Difference in obs event count, replan-init": 77
-# }
+metric_dict = { # new update, normalized
+    #"Difference in reobs reward, oracle-replan": 72,
+    "Difference in reobs reward, replan-init": 67,
+    #"Difference in event count, oracle-replan": 65,
+    "Difference in event count, replan-init": 69,
+    #"Difference in obs event count, oracle-replan": 67,
+    "Difference in obs event count, replan-init": 71,
+    "Normalized difference in reobs reward, replan-init": 73,
+    #"Difference in event count, oracle-replan": 74,
+    "Normalized difference in event count, replan-init": 75,
+    #"Difference in obs event count, oracle-replan": 76,
+    "Normalized difference in obs event count, replan-init": 77
+}
 
-# for metric in metric_dict.keys():
-#     rows = []
-#     ys = []
-#     with open("./updated_experiment.csv",newline='') as csv_file:
-#         spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
-#         i = 0
-#         for row in spamreader:
-#             if i < 1:
-#                 i=i+1
-#                 continue
-#             ys.append(float(row[metric_dict[metric]]))
-#             row = [float(i) for i in row[1:8]]
-#             rows.append(row)
-#     X = np.asarray(rows)
+for metric in metric_dict.keys():
+    rows = []
+    ys = []
+    with open("./results/updated_experiment.csv",newline='') as csv_file:
+        spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
+        i = 0
+        for row in spamreader:
+            if i < 1:
+                i=i+1
+                continue
+            ys.append(float(row[metric_dict[metric]]))
+            row = [float(i) for i in row[1:8]]
+            rows.append(row)
+    X = np.asarray(rows)
 
-#     # Run model (example)
-#     Y = np.transpose(np.asarray(ys))
+    # Run model (example)
+    Y = np.transpose(np.asarray(ys))
 
-#     S = {
-#         'names': ['FOR', 'FOV', 'Constellation', 'Agility', 'Event\nduration', 'Num\nevents', 'Event\nclustering'],
-#         "ME": np.zeros(shape=(7,1)),
-#         "S1": np.zeros(shape=(7,1)),
-#         "S1_conf": np.zeros(shape=(7,1)),
-#         "S1_std": np.zeros(shape=(7,1))
-#     }
-#     num_resamples = 100
-#     y_resamples = Y.size
-#     exp = 2.0 / (7.0 + np.tanh((1500.0 - y_resamples) / 500.0))
-#     M = int(np.round(min(int(np.ceil(y_resamples**exp)), 48)))
-#     m = np.linspace(0, y_resamples, M+1)
-#     conf_level = 0.95
-#     for i in range(len(feature_levels)):
-#         X_i = X[:, i]
+    S = {
+        'names': ['FOR', 'FOV', 'Constellation', 'Agility', 'Event\nduration', 'Num\nevents', 'Event\nclustering'],
+        "ME": np.zeros(shape=(7,1)),
+        "S1": np.zeros(shape=(7,1)),
+        "S1_conf": np.zeros(shape=(7,1)),
+        "S1_std": np.zeros(shape=(7,1))
+    }
+    num_resamples = 100
+    y_resamples = Y.size
+    exp = 2.0 / (7.0 + np.tanh((1500.0 - y_resamples) / 500.0))
+    M = int(np.round(min(int(np.ceil(y_resamples**exp)), 48)))
+    m = np.linspace(0, y_resamples, M+1)
+    conf_level = 0.95
+    for i in range(len(feature_levels)):
+        X_i = X[:, i]
 
-#         ind = np.random.randint(Y.size, size=y_resamples)
-#         S["ME"][i] = compute_main_effects(feature_levels[i], i, X, Y)
-#         S["S1"][i] = sobol_first(Y[ind], X_i[ind], m)
-#         S["S1"][i] = sobol_first_levels(Y, X_i, feature_levels[i])
-#         S["S1_conf"][i] = sobol_first_conf(
-#             Y, X_i, m, num_resamples, conf_level, y_resamples
-#         )
-#         S["S1_std"][i] = sobol_first_std(
-#             Y, X_i, m, num_resamples, conf_level, y_resamples
-#         )
-#     for i in range(len(feature_levels)):
-#         X_i = X[:, i]
-#         for j in range(len(feature_levels)):
-#             X_j = X[:,j]
-#             if i != j:
-#                 if sobol_second_levels(Y, X_i, X_j, feature_levels[i], feature_levels[j]) > 0.1:
-#                     print(metric)
-#                     print(names[i]+", "+names[j]+": "+str(sobol_second_levels(Y, X_i, X_j, feature_levels[i], feature_levels[j])))
+        ind = np.random.randint(Y.size, size=y_resamples)
+        S["ME"][i] = compute_main_effects(feature_levels[i], i, X, Y)
+        S["S1"][i] = sobol_first(Y[ind], X_i[ind], m)
+        S["S1"][i] = sobol_first_levels(Y, X_i, feature_levels[i])
+        S["S1_conf"][i] = sobol_first_conf(
+            Y, X_i, m, num_resamples, conf_level, y_resamples
+        )
+        S["S1_std"][i] = sobol_first_std(
+            Y, X_i, m, num_resamples, conf_level, y_resamples
+        )
+    for i in range(len(feature_levels)):
+        X_i = X[:, i]
+        for j in range(len(feature_levels)):
+            X_j = X[:,j]
+            if i != j:
+                if sobol_second_levels(Y, X_i, X_j, feature_levels[i], feature_levels[j]) > 0.1:
+                    print(metric)
+                    print(names[i]+", "+names[j]+": "+str(sobol_second_levels(Y, X_i, X_j, feature_levels[i], feature_levels[j])))
 
-#     ind = np.arange(len(S["names"]))
-#     width = 0.35
-#     fig = plt.figure()
-#     ax = fig.add_subplot(111)
-#     rects1 = ax.bar(ind, np.squeeze(S["ME"]), width, color='royalblue')
+    ind = np.arange(len(S["names"]))
+    width = 0.35
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    rects1 = ax.bar(ind, np.squeeze(S["ME"]), width, color='royalblue')
 
-#     # add some
-#     ax.set_ylabel('Main effect')
-#     #ax.set_title('Main effects on '+metric)
-#     ax.set_xticks(ind)
-#     ax.set_xticklabels( S["names"] )
+    # add some
+    ax.set_ylabel('Main effect')
+    #ax.set_title('Main effects on '+metric)
+    ax.set_xticks(ind)
+    ax.set_xticklabels( S["names"] )
 
-#     plt.savefig(directory+metric+"_me.png",dpi=300,bbox_inches="tight")
-#     plt.close()
-#     #plt.show()
+    plt.savefig(directory+metric+"_me.png",dpi=300,bbox_inches="tight")
+    plt.close()
+    #plt.show()
 
-#     ind = np.arange(len(S["names"]))
-#     width = 0.35
-#     fig = plt.figure()
-#     ax = fig.add_subplot(111)
-#     rects2 = ax.bar(ind, np.squeeze(S["S1"]), width, color='seagreen', yerr=np.squeeze(S["S1_std"]))
-#     ax.set_ylim(0,0.5)
-#     # add some
-#     ax.set_ylabel('First-order sensitivity')
-#     ax.set_title('Sensitivities for '+metric)
-#     ax.set_xticks(ind)
-#     ax.set_xticklabels( S["names"] )
+    ind = np.arange(len(S["names"]))
+    width = 0.35
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    rects2 = ax.bar(ind, np.squeeze(S["S1"]), width, color='seagreen', yerr=np.squeeze(S["S1_std"]))
+    ax.set_ylim(0,0.5)
+    # add some
+    ax.set_ylabel('First-order sensitivity')
+    ax.set_title('Sensitivities for '+metric)
+    ax.set_xticks(ind)
+    ax.set_xticklabels( S["names"] )
 
-#     plt.savefig(directory+metric+"_sobol.png",dpi=300,bbox_inches="tight")
-#     plt.close()
-#     #plt.show()
+    #plt.savefig(directory+metric+"_sobol.png",dpi=300,bbox_inches="tight")
+    plt.close()
+    #plt.show()
 
 def heatmaps(var1_ind,var2_ind,var1_name,var2_name,metric_ind,metric_name,xscale_type,yscale_type):
 
@@ -359,7 +364,7 @@ def heatmaps(var1_ind,var2_ind,var1_name,var2_name,metric_ind,metric_name,xscale
     ax.set_xlabel(detailed_names[names.index(var1_name)])
     ax.set_ylabel(detailed_names[names.index(var2_name)])
     fig.colorbar(xd, ax=ax, label=metric_name)
-    plt.savefig(directory+var1_name+"_"+var2_name+"_"+metric_name+"_scatter.png")
+    #plt.savefig(directory+var1_name+"_"+var2_name+"_"+metric_name+"_scatter.png")
     #plt.show()
     plt.close()
 
@@ -378,19 +383,19 @@ def heatmaps(var1_ind,var2_ind,var1_name,var2_name,metric_ind,metric_name,xscale
     plt.savefig(directory+var1_name+"_"+var2_name+"_"+metric_name+"_heatmap.png")
     plt.close()
     #plt.show()
-# for metric in metric_dict.keys():
-#     for i in range(len(feature_levels)):
-#         for j in range(len(feature_levels)):
-#             if i > j:
-#                 if names[i] in ['agility', 'event_frequency', 'event_density']:
-#                     xscale_type = "log"
-#                 else:
-#                     xscale_type = "linear"
-#                 if names[j] in ['agility', 'event_frequency', 'event_density']:
-#                     yscale_type = "log"
-#                 else:
-#                     yscale_type = "linear"
-#                 heatmaps(i,j,names[i],names[j],metric_dict[metric],metric,xscale_type,yscale_type)
+for metric in metric_dict.keys():
+    for i in range(len(feature_levels)):
+        for j in range(len(feature_levels)):
+            if i > j:
+                if names[i] in ['agility', 'event_frequency', 'event_density']:
+                    xscale_type = "log"
+                else:
+                    xscale_type = "linear"
+                if names[j] in ['agility', 'event_frequency', 'event_density']:
+                    yscale_type = "log"
+                else:
+                    yscale_type = "linear"
+                heatmaps(i,j,names[i],names[j],metric_dict[metric],metric,xscale_type,yscale_type)
 
 # init_metric_ind = metric_dict['Init co-obs count']
 # replan_metric_ind = metric_dict['Replan co-obs count']
@@ -488,4 +493,4 @@ for metric in metric_dict.keys():
     plt.ylabel("Density")
     plt.xlabel(metric)
     plt.legend()
-    plt.savefig(directory+metric+"_histogram_updated.png")
+    #plt.savefig(directory+metric+"_histogram_updated.png")
