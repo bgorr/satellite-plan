@@ -619,16 +619,16 @@ def process_mission(settings):
     print("Processed mission!")
 
 if __name__ == "__main__":
-    name = "flood_grid_search_het_1"
+    name = "event_duration_het_study_0"
     settings = {
         "name": name,
         "instrument": {
-            "ffor": 60,
-            "ffov": 5
+            "ffor": 30,
+            "ffov": 0
         },
         "agility": {
             "slew_constraint": "rate",
-            "max_slew_rate": 1,
+            "max_slew_rate": 0.1,
             "inertia": 2.66,
             "max_torque": 4e-3
         },
@@ -639,13 +639,13 @@ if __name__ == "__main__":
             "argper": 0, # deg
         },
         "constellation": {
-            "num_sats_per_plane": 8,
-            "num_planes": 3,
+            "num_sats_per_plane": 6,
+            "num_planes": 6,
             "phasing_parameter": 1
         },
         "events": {
-            "event_duration": 5000,
-            "num_events": 100,
+            "event_duration": 6*3600,
+            "num_events": int(7784),
             "event_clustering": "clustered"
         },
         "time": {
@@ -656,16 +656,16 @@ if __name__ == "__main__":
         "rewards": {
             "reward": 10,
             "reward_increment": 1,
-            "reobserve_conops": "no_change",
+            "reobserve_conops": "linear_increase",
             "event_duration_decay": "step",
             "no_event_reward": 5,
             "oracle_reobs": "true",
             "initial_reward": 5
         },
         "planner": "dp",
-        "num_meas_types": 2,
-        "sharing_horizon": 100,
-        "planning_horizon": 5000,
+        "num_meas_types": 3,
+        "sharing_horizon": 500,
+        "planning_horizon": 500,
         "directory": "./missions/"+name+"/",
         "grid_type": "custom", # can be "uniform" or "custom"
         "point_grid": "./missions/"+name+"/coverage_grids/event_locations.csv",

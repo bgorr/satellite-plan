@@ -53,17 +53,17 @@ def plot_step(step_num,settings):
     plt.figure(figsize=(12, 6))
     ax = plt.axes(projection=data_crs)
     ax.set_global()
-    ax.set_extent([-125, -65, 25, 50], crs=ccrs.PlateCarree())
+    #ax.set_extent([-125, -65, 25, 50], crs=ccrs.PlateCarree())
     #ax.set_xlim([-150,-30])
     #ax.set_ylim([20,70])
     x0c, x1c, y0c, y1c = ax.properties()['extent']
     ax.coastlines()
-    ax.add_feature(cfeature.STATES.with_scale('10m'), edgecolor='gray')
+    #ax.add_feature(cfeature.STATES.with_scale('10m'), edgecolor='gray')
     
-    fname = './grwl_files/GRWL_summaryStats.shp'
-    shape_feature = ShapelyFeature(Reader(fname).geometries(),
-                                    ccrs.PlateCarree(), edgecolor='lightskyblue', facecolor='None', linewidth=0.5)
-    ax.add_feature(shape_feature, edgecolor='lightskyblue', facecolor='None', linewidth=0.5)
+    # fname = './grwl_files/GRWL_summaryStats.shp'
+    # shape_feature = ShapelyFeature(Reader(fname).geometries(),
+    #                                 ccrs.PlateCarree(), edgecolor='lightskyblue', facecolor='None', linewidth=0.5)
+    # ax.add_feature(shape_feature, edgecolor='lightskyblue', facecolor='None', linewidth=0.5)
 
     # ax.yaxis.tick_right()
     # ax.set_xticks([-80,-70,-60,-50,-40], crs=ccrs.PlateCarree())
@@ -377,15 +377,16 @@ def plot_step(step_num,settings):
 
     
     # legend stuff
-    plt.scatter([], [], c='blue',marker='o', label='Lake location')
-    plt.scatter([], [], c='orange',marker='o', label='Point in view')
+    #plt.scatter([], [], c='blue',marker='o', label='Lake location')
+    #plt.scatter([], [], c='orange',marker='o', label='Point in view')
     plt.scatter([], [], c='green',marker='^', label='Imaging satellite')
     plt.scatter([], [], c='blue',marker='^', label='SAR satellite')
     plt.scatter([], [], c='red',marker='^', label='Thermal satellite')
-    plt.scatter([], [], c='magenta',marker='s', label='Co-observation')
+    #plt.scatter([], [], c='magenta',marker='s', label='Co-observation')
     # plt.scatter([], [], c='green',marker='*', label='Lake bloom event')
     # plt.scatter([], [], c='magenta',marker='*', label='Lake temperature event')
-    # plt.scatter([], [], c='cyan',marker='*', label='Lake level event')
+    plt.scatter([], [], c='blue',marker='o', label='Potential point')
+    plt.scatter([], [], c='cyan',marker='o', label='Event')
     # plt.scatter([], [], c='green',marker='s', label='Lake bloom co-obs')
     # plt.scatter([], [], c='magenta',marker='s', label='Lake temperature co-obs')
     # plt.scatter([], [], c='cyan',marker='s', label='Lake level co-obs')
@@ -447,7 +448,7 @@ def plot_mission_het(settings):
     frame = cv2.imread(os.path.join(image_folder, images[0]))
     height, width, layers = frame.shape
     fourcc = cv2.VideoWriter_fourcc(*'MP4V')
-    video = cv2.VideoWriter(video_name, fourcc, 5, (width,height))
+    video = cv2.VideoWriter(video_name, fourcc, 4, (width,height))
 
     for filename in filenames:
         video.write(cv2.imread(filename))
@@ -473,16 +474,16 @@ def plot_missing(settings):
     pool.map(partial(plot_step, settings=settings), missing_steps)
 
 if __name__ == "__main__":
-    name = "flood_grid_search_het_1"
+    name = "event_duration_het_study_0"
     settings = {
         "name": name,
         "instrument": {
-            "ffor": 60,
-            "ffov": 5
+            "ffor": 30,
+            "ffov": 0
         },
         "agility": {
             "slew_constraint": "rate",
-            "max_slew_rate": 1,
+            "max_slew_rate": 0.1,
             "inertia": 2.66,
             "max_torque": 4e-3
         },
@@ -493,13 +494,13 @@ if __name__ == "__main__":
             "argper": 0, # deg
         },
         "constellation": {
-            "num_sats_per_plane": 8,
-            "num_planes": 3,
+            "num_sats_per_plane": 6,
+            "num_planes": 6,
             "phasing_parameter": 1
         },
         "events": {
-            "event_duration": 5000,
-            "num_events": 100,
+            "event_duration": 6*3600,
+            "num_events": int(7784),
             "event_clustering": "clustered"
         },
         "time": {
@@ -510,7 +511,7 @@ if __name__ == "__main__":
         "rewards": {
             "reward": 10,
             "reward_increment": 1,
-            "reobserve_conops": "no_change",
+            "reobserve_conops": "linear_increase",
             "event_duration_decay": "step",
             "no_event_reward": 5,
             "oracle_reobs": "true",
@@ -521,12 +522,12 @@ if __name__ == "__main__":
             "plot_rain": False,
             "plot_duration": 1,
             "plot_interval": 10,
-            "plot_obs": True
+            "plot_obs": False
         },
         "planner": "dp",
-        "num_meas_types": 2,
-        "sharing_horizon": 100,
-        "planning_horizon": 5000,
+        "num_meas_types": 3,
+        "sharing_horizon": 500,
+        "planning_horizon": 500,
         "directory": "./missions/"+name+"/",
         "grid_type": "custom", # can be "uniform" or "custom"
         "point_grid": "./missions/"+name+"/coverage_grids/event_locations.csv",

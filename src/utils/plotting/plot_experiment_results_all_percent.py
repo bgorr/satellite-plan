@@ -8,9 +8,9 @@ import pandas as pd
 metric_ind = 37 # 37 for het
 rows = []
 metrics = []
-plot_dir = "./experiment_plots_grid/"
+plot_dir = "./experiment_plots_grid_test/"
 if not os.path.exists(plot_dir):
-    os.mkdir("./experiment_plots_grid/")
+    os.mkdir("./experiment_plots_grid_test/")
 # with open("./fire_parameter_study.csv",newline='') as csv_file:
 #     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
 
@@ -54,7 +54,7 @@ if not os.path.exists(plot_dir):
 #         plt.savefig(plot_dir+row[0]+"_perc.png",dpi=300)
 #         plt.close()
 results = []
-with open("./results/updated_experiment.csv",newline='') as csv_file:
+with open("./updated_experiment_1.csv",newline='') as csv_file:
     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
 
     i = 0
@@ -95,6 +95,7 @@ with open("./results/updated_experiment.csv",newline='') as csv_file:
 event_durations = [900,3600,10800,21600]
 averages = []
 stds = []
+print(results)
 for event_duration in event_durations:
     sum = 0
     count = 0

@@ -16,11 +16,11 @@ def get_nonzero_observations(input_str):
 
 
 rows = {}
-plot_dir = "./plots/constel_duration/"
+plot_dir = "./plots/fire_plots/"
 if not os.path.exists(plot_dir):
-    os.mkdir("./plots/constel_duration/")
+    os.mkdir("./plots/fire_plots/")
 
-with open("./studies/constel_duration_grid_search.csv",newline='') as csv_file:
+with open("./studies/fire_constellation_study_lininc_042424.csv",newline='') as csv_file:
     spamreader = csv.reader(csv_file, delimiter=',', quotechar='|')
 
     i = 0
@@ -39,7 +39,6 @@ for row_key in rows.keys():
     row = rows[row_key]
     initial_observations = get_nonzero_observations(row[23])
     replan_observations = get_nonzero_observations(row[38])
-
     initial_observations = initial_observations - 1
     replan_observations = replan_observations - 1
 
@@ -49,19 +48,16 @@ for row_key in rows.keys():
     labels.extend(['Non-reactive']*len(initial_observations))
     all_observations.extend(replan_observations)
     labels.extend(['Reactive']*len(replan_observations))
-    print(row_key)
     print(len(initial_observations))
-    print(np.mean(initial_observations))
     print(sum(initial_observations))
     print(len(replan_observations))
-    print(np.mean(replan_observations))
     print(sum(replan_observations))
     all_data = {'Planner': labels,'Number of re-observations': all_observations}
     all_df = pd.DataFrame(data=all_data)
     number_of_reobs = []
     initial_reobs = []
     replan_reobs = []
-    for i in range(25):
+    for i in range(int(np.max([np.max(replan_observations),np.max(initial_observations)]))):
         number_of_reobs.append(i)
         init_obs_count = 0
         for init_obs in initial_observations:
@@ -79,7 +75,6 @@ for row_key in rows.keys():
     plt.xlabel("Number of re-observations")
     plt.ylabel("Quantity")
     plt.legend()
-    #plt.xlim([0,24])
 
     #sns.kdeplot(all_df,x='Number of re-observations',hue='Planner',palette=['red','blue'],clip=[0,20],bw_adjust=2)
 
@@ -91,7 +86,6 @@ for row_key in rows.keys():
 
     #plt.gca().set_xlim(left=0)
     plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
-    plt.gca().yaxis.set_major_locator(MaxNLocator(integer=True))
-    plt.savefig(plot_dir+"/"+row_key+"_grid_search_linear_082024.png",dpi=300, bbox_inches="tight")
+    plt.savefig(plot_dir+"/"+row_key+"_lininc_linear_082024.png",dpi=300, bbox_inches="tight")
 
     plt.close()

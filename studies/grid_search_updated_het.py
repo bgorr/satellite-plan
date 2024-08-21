@@ -12,14 +12,16 @@ sys.path.append(".")
 
 from src.create_mission import create_mission
 from src.execute_mission import execute_mission
-from src.plan_mission_fov import plan_mission_horizon, plan_mission_replan_interval
-from src.utils.compute_experiment_statistics import compute_experiment_statistics
+from src.plan_mission_fov import plan_mission_horizon, plan_mission_replan_interval, plan_mission_replan_interval_het
+from src.utils.compute_experiment_statistics_het import compute_experiment_statistics_het
 
 def run_experiment(settings):
     simulation_step_size = settings["time"]["step_size"] # seconds
     simulation_duration = settings["time"]["duration"] # days
     mission_name = settings["name"]
     event_duration = settings["events"]["event_duration"]
+    var = 4
+    num_points_per_cell = 5
     if not os.path.exists("./missions/"+mission_name+"/coverage_grids/event_locations.csv"):
         possible_event_locations = []
         if settings["events"]["event_clustering"] == "uniform":
@@ -30,17 +32,16 @@ def run_experiment(settings):
                     location = [clat,clon]
                     possible_event_locations.append(location)
         elif settings["events"]["event_clustering"] == "clustered":
-            center_lats = np.random.uniform(-90,90,100)
-            center_lons = np.random.uniform(-180,180,100)
-            for i in range(len(center_lons)):
-                var = 1
-                mean = [center_lats[i], center_lons[i]]
-                cov = [[var, 0], [0, var]]
-                num_points_per_cell = int(6.48e6/100)
-                xs, ys = np.random.multivariate_normal(mean, cov, num_points_per_cell).T
-                for i in range(len(xs)):
-                    location = [xs[i],ys[i]]
-                    possible_event_locations.append(location)
+            center_lats = np.arange(-85,95,10)
+            center_lons = np.arange(-175,185,10)
+            for clat in center_lats:
+                for clon in center_lons:
+                    mean = [clat, clon]
+                    cov = [[var, 0], [0, var]]
+                    xs, ys = np.random.multivariate_normal(mean, cov, num_points_per_cell).T
+                    for i in range(len(xs)):
+                        location = [xs[i],ys[i]]
+                        possible_event_locations.append(location)
     if not os.path.exists(settings["directory"]):
         os.mkdir(settings["directory"])
     if not os.path.exists("./missions/"+mission_name+"/events/"):
@@ -77,12 +78,13 @@ def run_experiment(settings):
         execute_mission(settings)
     plan_mission_horizon(settings) # must come before process as process expects a plan.csv in the orbit_data directory
     plan_mission_replan_interval(settings)
-    overall_results = compute_experiment_statistics(settings)
+    plan_mission_replan_interval_het(settings)
+    overall_results = compute_experiment_statistics_het(settings)
     return overall_results
 
 
 if __name__ == "__main__":
-    with open('./studies/medium_simulation.csv','w') as csvfile:
+    with open('./studies/event_duration_het_study_070124.csv','w') as csvfile:
         csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
         first_row = ["name","for","fov","num_planes","num_sats_per_plane","agility",
                     "event_duration","num_events","event_clustering","num_meas_types",
@@ -94,19 +96,19 @@ if __name__ == "__main__":
         csvwriter.writerow(first_row)
         csvfile.close()
 
-    constellation_options = [(2,2),(1,4),(3,8),(8,3)]
+    event_duration_options = [2*3600,3*3600,6*3600]
     i = 0
-    for constellation_option in constellation_options:
-        name = "medium_simulation_"+str(i)
+    for event_duration_option in event_duration_options:
+        name = "event_duration_het_study_"+str(i)
         settings = {
             "name": name,
             "instrument": {
-                "ffor": 60,
-                "ffov": 5
+                "ffor": 30,
+                "ffov": 0
             },
             "agility": {
                 "slew_constraint": "rate",
-                "max_slew_rate": 1,
+                "max_slew_rate": 0.1,
                 "inertia": 2.66,
                 "max_torque": 4e-3
             },
@@ -117,20 +119,20 @@ if __name__ == "__main__":
                 "argper": 0, # deg
             },
             "constellation": {
-                "num_sats_per_plane": constellation_option[1],
-                "num_planes": constellation_option[0],
+                "num_sats_per_plane": 6,
+                "num_planes": 6,
                 "phasing_parameter": 1
             },
             "events": {
-                "event_duration": 12*3600,
-                "num_events": int(1000),
+                "event_duration": event_duration_option,
+                "num_events": int(7784),
                 "event_clustering": "clustered"
             },
             "time": {
                 "step_size": 10, # seconds
                 "duration": 1, # days
                 "initial_datetime": datetime.datetime(2020,1,1,0,0,0)
-            }, 
+            },
             "rewards": {
                 "reward": 10,
                 "reward_increment": 1,
@@ -157,7 +159,7 @@ if __name__ == "__main__":
         overall_results = run_experiment(settings)
         end = time.time()
         elapsed_time = end-start
-        with open('./studies/medium_simulation.csv','a') as csvfile:
+        with open('./studies/event_duration_het_study_070124.csv','a') as csvfile:
             csvwriter = csv.writer(csvfile,delimiter=',',quotechar='|')
             row = [settings["name"],settings["instrument"]["ffor"],settings["instrument"]["ffov"],settings["constellation"]["num_planes"],settings["constellation"]["num_sats_per_plane"],settings["agility"]["max_slew_rate"],
                 settings["events"]["event_duration"],settings["events"]["num_events"],settings["events"]["event_clustering"],settings["num_meas_types"],
